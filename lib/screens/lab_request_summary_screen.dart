@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:lab_to_lab_admin/screens/lab_results_patients_screen.dart';
 
@@ -46,18 +45,9 @@ Future<Map<String, dynamic>> _getPatientInfo() async {
     }).toList();
   }
 
-  Future<String?> _getContainerUrl(String containerId) async {
-    try {
-      final ref = FirebaseStorage.instance.ref('containers/$containerId.png');
-      return await ref.getDownloadURL();
-    } catch (_) {
-      try {
-        final ref = FirebaseStorage.instance.ref('containers/$containerId.jpg');
-        return await ref.getDownloadURL();
-      } catch (e) {
-        return null;
-      }
-    }
+  String? _getContainerAssetPath(String containerId) {
+    if (containerId.isEmpty) return null;
+    return 'assets/containars/$containerId.png';
   }
 
   num _totalPrice(List<Map<String, dynamic>> tests) {
@@ -161,17 +151,19 @@ Future<Map<String, dynamic>> _getPatientInfo() async {
                                               SizedBox(
                                                 width: 64,
                                                 height: 64,
-                                                child: FutureBuilder<String?>(
-                                                  future: cid.isEmpty ? Future.value(null) : _getContainerUrl(cid),
-                                                  builder: (context, snapImg) {
-                                                    if (snapImg.connectionState == ConnectionState.waiting) {
-                                                      return const Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)));
-                                                    }
-                                                    final url = snapImg.data;
-                                                    if (url == null) {
+                                                child: Builder(
+                                                  builder: (context) {
+                                                    final assetPath = _getContainerAssetPath(cid);
+                                                    if (assetPath == null) {
                                                       return const Center(child: Icon(Icons.image_not_supported, color: Colors.grey, size: 28));
                                                     }
-                                                    return Image.network(url, fit: BoxFit.contain);
+                                                    return Image.asset(
+                                                      assetPath,
+                                                      fit: BoxFit.contain,
+                                                      errorBuilder: (context, error, stackTrace) {
+                                                        return const Center(child: Icon(Icons.image_not_supported, color: Colors.grey, size: 28));
+                                                      },
+                                                    );
                                                   },
                                                 ),
                                               ),

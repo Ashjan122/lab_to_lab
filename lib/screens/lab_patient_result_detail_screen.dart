@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -300,6 +301,7 @@ class _PdfViewerScreenState extends State<_PdfViewerScreen> {
   late WebViewController _webViewController;
   bool _isLoading = true;
   String? _errorMessage;
+  Timer? _timeoutTimer;
 
   @override
   void initState() {
@@ -309,6 +311,7 @@ class _PdfViewerScreenState extends State<_PdfViewerScreen> {
 
   @override
   void dispose() {
+    _timeoutTimer?.cancel();
     super.dispose();
   }
 
@@ -317,6 +320,19 @@ class _PdfViewerScreenState extends State<_PdfViewerScreen> {
       setState(() {
         _isLoading = true;
         _errorMessage = null;
+      });
+
+      // إلغاء أي timer سابق
+      _timeoutTimer?.cancel();
+
+      // إعداد timeout لمدة 30 ثانية
+      _timeoutTimer = Timer(const Duration(seconds: 30), () {
+        if (mounted && _isLoading) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = 'انتهت مهلة التحميل. يرجى المحاولة مرة أخرى.\n\nالرابط: ${widget.pdfUrl}';
+          });
+        }
       });
 
       print('=== بدء تحميل PDF باستخدام Google Docs Viewer ===');
@@ -343,15 +359,20 @@ class _PdfViewerScreenState extends State<_PdfViewerScreen> {
           NavigationDelegate(
             onPageStarted: (String url) {
               print('بدء تحميل الصفحة: $url');
+              setState(() {
+                _isLoading = true;
+              });
             },
             onPageFinished: (String url) {
               print('انتهاء تحميل الصفحة: $url');
+              _timeoutTimer?.cancel(); // إلغاء timeout عند انتهاء التحميل
               setState(() {
                 _isLoading = false;
               });
             },
             onWebResourceError: (WebResourceError error) {
               print('خطأ في تحميل الصفحة: ${error.description}');
+              _timeoutTimer?.cancel(); // إلغاء timeout عند حدوث خطأ
               setState(() {
                 _isLoading = false;
                 _errorMessage = 'خطأ في تحميل PDF:\n${error.description}\n\nالرابط: ${widget.pdfUrl}';
@@ -361,12 +382,9 @@ class _PdfViewerScreenState extends State<_PdfViewerScreen> {
         )
         ..loadRequest(Uri.parse(googleDocsUrl));
 
-      setState(() {
-        _isLoading = false;
-      });
-
     } catch (e) {
       print('❌ خطأ في تحميل PDF: $e');
+      _timeoutTimer?.cancel(); // إلغاء timeout عند حدوث خطأ
       setState(() {
         _isLoading = false;
         _errorMessage = 'خطأ في تحميل الملف:\n$e\n\nالرابط: ${widget.pdfUrl}';
@@ -486,14 +504,35 @@ class _PdfViewerScreenState extends State<_PdfViewerScreen> {
       children: [
         WebViewWidget(controller: _webViewController),
         if (_isLoading)
-          const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(color: Color.fromARGB(255, 90, 138, 201)),
-                SizedBox(height: 16),
-                Text('جاري تحميل PDF باستخدام Google Docs Viewer...', style: TextStyle(fontSize: 16)),
-              ],
+          Container(
+            color: Colors.white.withOpacity(0.9),
+            child: const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    color: Color.fromARGB(255, 90, 138, 201),
+                    strokeWidth: 3,
+                  ),
+                  SizedBox(height: 20),
+                  Text(
+                    'جاري تحميل النتيجة...',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color.fromARGB(255, 90, 138, 201),
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'يرجى الانتظار',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
       ],

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:lab_to_lab_admin/screens/containers_screen.dart';
 import 'package:lab_to_lab_admin/screens/lab_patient_info_screen.dart';
 import 'package:lab_to_lab_admin/screens/lab_patient_result_detail_screen.dart';
 import 'package:lab_to_lab_admin/screens/lab_select_tests_screen.dart';
@@ -14,7 +16,8 @@ class LabPatientDashboardScreen extends StatelessWidget {
     required this.labName,
     required this.patientDocId,
   });
-   Widget _buildCard({
+  
+  Widget _buildCard({
     required IconData icon,
     required String title,
     required VoidCallback onTap,
@@ -116,6 +119,22 @@ class LabPatientDashboardScreen extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                       builder: (context) => LabPatientResultDetailScreen(
+                        labId: labId,
+                        labName: labName,
+                        patientDocId: patientDocId,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              _buildCard(
+                icon: FontAwesomeIcons.vial,
+                title: "أنابيب",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ContainersScreen(
                         labId: labId,
                         labName: labName,
                         patientDocId: patientDocId,

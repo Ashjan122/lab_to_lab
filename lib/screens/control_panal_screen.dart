@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:lab_to_lab_admin/screens/lab_to_lab.dart';
 import 'package:lab_to_lab_admin/screens/login_screen.dart';
+import 'package:lab_to_lab_admin/screens/patients_screen.dart';
 import 'package:lab_to_lab_admin/screens/support_numbers_screen.dart';
 import 'package:lab_to_lab_admin/screens/user_stats_screen.dart';
 import 'package:lab_to_lab_admin/screens/claim_labs_picker_screen.dart';
@@ -113,7 +115,7 @@ class _ControlPanalScreenState extends State<ControlPanalScreen> {
             ),
             _buildControlCard(
               icon: Icons.query_stats,
-              title: 'احصائيات المستخدمين',
+              title: 'احصائيات ',
               onTap: () {
                 Navigator.push(
                   context,
@@ -123,7 +125,7 @@ class _ControlPanalScreenState extends State<ControlPanalScreen> {
             ),
             _buildControlCard(
               icon: Icons.people_alt,
-              title: 'موظفين المعامل',
+              title: 'المستخدمين',
               onTap: () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('فتح شاشة موظفين المعامل')),
@@ -137,6 +139,16 @@ class _ControlPanalScreenState extends State<ControlPanalScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const ClaimLabsPickerScreen()),
+                );
+              },
+            ),
+            _buildControlCard(
+              icon: FontAwesomeIcons.user,
+              title: 'المرضى',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PatientsScreen()),
                 );
               },
             ),
