@@ -3,6 +3,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:lab_to_lab_admin/screens/onboarding_landing.dart';
 import 'package:lab_to_lab_admin/screens/login_screen.dart';
 import 'package:lab_to_lab_admin/screens/lab_dashboard_screen.dart';
+import 'package:lab_to_lab_admin/screens/control_panal_screen.dart';
+import 'package:lab_to_lab_admin/screens/lab_to_lab.dart';
 import 'firebase_options.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -46,6 +48,10 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           home: home,
+          routes: {
+            '/control_panel': (_) => const ControlPanalScreen(),
+            '/control_panel/labs': (_) => const LabToLab(),
+          },
         );
       },
     );

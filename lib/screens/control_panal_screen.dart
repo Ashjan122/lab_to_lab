@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lab_to_lab_admin/screens/lab_to_lab.dart';
 import 'package:lab_to_lab_admin/screens/login_screen.dart';
+import 'package:lab_to_lab_admin/screens/support_numbers_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ControlPanalScreen extends StatefulWidget {
@@ -93,8 +94,9 @@ class _ControlPanalScreenState extends State<ControlPanalScreen> {
               icon: Icons.support_agent,
               title: 'الدعم الفني',
               onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('فتح شاشة الدعم الفني')),
+               Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => SupportNumbersScreen()),
                 );
               },
             ),
