@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:lab_to_lab_admin/screens/claim_screen.dart';
 import 'package:lab_to_lab_admin/screens/lab_info_screen.dart';
 import 'package:lab_to_lab_admin/screens/lab_new_sample_screen.dart';
 import 'package:lab_to_lab_admin/screens/lab_price_list_screen.dart';
@@ -139,6 +140,9 @@ class LabDashboardScreen extends StatelessWidget {
                  Navigator.push(context, MaterialPageRoute(builder:  (context) => LabInfoScreen(labId: labId, labName: labName)));
                 },
               ),
+              _buildCard(icon: Icons.receipt_long, title: "المطالبة", onTap: (){
+                 Navigator.push(context, MaterialPageRoute(builder:  (context) => ClaimScreen(labId: labId, labName: labName)));
+              })
             ],
           ),
         ),
