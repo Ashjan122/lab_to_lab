@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:lab_to_lab_admin/screens/onboarding_landing.dart';
 import 'package:lab_to_lab_admin/screens/login_screen.dart';
 import 'package:lab_to_lab_admin/screens/lab_dashboard_screen.dart';
@@ -8,11 +10,95 @@ import 'package:lab_to_lab_admin/screens/lab_to_lab.dart';
 import 'firebase_options.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+const AndroidNotificationChannel _defaultChannel = AndroidNotificationChannel(
+  'high_importance_channel',
+  'إشعارات مهمة',
+  description: 'قناة لإشعارات ذات أولوية عالية',
+  importance: Importance.max,
+);
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // You can log or handle background data here
+}
+
+Future<void> _initMessaging() async {
+  // iOS permission (Android shows notifications by default)
+  await FirebaseMessaging.instance.requestPermission(
+    alert: true,
+    announcement: false,
+    badge: true,
+    carPlay: false,
+    criticalAlert: false,
+    provisional: false,
+    sound: true,
+  );
+
+  // Initialize local notifications
+  const AndroidInitializationSettings androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const InitializationSettings initSettings = InitializationSettings(android: androidInit);
+  await _localNotifications.initialize(initSettings);
+  // Create channel on Android
+  await _localNotifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.createNotificationChannel(_defaultChannel);
+
+  // Foreground messages
+  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    final title = message.notification?.title ?? 'إشعار';
+    final body = message.notification?.body ?? '';
+    _localNotifications.show(
+      message.hashCode,
+      title,
+      body,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _defaultChannel.id,
+          _defaultChannel.name,
+          channelDescription: _defaultChannel.description,
+          importance: Importance.max,
+          priority: Priority.high,
+          icon: '@mipmap/ic_launcher',
+          styleInformation: BigTextStyleInformation(
+            body,
+            htmlFormatBigText: false,
+            contentTitle: title,
+            htmlFormatContentTitle: false,
+          ),
+        ),
+      ),
+      payload: message.data.isNotEmpty ? message.data.toString() : null,
+    );
+  });
+
+  // App opened from background via notification tap
+  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+    final title = message.notification?.title ?? 'إشعار';
+    rootScaffoldMessengerKey.currentState?.showSnackBar(
+      SnackBar(content: Text('فتح من الإشعار: $title')),
+    );
+  });
+
+  // App launched from terminated state via notification
+  final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+  if (initialMessage != null) {
+    final title = initialMessage.notification?.title ?? 'إشعار';
+    rootScaffoldMessengerKey.currentState?.showSnackBar(
+      SnackBar(content: Text('فتح بالتنبيه: $title')),
+    );
+  }
+
+  // Background handler
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  await _initMessaging();
   runApp(const MyApp());
 }
 
@@ -47,6 +133,7 @@ class MyApp extends StatelessWidget {
 
         return MaterialApp(
           debugShowCheckedModeBanner: false,
+          scaffoldMessengerKey: rootScaffoldMessengerKey,
           home: home,
           routes: {
             '/control_panel': (_) => const ControlPanalScreen(),

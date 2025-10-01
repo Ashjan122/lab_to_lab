@@ -1,0 +1,25 @@
+{
+  "name": "lab-to-lab-functions",
+  "engines": {
+    "node": "18"
+  },
+  "scripts": {
+    "lint": "echo Skipping lint",
+    "serve": "firebase emulators:start --only functions",
+    "shell": "firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "main": "index.js",
+  "dependencies": {
+    "firebase-admin": "^12.2.0",
+    "firebase-functions": "^5.0.1"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "eslint-config-google": "^0.14.0"
+  },
+  "private": true
+}
+

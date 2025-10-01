@@ -9,6 +9,7 @@ import 'package:lab_to_lab_admin/screens/lab_users_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lab_to_lab_admin/screens/login_screen.dart';
 import 'package:lab_to_lab_admin/screens/lab_to_lab.dart';
+import 'package:lab_to_lab_admin/screens/lab_order_received_notifications_screen.dart';
 
 
 class LabDashboardScreen extends StatelessWidget {
@@ -138,6 +139,13 @@ class LabDashboardScreen extends StatelessWidget {
                 title: 'بيانات المعمل',
                 onTap: () {
                  Navigator.push(context, MaterialPageRoute(builder:  (context) => LabInfoScreen(labId: labId, labName: labName)));
+                },
+              ),
+              _buildCard(
+                icon: Icons.notifications,
+                title: 'الإشعارات ',
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder:  (context) => const LabOrderReceivedNotificationsScreen()));
                 },
               ),
               _buildCard(icon: Icons.receipt_long, title: "المطالبة", onTap: (){

@@ -1,1 +1,38 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"hospitalapp-681f1","appId":"1:340060147561:android:f4497e7c73de8bfcdc77f8","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"hospitalapp-681f1","configurations":{"android":"1:340060147561:android:f4497e7c73de8bfcdc77f8","ios":"1:340060147561:ios:1f00594e20e191fddc77f8"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "hospitalapp-681f1",
+          "appId": "1:340060147561:android:f4497e7c73de8bfcdc77f8",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "hospitalapp-681f1",
+          "configurations": {
+            "android": "1:340060147561:android:f4497e7c73de8bfcdc77f8",
+            "ios": "1:340060147561:ios:1f00594e20e191fddc77f8"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run lint"
+      ]
+    }
+  ]
+}

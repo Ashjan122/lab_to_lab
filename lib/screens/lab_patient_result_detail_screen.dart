@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class LabPatientResultDetailScreen extends StatelessWidget {
@@ -288,109 +288,10 @@ class LabPatientResultDetailScreen extends StatelessWidget {
     );
   }
 }
-class _PdfViewerScreen extends StatefulWidget {
+class _PdfViewerScreen extends StatelessWidget {
   final String pdfUrl;
 
   const _PdfViewerScreen({required this.pdfUrl});
-
-  @override
-  State<_PdfViewerScreen> createState() => _PdfViewerScreenState();
-}
-
-class _PdfViewerScreenState extends State<_PdfViewerScreen> {
-  late WebViewController _webViewController;
-  bool _isLoading = true;
-  String? _errorMessage;
-  Timer? _timeoutTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadPdf();
-  }
-
-  @override
-  void dispose() {
-    _timeoutTimer?.cancel();
-    super.dispose();
-  }
-
-  void _loadPdf() {
-    try {
-      setState(() {
-        _isLoading = true;
-        _errorMessage = null;
-      });
-
-      // إلغاء أي timer سابق
-      _timeoutTimer?.cancel();
-
-      // إعداد timeout لمدة 30 ثانية
-      _timeoutTimer = Timer(const Duration(seconds: 30), () {
-        if (mounted && _isLoading) {
-          setState(() {
-            _isLoading = false;
-            _errorMessage = 'انتهت مهلة التحميل. يرجى المحاولة مرة أخرى.\n\nالرابط: ${widget.pdfUrl}';
-          });
-        }
-      });
-
-      print('=== بدء تحميل PDF باستخدام Google Docs Viewer ===');
-      print('الرابط الأصلي: ${widget.pdfUrl}');
-
-      // فحص صحة الرابط
-      final uri = Uri.parse(widget.pdfUrl);
-      if (uri.scheme.isEmpty || uri.host.isEmpty) {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = 'رابط PDF غير صحيح:\n${widget.pdfUrl}';
-        });
-        return;
-      }
-
-      // إنشاء رابط Google Docs Viewer
-      final googleDocsUrl = 'https://docs.google.com/gview?embedded=true&url=${Uri.encodeComponent(widget.pdfUrl)}';
-      print('رابط Google Docs Viewer: $googleDocsUrl');
-
-      // إنشاء WebViewController
-      _webViewController = WebViewController()
-        ..setJavaScriptMode(JavaScriptMode.unrestricted)
-        ..setNavigationDelegate(
-          NavigationDelegate(
-            onPageStarted: (String url) {
-              print('بدء تحميل الصفحة: $url');
-              setState(() {
-                _isLoading = true;
-              });
-            },
-            onPageFinished: (String url) {
-              print('انتهاء تحميل الصفحة: $url');
-              _timeoutTimer?.cancel(); // إلغاء timeout عند انتهاء التحميل
-              setState(() {
-                _isLoading = false;
-              });
-            },
-            onWebResourceError: (WebResourceError error) {
-              print('خطأ في تحميل الصفحة: ${error.description}');
-              _timeoutTimer?.cancel(); // إلغاء timeout عند حدوث خطأ
-              setState(() {
-                _isLoading = false;
-                _errorMessage = 'خطأ في تحميل PDF:\n${error.description}\n\nالرابط: ${widget.pdfUrl}';
-              });
-            },
-          ),
-        )
-        ..loadRequest(Uri.parse(googleDocsUrl));
-
-    } catch (e) {
-      print('❌ خطأ في تحميل PDF: $e');
-      _timeoutTimer?.cancel(); // إلغاء timeout عند حدوث خطأ
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'خطأ في تحميل الملف:\n$e\n\nالرابط: ${widget.pdfUrl}';
-      });
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -401,141 +302,14 @@ class _PdfViewerScreenState extends State<_PdfViewerScreen> {
           title: const Text('عرض النتيجة PDF', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           backgroundColor: const Color.fromARGB(255, 90, 138, 201),
           centerTitle: true,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.refresh, color: Colors.white),
-              onPressed: () {
-                _loadPdf();
-              },
-              tooltip: 'إعادة تحميل',
-            ),
-          ],
         ),
-        body: _buildPdfViewer(),
+        body: SfPdfViewer.network(
+          pdfUrl,
+          canShowScrollHead: true,
+          canShowScrollStatus: true,
+          enableDoubleTapZooming: true,
+        ),
       ),
-    );
-  }
-
-  Widget _buildPdfViewer() {
-    if (_errorMessage != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Colors.red,
-            ),
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Text(
-                _errorMessage!,
-                style: const TextStyle(fontSize: 16, color: Colors.red),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                ElevatedButton(
-                  onPressed: () {
-                    _loadPdf();
-                  },
-                  child: const Text('إعادة المحاولة'),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    try {
-                      final Uri url = Uri.parse(widget.pdfUrl);
-                      if (await canLaunchUrl(url)) {
-                        await launchUrl(url, mode: LaunchMode.externalApplication);
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('لا يمكن فتح الرابط'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('خطأ في فتح الرابط: $e'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text('فتح في متصفح'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('الرابط: ${widget.pdfUrl}'),
-                        duration: const Duration(seconds: 5),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text('عرض الرابط'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Stack(
-      children: [
-        WebViewWidget(controller: _webViewController),
-        if (_isLoading)
-          Container(
-            color: Colors.white.withOpacity(0.9),
-            child: const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(
-                    color: Color.fromARGB(255, 90, 138, 201),
-                    strokeWidth: 3,
-                  ),
-                  SizedBox(height: 20),
-                  Text(
-                    'جاري تحميل النتيجة...',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color.fromARGB(255, 90, 138, 201),
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'يرجى الانتظار',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-      ],
     );
   }
 }

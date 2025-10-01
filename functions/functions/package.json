@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "lab-to-lab-functions": "file:.."
+  }
+}

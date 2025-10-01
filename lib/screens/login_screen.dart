@@ -42,9 +42,12 @@ class _LoginScreenState extends State<LoginScreen> {
           .limit(1)
           .get();
       if (controlSnap.docs.isNotEmpty) {
+        final controlDoc = controlSnap.docs.first;
+        final controlUserId = controlDoc.id;
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool('isLoggedIn', true);
         await prefs.setString('userType', 'controlUser');
+        await prefs.setString('control_user_id', controlUserId);
         await prefs.remove('lab_id');
         await prefs.remove('labName');
         if (!mounted) return;
