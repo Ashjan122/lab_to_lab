@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:lab_to_lab_admin/screens/lab_request_summary_screen.dart';
+import 'package:lab_to_lab_admin/screens/lab_patient_result_detail_screen.dart';
 
 class LabSelectTestsScreen extends StatefulWidget {
   final String labId;
@@ -104,7 +104,8 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen> {
       
       if (newSelectedIds.isNotEmpty) {
         await batch.commit();
-        // Build and enqueue push notification to topic 'lab_order'
+        
+        // Send notification (simple approach)
         try {
           // Fetch patient name
           final pSnap = await FirebaseFirestore.instance
@@ -145,16 +146,11 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen> {
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (context) => LabRequestSummaryScreen(
-            labId: widget.labId,
-            labName: widget.labName,
-            patientId: widget.patientId,
-            selectedTests: docs.where((d) => _selectedIds.contains(d.id)).map((d) => {
-              'name': d.data()['name'],
-              'price': d.data()['price'],
-              'containerId': d.data()['containerId'] ?? d.data()['container_id'],
-            }).toList(),
-          ),
+          builder: (context) => LabPatientResultDetailScreen(
+            labId: widget.labId, 
+            labName: widget.labName, 
+            patientDocId: widget.patientId
+          )
         ),
         (route) => false, // Remove all previous routes
       );

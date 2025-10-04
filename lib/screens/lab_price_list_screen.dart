@@ -214,18 +214,10 @@ class _LabPriceListScreenState extends State<LabPriceListScreen> {
                         child: ListTile(
                           title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
                           subtitle: Text('السعر: ${price ?? 0}'),
-                          trailing: PopupMenuButton<String>(
-                            onSelected: (v) {
-                              if (v == 'edit') _startEdit(d.id, data);
-                              
-                            },
-                            itemBuilder: (context) => const [
-                              PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 18, color: Color(0xFF1976D2)), SizedBox(width: 8), Text('تعديل')]))
-                              
-                            ],
+                    
                           ),
-                        ),
-                      );
+                        );
+                      
                     },
                   );
                 },

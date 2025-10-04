@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:lab_to_lab_admin/screens/claim_screen.dart';
 import 'package:lab_to_lab_admin/screens/lab_info_screen.dart';
+import 'package:lab_to_lab_admin/screens/lab_location_screen.dart';
 import 'package:lab_to_lab_admin/screens/lab_new_sample_screen.dart';
 import 'package:lab_to_lab_admin/screens/lab_price_list_screen.dart';
 import 'package:lab_to_lab_admin/screens/lab_results_patients_screen.dart';
+import 'package:lab_to_lab_admin/screens/lab_support_numbers_screen.dart';
 import 'package:lab_to_lab_admin/screens/lab_users_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lab_to_lab_admin/screens/login_screen.dart';
@@ -44,11 +46,28 @@ class LabDashboardScreen extends StatelessWidget {
     );
   }
 
+  void _navigateBackToControl(BuildContext context) async {
+    final shouldShow = await _shouldShowBackToControl();
+    if (shouldShow) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LabToLab()),
+        (route) => false,
+      );
+    } else {
+      Navigator.of(context).pop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
+      child: WillPopScope(
+        onWillPop: () async {
+          _navigateBackToControl(context);
+          return false; // Prevent default back behavior
+        },
+        child: Scaffold(
         appBar: AppBar(
           title: Text('لوحة $labName', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           backgroundColor: const Color.fromARGB(255, 90, 138, 201),
@@ -61,12 +80,7 @@ class LabDashboardScreen extends StatelessWidget {
               return IconButton(
                 tooltip: 'الرجوع للكنترول',
                 icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed: () {
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (_) => const LabToLab()),
-                    (route) => false,
-                  );
-                },
+                onPressed: () => _navigateBackToControl(context),
               );
             },
           ),
@@ -96,7 +110,7 @@ class LabDashboardScreen extends StatelessWidget {
           ],
         ),
         body: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(8.0),
           child: GridView.count(
             crossAxisCount: 3,
             childAspectRatio: 0.9,
@@ -129,7 +143,7 @@ class LabDashboardScreen extends StatelessWidget {
               ),
               _buildCard(
                 icon: Icons.price_change,
-                title: 'قائمة الأسعار',
+                title: ' الأسعار',
                 onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder:  (context) => LabPriceListScreen(labId: labId, labName: labName)));
                 },
@@ -150,9 +164,16 @@ class LabDashboardScreen extends StatelessWidget {
               ),
               _buildCard(icon: Icons.receipt_long, title: "المطالبة", onTap: (){
                  Navigator.push(context, MaterialPageRoute(builder:  (context) => ClaimScreen(labId: labId, labName: labName)));
+              }),
+              _buildCard(icon: Icons.support_agent, title: "الدعم الفني", onTap: (){
+                 Navigator.push(context, MaterialPageRoute(builder:  (context) => LabSupportNumbersScreen()));
+              }),
+              _buildCard(icon: Icons.location_on, title: "الموقع", onTap: (){
+                Navigator.push(context, MaterialPageRoute(builder:  (context) => LabLocationScreen(labName: labName , labId: labId)));
               })
             ],
           ),
+        ),
         ),
       ),
     );

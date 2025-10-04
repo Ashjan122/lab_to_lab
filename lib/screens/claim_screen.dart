@@ -13,6 +13,7 @@ class ClaimScreen extends StatefulWidget {
 class _ClaimScreenState extends State<ClaimScreen> {
   DateTime _startDate = DateTime.now();
   DateTime _endDate = DateTime.now();
+  bool _showDetails = false;
 
   @override
   void initState() {
@@ -41,6 +42,36 @@ class _ClaimScreenState extends State<ClaimScreen> {
       total += _parsePrice(d.data()['price']);
     }
     return total;
+  }
+
+  Future<Map<String, dynamic>> _getClaimSummary() async {
+    final docs = await _patientsCol.where('labId', isEqualTo: widget.labId).get();
+    
+    // Filter by date range
+    final filteredDocs = docs.docs.where((d) {
+      final v = d.data()['createdAt'];
+      DateTime? dt;
+      if (v is Timestamp) dt = v.toDate();
+      if (v is int) dt = DateTime.fromMillisecondsSinceEpoch(v);
+      if (v is String) {
+        final parsed = DateTime.tryParse(v);
+        if (parsed != null) dt = parsed;
+      }
+      if (dt == null) return false;
+      return !dt.isBefore(_startDate) && !dt.isAfter(_endDate);
+    }).toList();
+
+    int totalAmount = 0;
+    for (final doc in filteredDocs) {
+      final patientTotal = await _getTotalForPatient(doc.id);
+      totalAmount += patientTotal;
+    }
+
+    return {
+      'totalAmount': totalAmount,
+      'patientCount': filteredDocs.length,
+      'patients': filteredDocs,
+    };
   }
 
   Future<void> _showDetailsDialog(String patientId, String patientName) async {
@@ -197,6 +228,11 @@ class _ClaimScreenState extends State<ClaimScreen> {
 
   String _fmt(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
+  String _formatPrice(int price) {
+    final str = price.toString();
+    return str.replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => ',');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Directionality(
@@ -206,6 +242,15 @@ class _ClaimScreenState extends State<ClaimScreen> {
           title: Text('المطالبة', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           backgroundColor: const Color.fromARGB(255, 90, 138, 201),
           centerTitle: true,
+          leading: _showDetails ? IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () {
+              setState(() {
+                _showDetails = false;
+              });
+            },
+            tooltip: 'العودة للملخص',
+          ) : null,
           actions: [
             IconButton(
               tooltip: 'اختيار الفترة',
@@ -214,72 +259,185 @@ class _ClaimScreenState extends State<ClaimScreen> {
             )
           ],
         ),
-        body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          // اجلب حسب المعمل فقط لتجنب متطلبات الفهارس المركّبة، ثم صفٍّ محلياً بالفترة
-          stream: _patientsCol.where('labId', isEqualTo: widget.labId).snapshots(),
-          builder: (context, snap) {
-            if (snap.hasError) return Center(child: Text('خطأ: ${snap.error}'));
-            if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-            // فلترة بالفترة محلياً (يشمل قيماً قد تكون غير Timestamp)
-            final docs = snap.data!.docs.where((d) {
-              final v = d.data()['createdAt'];
-              DateTime? dt;
-              if (v is Timestamp) dt = v.toDate();
-              if (v is int) dt = DateTime.fromMillisecondsSinceEpoch(v);
-              if (v is String) {
-                final parsed = DateTime.tryParse(v);
-                if (parsed != null) dt = parsed;
-              }
-              if (dt == null) return false;
-              return !dt.isBefore(_startDate) && !dt.isAfter(_endDate);
-            }).toList()
-              ..sort((a, b) {
-                final va = a.data()['createdAt'];
-                final vb = b.data()['createdAt'];
-                DateTime? da;
-                DateTime? db;
-                if (va is Timestamp) da = va.toDate();
-                if (va is int) da = DateTime.fromMillisecondsSinceEpoch(va);
-                if (va is String) da = DateTime.tryParse(va);
-                if (vb is Timestamp) db = vb.toDate();
-                if (vb is int) db = DateTime.fromMillisecondsSinceEpoch(vb);
-                if (vb is String) db = DateTime.tryParse(vb);
-                final ta = da?.millisecondsSinceEpoch ?? 0;
-                final tb = db?.millisecondsSinceEpoch ?? 0;
-                return tb.compareTo(ta);
-              });
-            if (docs.isEmpty) return const Center(child: Text('لا توجد نتائج للفترة المحددة'));
+        body: _showDetails ? _buildPatientsList() : _buildSummaryView(),
+      ),
+    );
+  }
 
-            return ListView.separated(
-              itemCount: docs.length,
-              padding: const EdgeInsets.all(16),
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (_, i) {
-                final d = docs[i];
-                final data = d.data();
-                final name = data['name']?.toString() ?? '';
-                final displayIndex = i + 1;
-
-                return Card(
-                  child: ListTile(
-                    title: Text('$displayIndex. $name', style: const TextStyle(fontWeight: FontWeight.bold)),
-                    trailing: FutureBuilder<int>(
-                      future: _getTotalForPatient(d.id),
-                      builder: (_, totalSnap) {
-                        if (!totalSnap.hasData) {
-                          return const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2));
-                        }
-                        return Text('${totalSnap.data}', style: const TextStyle(fontWeight: FontWeight.bold));
-                      },
+  Widget _buildSummaryView() {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _getClaimSummary(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        
+        if (snapshot.hasError) {
+          return Center(child: Text('خطأ: ${snapshot.error}'));
+        }
+        
+        final data = snapshot.data!;
+        final totalAmount = data['totalAmount'] as int;
+        final patientCount = data['patientCount'] as int;
+        
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Lab name and date range
+              Text(
+                'ملخص المطالبة ${widget.labName}',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color.fromARGB(255, 90, 138, 201),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'الفترة من ${_fmt(_startDate)} إلى ${_fmt(_endDate)}',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              
+              // Total amount - large and bold with underline
+              Center(
+                child: Column(
+                  children: [
+                    Text(
+                      'المبلغ ${_formatPrice(totalAmount)}',
+                      style: const TextStyle(
+                        fontSize: 36,
+                        fontWeight: FontWeight.bold,
+                        color: Color.fromARGB(255, 0, 5, 12),
+                      ),
                     ),
-                    onTap: () => _showDetailsDialog(d.id, name),
+                    Container(
+                      width: 200,
+                      height: 2,
+                      color: const Color.fromARGB(255, 90, 138, 201),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              
+              // Patient count
+              Center(
+                child: Text(
+                  'عدد المرضى: $patientCount',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
                   ),
-                );
-              },
+                ),
+              ),
+              const SizedBox(height: 430),
+              
+              // Details button
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    _showDetails = true;
+                  });
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                
+                child: const Text(
+                  'عرض التفاصيل',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPatientsList() {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: _patientsCol.where('labId', isEqualTo: widget.labId).snapshots(),
+      builder: (context, snap) {
+        if (snap.hasError) return Center(child: Text('خطأ: ${snap.error}'));
+        if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+        
+        // Filter by date range
+        final docs = snap.data!.docs.where((d) {
+          final v = d.data()['createdAt'];
+          DateTime? dt;
+          if (v is Timestamp) dt = v.toDate();
+          if (v is int) dt = DateTime.fromMillisecondsSinceEpoch(v);
+          if (v is String) {
+            final parsed = DateTime.tryParse(v);
+            if (parsed != null) dt = parsed;
+          }
+          if (dt == null) return false;
+          return !dt.isBefore(_startDate) && !dt.isAfter(_endDate);
+        }).toList()
+          ..sort((a, b) {
+            final va = a.data()['createdAt'];
+            final vb = b.data()['createdAt'];
+            DateTime? da;
+            DateTime? db;
+            if (va is Timestamp) da = va.toDate();
+            if (va is int) da = DateTime.fromMillisecondsSinceEpoch(va);
+            if (va is String) da = DateTime.tryParse(va);
+            if (vb is Timestamp) db = vb.toDate();
+            if (vb is int) db = DateTime.fromMillisecondsSinceEpoch(vb);
+            if (vb is String) db = DateTime.tryParse(vb);
+            final ta = da?.millisecondsSinceEpoch ?? 0;
+            final tb = db?.millisecondsSinceEpoch ?? 0;
+            return tb.compareTo(ta);
+          });
+        
+        if (docs.isEmpty) return const Center(child: Text('لا توجد نتائج للفترة المحددة'));
+
+        return ListView.separated(
+          itemCount: docs.length,
+          padding: const EdgeInsets.all(16),
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          itemBuilder: (_, i) {
+            final d = docs[i];
+            final data = d.data();
+            final name = data['name']?.toString() ?? '';
+            final displayIndex = i + 1;
+
+            return Card(
+              child: ListTile(
+                title: Text('$displayIndex. $name', style: const TextStyle(fontWeight: FontWeight.bold)),
+                trailing: FutureBuilder<int>(
+                  future: _getTotalForPatient(d.id),
+                  builder: (_, totalSnap) {
+                    if (!totalSnap.hasData) {
+                      return const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2));
+                    }
+                    return Text(_formatPrice(totalSnap.data!), style: const TextStyle(fontWeight: FontWeight.bold));
+                  },
+                ),
+                onTap: () => _showDetailsDialog(d.id, name),
+              ),
             );
           },
-        ),
-      ),
+        );
+      },
     );
   }
 }

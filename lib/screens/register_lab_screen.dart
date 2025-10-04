@@ -101,6 +101,19 @@ class _RegisterLabScreenState extends State<RegisterLabScreen> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
+      // Send notification for new lab contract
+      final notificationTitle = 'تم إنشاء تعاقد جديد';
+      final notificationBody = '''الاسم: $labName
+العنوان: ${_address.text.trim()}
+رقم الهاتف: ${_phone.text.trim()}''';
+
+      await FirebaseFirestore.instance.collection('push_requests').add({
+        'topic': 'new_lab',
+        'title': notificationTitle,
+        'body': notificationBody,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('hasContract', true);
       await prefs.setBool('isLoggedIn', true);

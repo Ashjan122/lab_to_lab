@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:lab_to_lab_admin/screens/onboarding_landing.dart';
 import 'package:lab_to_lab_admin/screens/login_screen.dart';
 import 'package:lab_to_lab_admin/screens/lab_dashboard_screen.dart';
 import 'package:lab_to_lab_admin/screens/control_panal_screen.dart';
 import 'package:lab_to_lab_admin/screens/lab_to_lab.dart';
+import 'package:lab_to_lab_admin/screens/lab_results_patients_screen.dart';
 import 'firebase_options.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -23,6 +25,38 @@ const AndroidNotificationChannel _defaultChannel = AndroidNotificationChannel(
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   // You can log or handle background data here
+}
+
+Future<void> _initLocationPermission() async {
+  try {
+    // Check if location services are enabled
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      print('Location services are disabled');
+      return;
+    }
+
+    // Check location permission
+    LocationPermission permission = await Geolocator.checkPermission();
+    
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        print('Location permission denied');
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      print('Location permission denied forever');
+      return;
+    }
+
+    print('Location permission granted');
+  } catch (e) {
+    print('Error requesting location permission: $e');
+    // Don't throw error, just log it and continue
+  }
 }
 
 Future<void> _initMessaging() async {
@@ -99,6 +133,8 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   await _initMessaging();
+  // Don't await location permission to avoid blocking app startup
+  _initLocationPermission();
   runApp(const MyApp());
 }
 
@@ -132,12 +168,26 @@ class MyApp extends StatelessWidget {
         }
 
         return MaterialApp(
+          theme: ThemeData(
+            textTheme: TextTheme(
+              bodyMedium: TextStyle(fontFamily: 'Tajawal'),
+              titleLarge: TextStyle(fontFamily: 'Tajawal'),
+            )
+
+          ),
           debugShowCheckedModeBanner: false,
           scaffoldMessengerKey: rootScaffoldMessengerKey,
           home: home,
           routes: {
             '/control_panel': (_) => const ControlPanalScreen(),
             '/control_panel/labs': (_) => const LabToLab(),
+            '/lab_results_patients': (context) {
+              final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+              return LabResultsPatientsScreen(
+                labId: args?['labId'] ?? '',
+                labName: args?['labName'] ?? '',
+              );
+            },
           },
         );
       },

@@ -47,6 +47,8 @@ dependencies:
   url_launcher: ^6.3.2
   webview_flutter: ^4.13.0
   firebase_messaging: ^16.0.2
+  google_maps_flutter: ^2.13.1
+  geolocator: ^14.0.2
 
 dev_dependencies:
   flutter_test:
@@ -74,7 +76,14 @@ flutter:
   assets:
     - assets/images/logo.png
     - assets/containars/
-
+    
+  fonts:
+    - family: Tajawal
+      fonts:
+        - asset: assets/fonts/Tajawal-Regular.ttf
+        - asset: assets/fonts/Tajawal-Medium.ttf
+        - asset: assets/fonts/Tajawal-ExtraBold.ttf
+        
 flutter_launcher_icons:
   android: true
   ios: true

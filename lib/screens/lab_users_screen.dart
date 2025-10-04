@@ -69,7 +69,10 @@ void _openAddUserSheet() {
                       keyboardType: TextInputType.phone,
                       textInputAction: TextInputAction.next,
                       validator: (v) => (v == null || v.trim().isEmpty) ? 'أدخل الهاتف' : null,
+                      textAlign: TextAlign.left,
+                      textDirection: TextDirection.ltr,
                     ),
+                    
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _passwordController,
@@ -114,6 +117,7 @@ void _openAddUserSheet() {
         'userType': 'labUser',
         'labId': widget.labId,
         'labName': widget.labName,
+        'isEnabled': true,
         'createdAt': FieldValue.serverTimestamp(),
         'lastLoginAt': null,
         'lastSeenAt': null,
@@ -125,6 +129,7 @@ void _openAddUserSheet() {
         'userPhone': phone,
         'userType': 'labUser',
         'userId': userDoc.id,
+        'isEnabled': true,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
@@ -189,25 +194,39 @@ void _openAddUserSheet() {
     }
   }
 
-  Future<void> _deleteUser(String userId, String name) async {
+  Future<void> _toggleUserStatus(String userId, String name, bool isEnabled) async {
+    final action = isEnabled ? 'تعطيل' : 'تفعيل';
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('تأكيد الحذف'),
-        content: Text('هل تريد حذف المستخدم "$name"؟'),
+        title: Text('تأكيد $action'),
+        content: Text('هل تريد $action المستخدم "$name"؟'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('حذف'), style: TextButton.styleFrom(foregroundColor: Colors.red)),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true), 
+            child: Text(action), 
+            style: TextButton.styleFrom(foregroundColor: isEnabled ? Colors.orange : Colors.green)
+          ),
         ],
       ),
     );
     if (ok == true) {
       try {
-        await _labUsersCol.doc(userId).delete();
-        await FirebaseFirestore.instance.collection('users').doc(userId).delete();
+        await FirebaseFirestore.instance.collection('users').doc(userId).update({
+          'isEnabled': !isEnabled,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        await _labUsersCol.doc(userId).update({
+          'isEnabled': !isEnabled,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('تم حذف المستخدم'), backgroundColor: Colors.green),
+            SnackBar(
+              content: Text('تم $action المستخدم'), 
+              backgroundColor: isEnabled ? Colors.orange : Colors.green
+            ),
           );
         }
       } catch (e) {
@@ -336,22 +355,51 @@ void _openEditUserSheet(String userId, Map<String, dynamic> data) {
                       final data = d.data();
                       final name = data['userName']?.toString() ?? '';
                       final phone = data['userPhone']?.toString() ?? '';
+                      final isEnabled = data['isEnabled'] ?? true;
                       return Card(
+                        color: isEnabled ? Colors.white : Colors.grey.shade100,
                         child: ListTile(
-                          leading: const Icon(Icons.person, color: Color.fromARGB(255, 90, 138, 201),),
-                          title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text('الهاتف: $phone'),
+                          leading: Icon(
+                            isEnabled ? Icons.person : Icons.person_off,
+                            color: isEnabled ? const Color.fromARGB(255, 90, 138, 201) : Colors.grey,
+                          ),
+                          title: Text(
+                            name, 
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: isEnabled ? Colors.black : Colors.grey,
+                            )
+                          ),
+                          subtitle: Text(
+                            'الهاتف: $phone',
+                            style: TextStyle(
+                              color: isEnabled ? Colors.grey : Colors.grey.shade400,
+                            )
+                          ),
                           trailing: PopupMenuButton<String>(
                             onSelected: (v) async {
                               if (v == 'edit') {
                                 _openEditUserSheet(d.id, data);
-                              } else if (v == 'delete') {
-                                await _deleteUser(d.id, name);
+                              } else if (v == 'toggle') {
+                                await _toggleUserStatus(d.id, name, isEnabled);
                               }
                             },
-                            itemBuilder: (context) => const [
-                              PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 18, color: Color(0xFF1976D2)), SizedBox(width: 8), Text('تعديل')])),
-                              PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, size: 18, color: Colors.red), SizedBox(width: 8), Text('حذف')])),
+                            itemBuilder: (context) => [
+                              const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 18, color: Color(0xFF1976D2)), SizedBox(width: 8), Text('تعديل')])),
+                              PopupMenuItem(
+                                value: 'toggle', 
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      isEnabled ? Icons.block : Icons.check_circle,
+                                      size: 18, 
+                                      color: isEnabled ? Colors.orange : Colors.green
+                                    ), 
+                                    const SizedBox(width: 8), 
+                                    Text(isEnabled ? 'تعطيل' : 'تفعيل')
+                                  ]
+                                )
+                              ),
                             ],
                           ),
                         ),

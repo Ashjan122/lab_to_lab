@@ -12,6 +12,7 @@ class ControlNotificationsScreen extends StatefulWidget {
 
 class _ControlNotificationsScreenState extends State<ControlNotificationsScreen> {
   bool isSubscribed = false;
+  bool isNewLabSubscribed = false;
   @override
   void initState() {
     super.initState();
@@ -23,16 +24,24 @@ class _ControlNotificationsScreenState extends State<ControlNotificationsScreen>
     if (controlUserId == null) {
       // fallback to local if not control user
       final local = prefs.getBool('lab_order_subscribed');
+      final localNewLab = prefs.getBool('new_lab_subscribed');
       if (local != null) {
         setState(() => isSubscribed = local);
+      }
+      if (localNewLab != null) {
+        setState(() => isNewLabSubscribed = localNewLab);
       }
       return;
     }
     final doc = await FirebaseFirestore.instance.collection('controlUsers').doc(controlUserId).get();
     final status = doc.data()?['lab_order_subscribed'] == true;
-    setState(() => isSubscribed = status);
+    final newLabStatus = doc.data()?['new_lab_subscribed'] == true;
+    setState(() {
+      isSubscribed = status;
+      isNewLabSubscribed = newLabStatus;
+    });
   }
-// تبديل الاشتراك/إلغاء الاشتراك
+// تبديل الاشتراك/إلغاء الاشتراك للمرضى
   void toggleSubscription() async {
     if (isSubscribed) {
       await FirebaseMessaging.instance.unsubscribeFromTopic('lab_order');
@@ -56,6 +65,31 @@ class _ControlNotificationsScreenState extends State<ControlNotificationsScreen>
       }
     }
   }
+
+// تبديل الاشتراك/إلغاء الاشتراك للتعاقدات الجديدة
+  void toggleNewLabSubscription() async {
+    if (isNewLabSubscribed) {
+      await FirebaseMessaging.instance.unsubscribeFromTopic('new_lab');
+      setState(() => isNewLabSubscribed = false);
+      final prefs = await SharedPreferences.getInstance();
+      final controlUserId = prefs.getString('control_user_id');
+      if (controlUserId != null) {
+        await FirebaseFirestore.instance.collection('controlUsers').doc(controlUserId).set({'new_lab_subscribed': false}, SetOptions(merge: true));
+      } else {
+        await prefs.setBool('new_lab_subscribed', false);
+      }
+    } else {
+      await FirebaseMessaging.instance.subscribeToTopic('new_lab');
+      setState(() => isNewLabSubscribed = true);
+      final prefs = await SharedPreferences.getInstance();
+      final controlUserId = prefs.getString('control_user_id');
+      if (controlUserId != null) {
+        await FirebaseFirestore.instance.collection('controlUsers').doc(controlUserId).set({'new_lab_subscribed': true}, SetOptions(merge: true));
+      } else {
+        await prefs.setBool('new_lab_subscribed', true);
+      }
+    }
+  }
   @override
   Widget build(BuildContext context) {
     return Directionality(textDirection: TextDirection.rtl,
@@ -71,7 +105,7 @@ class _ControlNotificationsScreenState extends State<ControlNotificationsScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ✅ بطاقة عرض حالة الاشتراك
+              // ✅ بطاقة عرض حالة الاشتراك للمرضى
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -124,6 +158,71 @@ class _ControlNotificationsScreenState extends State<ControlNotificationsScreen>
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: isSubscribed ? Colors.green : Colors.orange,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              // ✅ بطاقة عرض حالة الاشتراك للتعاقدات الجديدة
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isNewLabSubscribed ? Colors.green : Colors.orange,
+                    width: 2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          isNewLabSubscribed ? Icons.check_circle : Icons.notifications_off,
+                          color: isNewLabSubscribed ? Colors.green : Colors.orange,
+                          size: 32,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            isNewLabSubscribed
+                                ? 'أنت مشترك في تلقي إشعارات إنشاء تعاقد جديد'
+                                : 'أنت غير مشترك في تلقي إشعارات إنشاء تعاقد جديد',
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    // ✅ زر الاشتراك / إلغاء الاشتراك داخل الكارد
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: toggleNewLabSubscription,
+                        child: Text(
+                          isNewLabSubscribed ? 'إلغاء الاشتراك' : 'اشتراك',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: isNewLabSubscribed ? Colors.green : Colors.orange,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(

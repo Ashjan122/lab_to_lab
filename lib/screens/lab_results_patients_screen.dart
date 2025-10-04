@@ -3,7 +3,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:lab_to_lab_admin/screens/lab_dashboard_screen.dart';
-import 'package:lab_to_lab_admin/screens/lab_patient_dashboard_screen.dart';
+
+import 'package:lab_to_lab_admin/screens/lab_patient_result_detail_screen.dart';
 
 class LabResultsPatientsScreen extends StatefulWidget {
  final String labId;
@@ -15,12 +16,20 @@ class LabResultsPatientsScreen extends StatefulWidget {
 
 class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
   late DateTime _selectedDate;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
     final now = DateTime.now();
     _selectedDate = DateTime(now.year, now.month, now.day);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   bool _isSameDay(Timestamp? ts, DateTime day) {
@@ -82,126 +91,161 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
             ),
           ],
         ),
-        body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: col.where('labId', isEqualTo: widget.labId).snapshots(),
-          builder: (context, snap) {
-            if (snap.hasError) return Center(child: Text('خطأ: ${snap.error}'));
-            if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+        body: Column(
+          children: [
+            // Search bar
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value.toLowerCase();
+                  });
+                },
+                decoration: InputDecoration(
+                  hintText: 'البحث باسم المريض...',
+                  prefixIcon: const Icon(Icons.search),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey[100],
+                ),
+              ),
+            ),
+            // Date display
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Row(
+                children: [
+                  const Icon(Icons.calendar_today, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  Text(
+                    'التاريخ: ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Patients list
+            Expanded(
+              child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: col.where('labId', isEqualTo: widget.labId).snapshots(),
+                builder: (context, snap) {
+                  if (snap.hasError) return Center(child: Text('خطأ: ${snap.error}'));
+                  if (!snap.hasData) return const Center(child: CircularProgressIndicator());
 
-            // فلترة حسب تاريخ اليوم المحدد
-            final filtered = snap.data!.docs.where((doc) {
-              final m = doc.data();
-              final ts = m['createdAt'];
-              final t = (ts is Timestamp) ? ts : null;
-              return _isSameDay(t, _selectedDate);
-            }).toList();
+                  // فلترة حسب تاريخ اليوم المحدد
+                  final dateFiltered = snap.data!.docs.where((doc) {
+                    final m = doc.data();
+                    final ts = m['createdAt'];
+                    final t = (ts is Timestamp) ? ts : null;
+                    return _isSameDay(t, _selectedDate);
+                  }).toList();
 
-            // ترتيب تنازلي حسب createdAt
-            filtered.sort((a, b) {
-              final aTs = a.data()['createdAt'];
-              final bTs = b.data()['createdAt'];
-              final aT = (aTs is Timestamp) ? aTs : null;
-              final bT = (bTs is Timestamp) ? bTs : null;
-              if (aT == null && bT == null) return 0;
-              if (aT == null) return 1;
-              if (bT == null) return -1;
-              return bT.compareTo(aT);
-            });
+                  // فلترة حسب البحث
+                  final filtered = dateFiltered.where((doc) {
+                    final data = doc.data();
+                    final patientName = data['name']?.toString().toLowerCase() ?? '';
+                    return patientName.contains(_searchQuery);
+                  }).toList();
 
-            if (filtered.isEmpty) {
-              return const Center(child: Text('لا توجد عينات لليوم المحدد'));
-            }
+                  // ترتيب تنازلي حسب createdAt
+                  filtered.sort((a, b) {
+                    final aTs = a.data()['createdAt'];
+                    final bTs = b.data()['createdAt'];
+                    final aT = (aTs is Timestamp) ? aTs : null;
+                    final bT = (bTs is Timestamp) ? bTs : null;
+                    if (aT == null && bT == null) return 0;
+                    if (aT == null) return 1;
+                    if (bT == null) return -1;
+                    return bT.compareTo(aT);
+                  });
 
-            final perDayTotal = filtered.length;
-            return ListView.separated(
-              itemCount: filtered.length,
-              padding: const EdgeInsets.all(16),
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (context, i) {
-                final d = filtered[i];
-                final data = d.data();
-                final name = data['name']?.toString() ?? '';
-                final dayNumber = perDayTotal - i; // رقم اليوم يبدأ من 1 لكل يوم
-                // final labReqCol = col.doc(d.id).collection('lab_request');
-                final status = (data['status']?.toString() ?? 'pending').toLowerCase();
-                Color chipColor;
-                switch (status) {
-                  case 'received':
-                    chipColor = Colors.blue;
-                    break;
-                  case 'inprocess':
-                    chipColor = Colors.orange;
-                    break;
-                  case 'comlated':
-                  case 'completed':
-                    chipColor = Colors.green;
-                    break;
-                  default:
-                    chipColor = Colors.grey;
-                }
-                return Card(
-                  child: ListTileTheme(
-                    data: const ListTileThemeData(
-                      horizontalTitleGap: 8,
-                      minLeadingWidth: 0,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 8),
-                    ),
-                    child: ListTile(
-                      minLeadingWidth: 0,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                      leading: Container(
-                        width: 38,
-                        height: 38,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white,
-                          border: Border.all(color: const Color.fromARGB(255, 90, 138, 201), width: 2),
-                        ),
-                        child: Text(
-                          '$dayNumber',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1976D2),
+                  if (filtered.isEmpty) {
+                    return Center(
+                      child: Text(_searchQuery.isNotEmpty ? 'لا توجد نتائج للبحث' : 'لا توجد عينات لليوم المحدد'),
+                    );
+                  }
+
+                  final perDayTotal = filtered.length;
+                  return ListView.separated(
+                    itemCount: filtered.length,
+                    padding: const EdgeInsets.all(16),
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, i) {
+                      final d = filtered[i];
+                      final data = d.data();
+                      final name = data['name']?.toString() ?? '';
+                      final dayNumber = perDayTotal - i; // رقم اليوم يبدأ من 1 لكل يوم
+                      return Card(
+                        child: ListTileTheme(
+                          data: const ListTileThemeData(
+                            horizontalTitleGap: 8,
+                            minLeadingWidth: 0,
+                            contentPadding: EdgeInsets.symmetric(horizontal: 8),
+                          ),
+                          child: ListTile(
+                            minLeadingWidth: 0,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                            leading: Container(
+                              width: 38,
+                              height: 38,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white,
+                                border: Border.all(color: const Color.fromARGB(255, 90, 138, 201), width: 2),
+                              ),
+                              child: Text(
+                                '$dayNumber',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1976D2),
+                                ),
+                              ),
+                            ),
+                            title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                            subtitle: Text(
+                              'كود المريض: ${((data['id'] is int) ? data['id'] as int : (int.tryParse('${data['id'] ?? ''}') ?? 0)) > 0 ? (data['id'] is int) ? data['id'] as int : (int.tryParse('${data['id'] ?? ''}') ?? 0) : d.id}',
+                              style: const TextStyle(color: Colors.black54),
+                            ),
+                             /*trailing: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: chipColor.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: chipColor, width: 1),
+                              ),
+                              child: Text(
+                                status == 'comlated' ? 'completed' : status,
+                                style: TextStyle(color: chipColor, fontWeight: FontWeight.bold, fontSize: 12),
+                              ),
+                            ),*/
+                             onTap: () {
+                               Navigator.push(
+                                 context,
+                                 MaterialPageRoute(
+                                   builder: (context) => LabPatientResultDetailScreen(
+                                     labId: widget.labId,
+                                     labName: widget.labName,
+                                     patientDocId: d.id,
+                                   ),
+                                 ),
+                               );
+                             },
                           ),
                         ),
-                      ),
-                      title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text(
-                        'كود المريض: ${((data['id'] is int) ? data['id'] as int : (int.tryParse('${data['id'] ?? ''}') ?? 0)) > 0 ? (data['id'] is int) ? data['id'] as int : (int.tryParse('${data['id'] ?? ''}') ?? 0) : d.id}',
-                        style: const TextStyle(color: Colors.black54),
-                      ),
-                       /*trailing: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: chipColor.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: chipColor, width: 1),
-                        ),
-                        child: Text(
-                          status == 'comlated' ? 'completed' : status,
-                          style: TextStyle(color: chipColor, fontWeight: FontWeight.bold, fontSize: 12),
-                        ),
-                      ),*/
-                       onTap: () {
-                         Navigator.push(
-                           context,
-                           MaterialPageRoute(
-                             builder: (context) => LabPatientDashboardScreen(
-                               labId: widget.labId,
-                               labName: widget.labName,
-                               patientDocId: d.id,
-                             ),
-                           ),
-                         );
-                       },
-                    ),
-                  ),
-                );
-              },
-            );
-          },
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );

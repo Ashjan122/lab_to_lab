@@ -2,7 +2,8 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
-import 'package:url_launcher/url_launcher.dart';
+// removed containers_screen import; containers shown inline
+
 
 class LabPatientResultDetailScreen extends StatelessWidget {
    final String labId;
@@ -21,28 +22,37 @@ class LabPatientResultDetailScreen extends StatelessWidget {
     final intId = (idDyn is int) ? idDyn : int.tryParse('${idDyn ?? ''}') ?? 0;
     final testsSnap = await patientRef.collection('lab_request').get();
     final tests = testsSnap.docs.map((d) => d.data()).toList();
+    
+    // Format date and time
+    String formattedDateTime = '';
+    final createdAt = pData['createdAt'];
+    if (createdAt != null) {
+      try {
+        DateTime dateTime;
+        if (createdAt is Timestamp) {
+          dateTime = createdAt.toDate();
+        } else if (createdAt is DateTime) {
+          dateTime = createdAt;
+        } else {
+          dateTime = DateTime.now();
+        }
+        formattedDateTime = '${dateTime.day}/${dateTime.month}/${dateTime.year} - ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+      } catch (e) {
+        formattedDateTime = '';
+      }
+    }
+    
     return {
       'id': intId,
       'name': pData['name']?.toString() ?? '',
+      'phone': pData['phone']?.toString() ?? '',
       'status': (pData['status']?.toString() ?? 'pending').toLowerCase(),
       'tests': tests,
       'pdf_url': pData['pdf_url']?.toString() ?? '',
+      'formattedDateTime': formattedDateTime,
     };
   }
 
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'received':
-        return Colors.blue;
-      case 'inprocess':
-        return Colors.orange;
-      case 'comlated':
-      case 'completed':
-        return Colors.green;
-      default:
-        return Colors.grey;
-    }
-  }
 
   String _formatPrice(num price) {
     final str = price.toStringAsFixed(0);
@@ -63,6 +73,33 @@ class LabPatientResultDetailScreen extends StatelessWidget {
     return total;
   }
 
+  Map<String, List<Map<String, dynamic>>> _groupTestsByContainer(List<Map<String, dynamic>> tests) {
+    final Map<String, List<Map<String, dynamic>>> grouped = {};
+    for (final t in tests) {
+      final String cid = _extractContainerId(t);
+      if (cid.isEmpty) continue;
+      grouped.putIfAbsent(cid, () => []);
+      grouped[cid]!.add(t);
+    }
+    return grouped;
+  }
+
+  String _extractContainerId(Map<String, dynamic> t) {
+    final possibleKeys = ['containerId', 'container_id', 'container', 'cid'];
+    for (final key in possibleKeys) {
+      final v = t[key];
+      if (v != null && v.toString().trim().isNotEmpty) {
+        return v.toString().trim();
+      }
+    }
+    return '';
+  }
+
+  String? _getContainerAssetPath(String containerId) {
+    if (containerId.isEmpty) return null;
+    return 'assets/containars/$containerId.png';
+  }
+
   void _openPdf(BuildContext context, String pdfUrl) {
     if (pdfUrl.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -81,75 +118,169 @@ class LabPatientResultDetailScreen extends StatelessWidget {
       ),
     );
   }
+  void _navigateBack(BuildContext context) {
+    // Navigate back to lab results patients screen
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      '/lab_results_patients',
+      (route) => false,
+      arguments: {
+        'labId': labId,
+        'labName': labName,
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return  Directionality(
+    return Directionality(
       textDirection: TextDirection.ltr,
-      child: Scaffold(
+      child: WillPopScope(
+        onWillPop: () async {
+          _navigateBack(context);
+          return false; // Prevent default back behavior
+        },
+        child: Scaffold(
         appBar: AppBar(
-          title: Text('بيانات المريض', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          title: const Text('بيانات المريض', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           backgroundColor: const Color.fromARGB(255, 90, 138, 201),
           centerTitle: true,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => _navigateBack(context),
+          ),
         ),
-        body: FutureBuilder<Map<String, dynamic>>(
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.grey.shade200,
+                const Color.fromARGB(255, 90, 138, 201).withOpacity(0.2),
+                const Color.fromARGB(255, 90, 138, 201).withOpacity(0.35),
+              ],
+            ),
+          ),
+          child: FutureBuilder<Map<String, dynamic>>(
           future: _loadPatientAndTests(),
           builder: (context, snap) {
             if (snap.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
-            final data = snap.data ?? {'id': 0, 'name': '', 'status': 'pending', 'tests': <Map<String, dynamic>>[], 'pdf_url': ''};
+            final data = snap.data ?? {'id': 0, 'name': '', 'phone': '', 'status': 'pending', 'tests': <Map<String, dynamic>>[], 'pdf_url': '', 'formattedDateTime': ''};
             final intId = data['id'] as int? ?? 0;
             final name = data['name'] as String? ?? '';
-            final status = (data['status']?.toString() ?? 'pending').toLowerCase();
+            final phone = data['phone'] as String? ?? '';
             final tests = (data['tests'] as List).cast<Map<String, dynamic>>();
             final total = _calcTotal(tests);
             final pdfUrl = data['pdf_url'] as String? ?? '';
+            final formattedDateTime = data['formattedDateTime'] as String? ?? '';
 
             return Column(
               children: [
-                // Status chip on top-left
-               /* Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                const SizedBox(height: 8),
+
+                // Patient info card with icons
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Card(
+                    color: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: const BorderSide(color: Color.fromARGB(255, 90, 138, 201), width: 1.5),
+                    ),
+                    elevation: 2,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
                   child: Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: _statusColor(status).withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: _statusColor(status), width: 1),
-                        ),
-                        child: Text(status == 'comlated' ? 'completed' : status, style: TextStyle(color: _statusColor(status), fontWeight: FontWeight.bold)),
+                          // Code on the left with larger font
+                          Expanded(
+                            flex: 1,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'الكود',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  intId > 0 ? '$intId' : patientDocId,
+                                  style: const TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color.fromARGB(255, 90, 138, 201),
+                                  ),
                       ),
                     ],
                   ),
                 ),
-
-                const SizedBox(height: 8),*/
-                const SizedBox(height: 8),
-
-                // Centered ID and Name
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Center(
+                          // Name and phone on the right
+                          Expanded(
+                            flex: 2,
                     child: Column(
-                      mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(intId > 0 ? '$intId' : patientDocId, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.black87), textAlign: TextAlign.center),
-                        const SizedBox(height: 6),
-                        Text(name, maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 26)),
-                      ],
+                                // Date and time above name
+                                if (formattedDateTime.isNotEmpty) ...[
+                                  Text(
+                                    formattedDateTime,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                ],
+                                // Patient name
+                                Text(
+                                  name,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                // Phone as subtitle
+                                if (phone.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    phone,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
 
                 const SizedBox(height: 12),
 
-                // Tests list within fixed area
+                // Tests + containers list within fixed area
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: ListView.separated(
+                    child: Builder(
+                      builder: (context) {
+                        final grouped = _groupTestsByContainer(tests);
+                        final entries = grouped.entries.toList();
+                        if (entries.isEmpty) {
+                          // Fallback: show flat tests list if no containers
+                          return ListView.separated(
                       physics: const BouncingScrollPhysics(),
                       itemCount: tests.length,
                       separatorBuilder: (_, __) => const Divider(height: 8),
@@ -163,13 +294,90 @@ class LabPatientResultDetailScreen extends StatelessWidget {
                             Expanded(child: Text('${i + 1}- $tName', style: const TextStyle(fontWeight: FontWeight.bold))),
                             Text(_formatPrice(price), style: const TextStyle(color: Colors.black87)),
                           ],
+                              );
+                            },
+                          );
+                        }
+                        return Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: const BorderSide(color: Color.fromARGB(255, 90, 138, 201), width: 1.2),
+                          ),
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxHeight: 400),
+                            child: SingleChildScrollView(
+                              physics: const BouncingScrollPhysics(),
+                              child: Padding(
+                                padding: const EdgeInsets.all(12.0),
+                                child: Column(
+                                  children: entries.asMap().entries.map((entryWithIndex) {
+                                    final i = entryWithIndex.key;
+                                    final entry = entryWithIndex.value;
+                                    final cid = entry.key;
+                                    final testsForContainer = entry.value;
+                                    final assetPath = _getContainerAssetPath(cid);
+                                    final isLast = i == entries.length - 1;
+                                    
+                                    return Column(
+                                      children: [
+                                         Row(
+                                           crossAxisAlignment: testsForContainer.length <= 2 ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+                                          children: [
+                                            SizedBox(
+                                              width: 72,
+                                              height: 72,
+                                              child: assetPath == null
+                                                  ? const Center(child: Icon(Icons.image_not_supported, color: Colors.grey))
+                                                  : Image.asset(
+                                                      assetPath,
+                                                      fit: BoxFit.contain,
+                                                      errorBuilder: (context, error, stack) => const Center(child: Icon(Icons.image_not_supported, color: Colors.grey)),
+                                                    ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  ...testsForContainer.map((t) {
+                                                    final tName = t['name']?.toString() ?? '';
+                                                    final priceDyn = t['price'];
+                                                    final price = (priceDyn is num) ? priceDyn : (num.tryParse('$priceDyn') ?? 0);
+                                                    return Padding(
+                                                      padding: const EdgeInsets.only(bottom: 4),
+                                                      child: Row(
+                                                        children: [
+                                                          Expanded(child: Text('- $tName', style: const TextStyle(fontWeight: FontWeight.bold))),
+                                                          Text(_formatPrice(price), style: const TextStyle(color: Colors.black87)),
+                                                        ],
+                                                      ),
+                                                    );
+                                                  }).toList(),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        if (!isLast) ...[
+                                          const SizedBox(height: 12),
+                                          const Divider(height: 1),
+                                          const SizedBox(height: 12),
+                                        ],
+                                      ],
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
+                            ),
+                          ),
                         );
                       },
                     ),
                   ),
                 ),
 
-                // Bottom fixed area: total, PDF button, progress bar
+                // Bottom fixed area: total, Containers button (stacked), PDF button
                 SafeArea(
                   top: false,
                   child: Padding(
@@ -283,6 +491,8 @@ class LabPatientResultDetailScreen extends StatelessWidget {
               ],
             );
           },
+        ),
+        ),
         ),
       ),
     );
