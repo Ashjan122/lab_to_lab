@@ -259,8 +259,10 @@ class _ClaimScreenState extends State<ClaimScreen> {
             )
           ],
         ),
-        body: _showDetails ? _buildPatientsList() : _buildSummaryView(),
-      ),
+        body: SafeArea(
+          child: 
+         _showDetails ? _buildPatientsList() : _buildSummaryView(),
+      ),)
     );
   }
 
@@ -339,7 +341,7 @@ class _ClaimScreenState extends State<ClaimScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 430),
+              const Spacer(),
               
               // Details button
               ElevatedButton(

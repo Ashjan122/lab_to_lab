@@ -149,7 +149,8 @@ class _LabPriceListScreenState extends State<LabPriceListScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
               child: TextField(
-                textDirection: TextDirection.ltr,
+                textDirection: TextDirection.rtl,
+
                 controller: _searchController,
                 onChanged: (v) => setState(() => _searchQuery = v.trim().toLowerCase()),
                 decoration: InputDecoration(
@@ -212,8 +213,40 @@ class _LabPriceListScreenState extends State<LabPriceListScreen> {
                       final price = data['price'];
                       return Card(
                         child: ListTile(
-                          title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text('السعر: ${price ?? 0}'),
+                          title: 
+                          
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('${price.toString()} SDG',
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          color: Colors.green,
+        ),),Expanded(child:
+                              Text(name,
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              textAlign: TextAlign.left,
+                              overflow: TextOverflow.visible,
+                              maxLines: 2,))
+                            ],
+                          ),
+                          subtitle: price != null
+      ? Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            ' ${(price * 2).toStringAsFixed(0)} SDG',
+            style: const TextStyle(
+              color: Colors.grey,
+              decoration: TextDecoration.lineThrough,
+              decorationThickness: 2, // ⬅️ يزيد وضوح الخط
+              height: 2,             // ⬅️ توازن عام
+  
+              fontSize: 13,
+            ),
+          ),
+        )
+      : null,
+
                     
                           ),
                         );

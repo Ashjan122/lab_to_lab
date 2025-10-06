@@ -20,17 +20,43 @@ class ControlPanalScreen extends StatefulWidget {
 
 class _ControlPanalScreenState extends State<ControlPanalScreen> {
   int? _lastSeenPatientsMs;
+  String? _userName;
 
   @override
   void initState() {
     super.initState();
     _loadLastSeenPatients();
+    _loadUserName();
   }
 
   Future<void> _loadLastSeenPatients() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _lastSeenPatientsMs = prefs.getInt('control_last_seen_patients');
+    });
+  }
+
+  Future<void> _loadUserName() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? name = prefs.getString('userName');
+    // Fallback: try to read from Firestore using stored control_user_id
+    if (name == null || name.isEmpty) {
+      final controlUserId = prefs.getString('control_user_id');
+      if (controlUserId != null) {
+        try {
+          final snap = await FirebaseFirestore.instance.collection('controlUsers').doc(controlUserId).get();
+          if (snap.exists) {
+            name = snap.data()?['userName']?.toString();
+            if (name != null && name.isNotEmpty) {
+              await prefs.setString('userName', name);
+            }
+          }
+        } catch (_) {}
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      _userName = name;
     });
   }
   Widget _buildControlCard({
@@ -174,12 +200,31 @@ class _ControlPanalScreenState extends State<ControlPanalScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: GridView.count(
-          crossAxisCount: 3,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildControlCard(
+            if ((_userName ?? '').isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12.0),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Row(children: [
+                    Icon(Icons.person,color: Color.fromARGB(255, 90, 138, 201),),
+                   Text(
+                    ' ${_userName!}',
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),])
+                ),
+              ),
+            ],
+            Expanded(
+              child: GridView.count(
+                crossAxisCount: 3,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                children: [
+                  _buildControlCard(
               icon: Icons.biotech,
               title: 'المعامل',
               onTap: () {
@@ -189,7 +234,7 @@ class _ControlPanalScreenState extends State<ControlPanalScreen> {
                 );
               },
             ),
-            _buildControlCard(
+                  _buildControlCard(
               icon: Icons.support_agent,
               title: 'الدعم الفني',
               onTap: () {
@@ -199,14 +244,14 @@ class _ControlPanalScreenState extends State<ControlPanalScreen> {
                 );
               },
             ),
-            _buildControlCard(
+                  _buildControlCard(
               icon: Icons.notifications,
               title: 'الاشعارات',
               onTap: () {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const ControlNotificationsScreen()));
               },
             ),
-            _buildControlCard(
+                  _buildControlCard(
               icon: Icons.query_stats,
               title: 'احصائيات ',
               onTap: () {
@@ -216,7 +261,7 @@ class _ControlPanalScreenState extends State<ControlPanalScreen> {
                 );
               },
             ),
-            _buildControlCard(
+                  _buildControlCard(
               icon: Icons.people_alt,
               title: 'المستخدمين',
               onTap: () {
@@ -226,7 +271,7 @@ class _ControlPanalScreenState extends State<ControlPanalScreen> {
                 );
               },
             ),
-            _buildControlCard(
+                  _buildControlCard(
               icon: Icons.receipt_long,
               title: 'المطالبة',
               onTap: () {
@@ -236,7 +281,10 @@ class _ControlPanalScreenState extends State<ControlPanalScreen> {
                 );
               },
             ),
-            _buildPatientsCardWithBadge(),
+                  _buildPatientsCardWithBadge(),
+                ],
+              ),
+            ),
           ],
         ),
       ),

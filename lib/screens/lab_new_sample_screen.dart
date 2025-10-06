@@ -100,7 +100,16 @@ class _LabNewSampleScreenState extends State<LabNewSampleScreen> {
                     border: OutlineInputBorder(),
                   ),
                   textInputAction: TextInputAction.next,
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'يرجى إدخال الاسم الثلاثي' : null,
+                  validator: (v) {
+  if (v == null || v.trim().isEmpty) {
+    return 'يرجى إدخال الاسم الثلاثي';
+  }
+  if (v.trim().split(' ').length < 3) {
+    return 'يرجى إدخال الاسم الثلاثي';
+  }
+  return null;
+},
+
                 ),
                 const SizedBox(height: 16),
                 Text('رقم الهاتف', style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -114,7 +123,16 @@ class _LabNewSampleScreenState extends State<LabNewSampleScreen> {
                   ),
                   keyboardType: TextInputType.phone,
                   textInputAction: TextInputAction.done,
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'يرجى إدخال رقم الهاتف' : null,
+                  validator: (v) {
+  if (v == null || v.trim().isEmpty) {
+    return 'يرجى إدخال رقم الهاتف';
+  }
+  if (v.trim().length < 8) {
+    return 'يرجى إدخال رقم هاتف صحيح';
+  }
+  return null;
+},
+
                 ),
                 const SizedBox(height: 16),
                 SizedBox(

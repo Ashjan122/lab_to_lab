@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:lab_to_lab_admin/screens/claim_screen.dart';
-import 'package:lab_to_lab_admin/screens/lab_info_screen.dart';
-import 'package:lab_to_lab_admin/screens/lab_location_screen.dart';
+// import 'package:lab_to_lab_admin/screens/lab_info_screen.dart';
+// import 'package:lab_to_lab_admin/screens/lab_location_screen.dart';
 import 'package:lab_to_lab_admin/screens/lab_new_sample_screen.dart';
-import 'package:lab_to_lab_admin/screens/lab_price_list_screen.dart';
+// import 'package:lab_to_lab_admin/screens/lab_price_list_screen.dart';
 import 'package:lab_to_lab_admin/screens/lab_results_patients_screen.dart';
+import 'package:lab_to_lab_admin/screens/lab_settings_screen.dart';
 import 'package:lab_to_lab_admin/screens/lab_support_numbers_screen.dart';
-import 'package:lab_to_lab_admin/screens/lab_users_screen.dart';
+// import 'package:lab_to_lab_admin/screens/lab_users_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lab_to_lab_admin/screens/login_screen.dart';
 import 'package:lab_to_lab_admin/screens/lab_to_lab.dart';
-import 'package:lab_to_lab_admin/screens/lab_order_received_notifications_screen.dart';
+// import 'package:lab_to_lab_admin/screens/lab_order_received_notifications_screen.dart';
 
 
 class LabDashboardScreen extends StatelessWidget {
@@ -20,15 +22,16 @@ class LabDashboardScreen extends StatelessWidget {
   const LabDashboardScreen({super.key, required this.labId, required this.labName});
 
   
-  Widget _buildCard({required IconData icon, required String title, required VoidCallback onTap, Color color = const Color.fromARGB(255, 90, 138, 201)}) {
+  Widget _buildCard({required IconData icon, required String title, required VoidCallback onTap, bool enabled = true, Color color = const Color.fromARGB(255, 90, 138, 201)}) {
+    final Color resolvedColor = enabled ? color : Colors.grey;
     return InkWell(
-      onTap: onTap,
+      onTap: enabled ? onTap : null,
       borderRadius: BorderRadius.circular(16),
       child: Ink(
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color, width: 1.5),
+          border: Border.all(color: resolvedColor, width: 1.5),
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
         ),
         child: Padding(
@@ -36,9 +39,9 @@ class LabDashboardScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 32, color: color),
+              Icon(icon, size: 32, color: resolvedColor.withOpacity(enabled ? 1 : 0.5)),
               const SizedBox(height: 12),
-              Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              Text(title, textAlign: TextAlign.center, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: enabled ? null : Colors.grey)),
             ],
           ),
         ),
@@ -111,67 +114,67 @@ class LabDashboardScreen extends StatelessWidget {
         ),
         body: Padding(
           padding: const EdgeInsets.all(8.0),
-          child: GridView.count(
-            crossAxisCount: 3,
-            childAspectRatio: 0.9,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            children: [
-              _buildCard(
-                icon: FontAwesomeIcons.syringe,
-                title: 'عينة جديدة',
-                onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder:  (context) => LabNewSampleScreen(labId: labId, labName: labName)));
-                  
-                  
-                },
-              ),
-              _buildCard(
-                icon: Icons.print,
-                title: 'المرضى',
-                onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder:  (context) => LabResultsPatientsScreen(labId: labId, labName: labName)));
-                 
-                },
-              ),
-              _buildCard(
-                icon: Icons.people,
-                title: 'المستخدمين',
-                onTap: () {
-                   Navigator.push(context, MaterialPageRoute(builder:  (context) => LabUsersScreen(labId: labId, labName: labName)));
-                },
-              ),
-              _buildCard(
-                icon: Icons.price_change,
-                title: ' الأسعار',
-                onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder:  (context) => LabPriceListScreen(labId: labId, labName: labName)));
-                },
-              ),
-              _buildCard(
-                icon: Icons.business,
-                title: 'بيانات المعمل',
-                onTap: () {
-                 Navigator.push(context, MaterialPageRoute(builder:  (context) => LabInfoScreen(labId: labId, labName: labName)));
-                },
-              ),
-              _buildCard(
-                icon: Icons.notifications,
-                title: 'الإشعارات ',
-                onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder:  (context) => const LabOrderReceivedNotificationsScreen()));
-                },
-              ),
-              _buildCard(icon: Icons.receipt_long, title: "المطالبة", onTap: (){
-                 Navigator.push(context, MaterialPageRoute(builder:  (context) => ClaimScreen(labId: labId, labName: labName)));
-              }),
-              _buildCard(icon: Icons.support_agent, title: "الدعم الفني", onTap: (){
-                 Navigator.push(context, MaterialPageRoute(builder:  (context) => LabSupportNumbersScreen()));
-              }),
-              _buildCard(icon: Icons.location_on, title: "الموقع", onTap: (){
-                Navigator.push(context, MaterialPageRoute(builder:  (context) => LabLocationScreen(labName: labName , labId: labId)));
-              })
-            ],
+          child: StreamBuilder(
+            stream: FirebaseFirestore.instance
+                .collection('labToLap')
+                .doc(labId)
+                .collection('pricelist')
+                .limit(1)
+                .snapshots(),
+            builder: (context, snapshot) {
+              final QuerySnapshot? qs = snapshot.data as QuerySnapshot?;
+              final bool hasPriceList = (qs != null && qs.docs.isNotEmpty);
+              return SingleChildScrollView(
+                child: Column(
+                  children: [
+                    GridView.count(
+                      crossAxisCount: 3,
+                      childAspectRatio: 0.9,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      children: [
+                        _buildCard(
+                          icon: FontAwesomeIcons.syringe,
+                          title: 'عينة جديدة',
+                          enabled: hasPriceList,
+                          onTap: () {
+                            Navigator.push(context, MaterialPageRoute(builder:  (context) => LabNewSampleScreen(labId: labId, labName: labName)));
+                          },
+                        ),
+                        _buildCard(
+                          icon: Icons.print,
+                          title: 'المرضى',
+                          onTap: () {
+                            Navigator.push(context, MaterialPageRoute(builder:  (context) => LabResultsPatientsScreen(labId: labId, labName: labName)));
+                          },
+                        ),
+                        _buildCard(icon: Icons.receipt_long, title: "المطالبة", onTap: (){
+                           Navigator.push(context, MaterialPageRoute(builder:  (context) => ClaimScreen(labId: labId, labName: labName)));
+                        }),
+                        _buildCard(icon: Icons.support_agent, title: "الدعم الفني", onTap: (){
+                           Navigator.push(context, MaterialPageRoute(builder:  (context) => LabSupportNumbersScreen()));
+                        }),
+                        _buildCard(icon: Icons.settings, title: "إعدادات", onTap: (){
+                          Navigator.push(context, MaterialPageRoute(builder:  (context) => LabSettingsScreen(labId: labId, labName: labName)));
+                        }),
+                      ],
+                    ),
+                    SizedBox(height: 30,),
+                    if (!hasPriceList) ...[
+                      const SizedBox(height: 8),
+                      const Text(
+                        'قائمة الاسعار ستضاف بعد اعتماد الطلب من المعمل المركزي',
+                        style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 4),
+                    ],
+                  ],
+                ),
+              );
+            },
           ),
         ),
         ),

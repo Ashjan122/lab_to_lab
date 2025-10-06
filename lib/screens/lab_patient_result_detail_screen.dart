@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+import 'package:http/http.dart' as http;
 // removed containers_screen import; containers shown inline
 
 
@@ -118,18 +120,7 @@ class LabPatientResultDetailScreen extends StatelessWidget {
       ),
     );
   }
-  void _navigateBack(BuildContext context) {
-    // Navigate back to lab results patients screen
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      '/lab_results_patients',
-      (route) => false,
-      arguments: {
-        'labId': labId,
-        'labName': labName,
-      },
-    );
-  }
+  // Back handled via Navigator.pop directly in UI; no helper needed.
 
   @override
   Widget build(BuildContext context) {
@@ -137,17 +128,17 @@ class LabPatientResultDetailScreen extends StatelessWidget {
       textDirection: TextDirection.ltr,
       child: WillPopScope(
         onWillPop: () async {
-          _navigateBack(context);
-          return false; // Prevent default back behavior
+          // Allow system back to pop to the exact previous screen
+          return true;
         },
-        child: Scaffold(
+      child: Scaffold(
         appBar: AppBar(
           title: const Text('بيانات المريض', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           backgroundColor: const Color.fromARGB(255, 90, 138, 201),
           centerTitle: true,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => _navigateBack(context),
+            onPressed: () => Navigator.of(context).pop(),
           ),
         ),
         body: Container(
@@ -502,6 +493,116 @@ class _PdfViewerScreen extends StatelessWidget {
   final String pdfUrl;
 
   const _PdfViewerScreen({required this.pdfUrl});
+  Future<void> _sendToWhatsapp(String toChatId, String pdfUrl, BuildContext context) async {
+    try {
+      // Send the PDF file itself using UltraMsg document API
+      final uri = Uri.parse('https://api.ultramsg.com/instance140877/messages/document');
+      final request = http.Request('POST', uri);
+      request.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+      request.bodyFields = {
+        'token': 'df2r46jz82otkegg',
+        'to': toChatId, // e.g. 249XXXXXXXXX@c.us
+        'document': pdfUrl, // direct URL to the PDF
+        'filename': 'lab_result.pdf',
+        'caption': 'نتيجة التحليل PDF',
+      };
+
+      final response = await request.send();
+      if (response.statusCode == 200) {
+        await response.stream.bytesToString();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('تم إرسال النتيجة عبر واتساب')), 
+          );
+          // إظهار رسالة تأكيد واضحة للمستخدم
+          await showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('تم الإرسال'),
+              content: const Text('تم إرسال النتيجة بنجاح عبر واتساب.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('حسناً'),
+                ),
+              ],
+            ),
+          );
+        }
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('فشل الإرسال (${response.reasonPhrase})'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ أثناء الإرسال: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+  void _showWhatsappDialog(BuildContext context) {
+  final TextEditingController _phoneController = TextEditingController();
+
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text("إرسال النتيجة عبر واتساب"),
+        content: TextField(
+          controller: _phoneController,
+          keyboardType: TextInputType.phone,
+          decoration: InputDecoration(
+            hintText: "أدخل رقم واتساب",
+            labelText: "رقم الهاتف",
+            labelStyle: const TextStyle(color: Colors.black),
+            border: const OutlineInputBorder(
+              borderSide: BorderSide(color: Color.fromARGB(255, 90, 138, 201)),
+            ),
+          ),
+        ),
+        actions: [
+          // 🔲 زر إلغاء (أسود)
+          TextButton(
+            child: const Text(
+              "إلغاء",
+              style: TextStyle(color: Colors.black),
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+            },
+          ),
+
+          // 🟦 زر إرسال النتيجة (بلون مخصص)
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+            ),
+            child: const Text("إرسال النتيجة", style: TextStyle(color: Colors.white)),
+            onPressed: () {
+              Navigator.pop(context);
+              String input = _phoneController.text.trim();
+
+              // ✅ حذف أول صفر إذا وُجد
+              if (input.startsWith('0')) {
+                input = input.substring(1);
+              }
+
+              // ✅ إضافة مفتاح السودان داخليًا فقط
+              String phone = '249$input';
+
+              // ✅ إرسال إلى واتساب باستخدام chat ID
+              _sendToWhatsapp('$phone@c.us', pdfUrl, context);
+            },
+          ),
+        ],
+      );
+    },
+  );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -512,7 +613,17 @@ class _PdfViewerScreen extends StatelessWidget {
           title: const Text('عرض النتيجة PDF', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           backgroundColor: const Color.fromARGB(255, 90, 138, 201),
           centerTitle: true,
+          actions: [
+            IconButton(
+              icon: const Icon(FontAwesomeIcons.whatsapp, color: Color.fromARGB(255, 2, 48, 4)),
+              tooltip: 'إرسال عبر واتساب',
+              onPressed: () {
+                _showWhatsappDialog(context);
+              },
+            ),
+          ],
         ),
+        
         body: SfPdfViewer.network(
           pdfUrl,
           canShowScrollHead: true,

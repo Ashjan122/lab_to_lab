@@ -37,6 +37,77 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
     final dt = ts.toDate();
     return dt.year == day.year && dt.month == day.month && dt.day == day.day;
   }
+
+  Widget _buildProgressBar(Map<String, dynamic> data) {
+    final orderReceived = data['order_receieved'] == true;
+    final orderDelivering = data['order_delivering'] == true;
+    final pdfUrl = data['pdf_url']?.toString();
+    final hasPdf = pdfUrl != null && pdfUrl.isNotEmpty;
+
+    double progress = 0.0;
+    Color progressColor = Colors.grey;
+
+    if (orderReceived) {
+      progress = 0.3; // 30%
+      progressColor = Colors.blue;
+    }
+    
+    if (orderDelivering) {
+      progress = 0.6; // 60%
+      progressColor = Colors.orange;
+    }
+    
+    if (hasPdf) {
+      progress = 1.0; // 100%
+      progressColor = Colors.green;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              _getProgressText(orderReceived, orderDelivering, hasPdf),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: progressColor,
+              ),
+            ),
+            Text(
+              '${(progress * 100).toInt()}%',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: progressColor,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        LinearProgressIndicator(
+          value: progress,
+          backgroundColor: Colors.grey[300],
+          valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+          minHeight: 6,
+        ),
+      ],
+    );
+  }
+
+  String _getProgressText(bool orderReceived, bool orderDelivering, bool hasPdf) {
+    if (hasPdf) {
+      return 'اكتملت النتيجة';
+    } else if (orderDelivering) {
+      return 'تم توصيل العينات';
+    } else if (orderReceived) {
+      return 'تم استلام الطلب';
+    } else {
+      return 'في الانتظار';
+    }
+  }
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
@@ -66,8 +137,15 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
           title: Text('مرضى ${widget.labName}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           backgroundColor: const Color.fromARGB(255, 90, 138, 201),
           centerTitle: true,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
+          leading:IconButton(
+              tooltip: 'اختيار التاريخ',
+              icon: const Icon(Icons.calendar_today, color: Colors.white),
+              onPressed: _pickDate,
+            ),
+          
+          actions: [
+           IconButton(
+            icon: const Icon(Icons.arrow_forward, color: Colors.white),
             onPressed: () {
               // الرجوع إلى لوحة تحكم المعمل مباشرة
               Navigator.pushAndRemoveUntil(
@@ -83,12 +161,6 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
             },
             tooltip: 'الرجوع إلى لوحة المعمل',
           ),
-          actions: [
-            IconButton(
-              tooltip: 'اختيار التاريخ',
-              icon: const Icon(Icons.calendar_today, color: Colors.white),
-              onPressed: _pickDate,
-            ),
           ],
         ),
         body: Column(
@@ -209,9 +281,16 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
                               ),
                             ),
                             title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                            subtitle: Text(
-                              'كود المريض: ${((data['id'] is int) ? data['id'] as int : (int.tryParse('${data['id'] ?? ''}') ?? 0)) > 0 ? (data['id'] is int) ? data['id'] as int : (int.tryParse('${data['id'] ?? ''}') ?? 0) : d.id}',
-                              style: const TextStyle(color: Colors.black54),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'كود المريض: ${((data['id'] is int) ? data['id'] as int : (int.tryParse('${data['id'] ?? ''}') ?? 0)) > 0 ? (data['id'] is int) ? data['id'] as int : (int.tryParse('${data['id'] ?? ''}') ?? 0) : d.id}',
+                                  style: const TextStyle(color: Colors.black54),
+                                ),
+                                const SizedBox(height: 8),
+                                _buildProgressBar(data),
+                              ],
                             ),
                              /*trailing: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

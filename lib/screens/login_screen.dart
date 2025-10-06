@@ -48,6 +48,8 @@ class _LoginScreenState extends State<LoginScreen> {
         await prefs.setBool('isLoggedIn', true);
         await prefs.setString('userType', 'controlUser');
         await prefs.setString('control_user_id', controlUserId);
+        // Save displayed user name for Control Panel greeting
+        await prefs.setString('userName', controlDoc.data()['userName']?.toString() ?? inputUser);
         await prefs.remove('lab_id');
         await prefs.remove('labName');
         if (!mounted) return;
@@ -81,6 +83,8 @@ class _LoginScreenState extends State<LoginScreen> {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool('isLoggedIn', true);
         await prefs.setBool('hasContract', true);
+        // Save userName for consistency even if not used in control panel
+        await prefs.setString('userName', data['userName']?.toString() ?? inputUser);
         if (labId.isNotEmpty) await prefs.setString('lab_id', labId);
         await prefs.setString('labName', labName);
 
@@ -134,7 +138,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: TextDirection.ltr,
       child: Scaffold(
         body: Container(
           decoration: BoxDecoration(

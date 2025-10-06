@@ -247,7 +247,7 @@ class _LabToLabState extends State<LabToLab> {
               return IconButton(
                 tooltip: 'الرجوع للكنترول',
                 icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed: () {
+              onPressed: () {
                   Navigator.of(context).pushAndRemoveUntil(
                     MaterialPageRoute(builder: (_) => ControlPanalScreen()),
                     (route) => false,
@@ -261,8 +261,8 @@ class _LabToLabState extends State<LabToLab> {
         resizeToAvoidBottomInset: true,
         body: Column(
           children: [
-            Expanded(
-              child: StreamBuilder<QuerySnapshot>(
+              Expanded(
+                child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance.collection('labToLap').snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {

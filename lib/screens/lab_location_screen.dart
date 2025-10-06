@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 
 class LabLocationScreen extends StatefulWidget {
@@ -141,6 +142,19 @@ class _LabLocationScreenState extends State<LabLocationScreen> {
       }
     }
   }
+  void _openInGoogleMaps(double lat, double lng) async {
+  final Uri googleMapUrl = Uri.parse(
+    'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving',
+  );
+
+  if (await canLaunchUrl(googleMapUrl)) {
+    await launchUrl(googleMapUrl, mode: LaunchMode.externalApplication);
+  } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('لا يمكن فتح تطبيق الخرائط'), backgroundColor: Colors.red),
+    );
+  }
+}
   
   @override
   Widget build(BuildContext context) {
@@ -195,13 +209,18 @@ class _LabLocationScreenState extends State<LabLocationScreen> {
                           }
                         },
                         markers: selectedLocation != null
-                            ? {
-                                Marker(
-                                  markerId: const MarkerId("LabLocation"),
-                                  position: selectedLocation!,
-                                )
-                              }
-                            : {},
+    ? {
+        Marker(
+          markerId: const MarkerId("LabLocation"),
+          position: selectedLocation!,
+          infoWindow: const InfoWindow(title: "اضغط للذهاب", snippet: "افتح في خرائط Google"),
+          onTap: () {
+            _openInGoogleMaps(selectedLocation!.latitude, selectedLocation!.longitude);
+          },
+        )
+      }
+    : {},
+
                       ),
                     ),
                     Padding(
