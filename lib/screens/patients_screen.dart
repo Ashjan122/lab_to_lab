@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:lab_to_lab_admin/screens/lab_patient_result_detail_screen.dart';
+ 
+import 'package:lab_to_lab_admin/screens/order_request_screen.dart';
 
 class PatientsScreen extends StatefulWidget {
   const PatientsScreen({super.key});
@@ -62,61 +63,7 @@ class _PatientsScreenState extends State<PatientsScreen> {
     }
   }
 
-  Future<void> _receiveOrder(String patientDocId, String labId) async {
-    try {
-      // 1) Mark order as received
-      await FirebaseFirestore.instance
-          .collection('labToLap')
-          .doc('global')
-          .collection('patients')
-          .doc(patientDocId)
-          .update({'order_receieved': true});
-
-      // 2) Load patient to get name & phone
-      final pSnap = await FirebaseFirestore.instance
-          .collection('labToLap')
-          .doc('global')
-          .collection('patients')
-          .doc(patientDocId)
-          .get();
-      final pData = pSnap.data() ?? {};
-      final patientName = pData['name']?.toString() ?? 'غير معروف';
-      final patientPhone = pData['phone']?.toString() ?? '';
-
-      // 3) Send push request to lab-specific topic
-      final topic = 'lab_order_received_' + labId;
-      const title = 'تم استلام طلبك';
-      final body = patientPhone.isNotEmpty
-          ? 'اسم المريض: ' + patientName + '\nرقم الهاتف: ' + patientPhone
-          : 'اسم المريض: ' + patientName;
-
-      await FirebaseFirestore.instance.collection('push_requests').add({
-        'topic': topic,
-        'title': title,
-        'body': body,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم استلام الطلب'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('خطأ في استلام الطلب: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
+  
   @override
   Widget build(BuildContext context) {
     final startOfDay = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
@@ -221,22 +168,26 @@ class _PatientsScreenState extends State<PatientsScreen> {
                       final patientName = data['name']?.toString() ?? '';
                       final labId = data['labId']?.toString() ?? '';
                       final patientDocId = doc.id;
-                      final bool received = (data['order_receieved'] == true);
+                      
 
                       return Card(
                         elevation: 2,
                         color: Colors.white,
                         child: ListTile(
                           leading: Container(
-                            width: 40,
-                            height: 40,
+                             constraints: const BoxConstraints(
+                                  minWidth: 40, // الحد الأدنى للعرض
+                                  maxWidth: 120, // 👈 يسمح بعرض يصل حتى 6 أرقام
+                                  minHeight: 40,
+                                     ), 
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               border: Border.all(
                                 color: const Color.fromARGB(255, 90, 138, 201),
                                 width: 2,
                               ),
-                              borderRadius: BorderRadius.circular(20),
+                              borderRadius: BorderRadius.circular(8),
                             ),
                             child: Center(
                               child: Text(
@@ -260,57 +211,41 @@ class _PatientsScreenState extends State<PatientsScreen> {
                             future: _getLabName(labId),
                             builder: (context, labSnapshot) {
                               final labName = labSnapshot.data ?? 'جاري التحميل...';
-                              return Text(
-                                'المعمل: $labName',
-                                style: const TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 14,
-                                ),
+                              final bool received = (data['order_receieved'] == true);
+                              final String receivedBy = data['order_receieved_by_name']?.toString() ?? '';
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    ' $labName',
+                                    style: const TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  if (received && receivedBy.isNotEmpty)
+                                    const SizedBox(height: 4),
+                                  if (received && receivedBy.isNotEmpty)
+                                    Text(
+                                      'تم الاستلام من قبل $receivedBy',
+                                      style: const TextStyle(
+                                        color: Colors.green,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                ],
                               );
                             },
                            
                           ),
                           
-                          trailing: !received
-                              ? Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: const Color.fromARGB(255, 90, 138, 201),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: InkWell(
-                                    onTap: () => _receiveOrder(patientDocId, labId),
-                                    borderRadius: BorderRadius.circular(4),
-                                    child: const Text(
-                                      'استلام الطلب',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                )
-                              : Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: Colors.green,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Text(
-                                    'تم الاستلام',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
+                          trailing: null,
                           onTap: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => LabPatientResultDetailScreen(
+                                builder: (context) => OrderRequestScreen(
                                   labId: labId.isNotEmpty ? labId : 'global',
                                   labName: 'المعمل',
                                   patientDocId: patientDocId,

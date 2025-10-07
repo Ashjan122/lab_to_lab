@@ -118,12 +118,21 @@ class LabDashboardScreen extends StatelessWidget {
             stream: FirebaseFirestore.instance
                 .collection('labToLap')
                 .doc(labId)
-                .collection('pricelist')
-                .limit(1)
+               
                 .snapshots(),
             builder: (context, snapshot) {
-              final QuerySnapshot? qs = snapshot.data as QuerySnapshot?;
-              final bool hasPriceList = (qs != null && qs.docs.isNotEmpty);
+              if (snapshot.connectionState == ConnectionState.waiting) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      if (!snapshot.hasData || !snapshot.data!.exists) {
+  return const Center(child: Text("لا توجد بيانات حالياً"));
+}
+final doc = snapshot.data!;
+final docData = doc?.data() as Map<String, dynamic>? ?? {};
+final bool isApproved = docData['isApproved'] != false;
+
+
+
               return SingleChildScrollView(
                 child: Column(
                   children: [
@@ -138,7 +147,7 @@ class LabDashboardScreen extends StatelessWidget {
                         _buildCard(
                           icon: FontAwesomeIcons.syringe,
                           title: 'عينة جديدة',
-                          enabled: hasPriceList,
+                          enabled: isApproved,
                           onTap: () {
                             Navigator.push(context, MaterialPageRoute(builder:  (context) => LabNewSampleScreen(labId: labId, labName: labName)));
                           },
@@ -162,10 +171,10 @@ class LabDashboardScreen extends StatelessWidget {
                       ],
                     ),
                     SizedBox(height: 30,),
-                    if (!hasPriceList) ...[
+                    if (!isApproved) ...[
                       const SizedBox(height: 8),
                       const Text(
-                        'قائمة الاسعار ستضاف بعد اعتماد الطلب من المعمل المركزي',
+                        'قائمة الاسعار ستضاف بعد اعتماد التعاقد من المعمل المركزي',
                         style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
                         textAlign: TextAlign.center,
                       ),

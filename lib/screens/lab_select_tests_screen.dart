@@ -142,17 +142,16 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen> {
         );
       }
       
-      // Navigate to results screen
-      Navigator.pushAndRemoveUntil(
+      // Navigate to results screen without clearing the entire stack
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (context) => LabPatientResultDetailScreen(
-            labId: widget.labId, 
-            labName: widget.labName, 
-            patientDocId: widget.patientId
-          )
+            labId: widget.labId,
+            labName: widget.labName,
+            patientDocId: widget.patientId,
+          ),
         ),
-        (route) => false, // Remove all previous routes
       );
     } catch (e) {
       if (mounted) {

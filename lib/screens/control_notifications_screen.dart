@@ -36,8 +36,8 @@ class _ControlNotificationsScreenState extends State<ControlNotificationsScreen>
     final doc = await FirebaseFirestore.instance.collection('controlUsers').doc(controlUserId).get();
     final status = doc.data()?['lab_order_subscribed'] == true;
     final newLabStatus = doc.data()?['new_lab_subscribed'] == true;
-    setState(() {
-      isSubscribed = status;
+      setState(() {
+        isSubscribed = status;
       isNewLabSubscribed = newLabStatus;
     });
   }
@@ -102,40 +102,40 @@ class _ControlNotificationsScreenState extends State<ControlNotificationsScreen>
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Column(
+        child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+          children: [
               // ✅ بطاقة عرض حالة الاشتراك للمرضى
-              Container(
+            Container(
                 padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isSubscribed ? Colors.green : Colors.orange,
-                    width: 2,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isSubscribed ? Colors.green : Colors.orange,
+                  width: 2,
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
                 child: Column(
                   children: [
                     Row(
-                      children: [
-                        Icon(
-                          isSubscribed ? Icons.check_circle : Icons.notifications_off,
-                          color: isSubscribed ? Colors.green : Colors.orange,
-                          size: 32,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            isSubscribed
+                children: [
+                  Icon(
+                    isSubscribed ? Icons.check_circle : Icons.notifications_off,
+                    color: isSubscribed ? Colors.green : Colors.orange,
+                    size: 32,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      isSubscribed
                                 ? 'أنت مشترك في تلقي إشعارات تسجيل مريض جديد'
                                 : 'أنت غير مشترك في تلقي إشعارات تسجيل مريض جديد',
                             style: const TextStyle(fontSize: 16),
@@ -164,11 +164,11 @@ class _ControlNotificationsScreenState extends State<ControlNotificationsScreen>
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
-                      ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
+            ),
               const SizedBox(height: 16),
               // ✅ بطاقة عرض حالة الاشتراك للتعاقدات الجديدة
               Container(
@@ -221,7 +221,7 @@ class _ControlNotificationsScreenState extends State<ControlNotificationsScreen>
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        style: ElevatedButton.styleFrom(
+              style: ElevatedButton.styleFrom(
                           backgroundColor: isNewLabSubscribed ? Colors.green : Colors.orange,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
@@ -232,9 +232,9 @@ class _ControlNotificationsScreenState extends State<ControlNotificationsScreen>
                       ),
                     ),
                   ],
-                ),
               ),
-            ],
+            ),
+          ],
           ),
         ),
       ),

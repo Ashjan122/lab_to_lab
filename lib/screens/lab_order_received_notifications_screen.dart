@@ -61,9 +61,16 @@ class _LabOrderReceivedNotificationsScreenState extends State<LabOrderReceivedNo
 
     // compute topic if we have a labId
     if (labId != null && labId!.isNotEmpty) {
-      _topic = 'lab_order_received_' + labId!;
+      _topic = labId!;
     } else {
       _topic = null;
+    }
+
+    // Auto-subscribe to current topic if previously marked subscribed
+    if (_topic != null && isSubscribed) {
+      try {
+        await FirebaseMessaging.instance.subscribeToTopic(_topic!);
+      } catch (_) {}
     }
   }
 
@@ -134,7 +141,7 @@ class _LabOrderReceivedNotificationsScreenState extends State<LabOrderReceivedNo
                            Icon(isSubscribed ? Icons.check_circle : Icons.notifications_off, color: isSubscribed ? Colors.green : Colors.orange, size: 32),
                            const SizedBox(width: 12),
                            const Expanded(
-                             child: Text('الاشتراك في إشعارات استلام الطلبات', style: TextStyle(fontSize: 16)),
+                             child: Text('الاشتراك في الإشعارات', style: TextStyle(fontSize: 16)),
                            ),
                          ],
                        ),

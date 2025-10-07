@@ -13,6 +13,13 @@ class RegisterLabScreen extends StatefulWidget {
 }
 
 class _RegisterLabScreenState extends State<RegisterLabScreen> {
+  final FocusNode _labNameFocus = FocusNode();
+  final FocusNode _userNameFocus = FocusNode();
+  final FocusNode _phoneFocus = FocusNode();
+  final FocusNode _whatsFocus = FocusNode();
+  final FocusNode _addressFocus = FocusNode();
+  final FocusNode _passwordFocus = FocusNode();
+  final FocusNode _confirmPasswordFocus = FocusNode();
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _labName = TextEditingController();
   final TextEditingController _userName = TextEditingController();
@@ -24,6 +31,7 @@ class _RegisterLabScreenState extends State<RegisterLabScreen> {
   bool _submitting = false;
   bool _obscure = true;
   static const Color _primary = Color.fromARGB(255, 90, 138, 201);
+
 
   @override
   void dispose() {
@@ -98,6 +106,7 @@ class _RegisterLabScreenState extends State<RegisterLabScreen> {
         'password': _password.text.trim(),
         'available': true,
         'order': nextOrder,
+        'isApproved': false,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
@@ -184,6 +193,9 @@ class _RegisterLabScreenState extends State<RegisterLabScreen> {
                           const SizedBox(height: 16),
                           TextFormField(
                             controller: _labName,
+                            focusNode: _labNameFocus,
+                            textInputAction: TextInputAction.next,
+                            onFieldSubmitted: (_) => FocusScope.of(context).requestFocus(_userNameFocus),
                             decoration: const InputDecoration(
                               labelText: 'اسم المعمل',
                               border: OutlineInputBorder(),
@@ -194,6 +206,9 @@ class _RegisterLabScreenState extends State<RegisterLabScreen> {
                           const SizedBox(height: 12),
                           TextFormField(
                             controller: _userName,
+                            focusNode: _userNameFocus,
+                            textInputAction: TextInputAction.next,
+                            onFieldSubmitted: (_) => FocusScope.of(context).requestFocus(_phoneFocus),
                             decoration: const InputDecoration(
                               labelText: 'اسم المستخدم',
                               border: OutlineInputBorder(),
@@ -204,6 +219,9 @@ class _RegisterLabScreenState extends State<RegisterLabScreen> {
                           const SizedBox(height: 12),
                           TextFormField(
                             controller: _phone,
+                            focusNode: _phoneFocus,
+                            textInputAction: TextInputAction.next,
+                            onFieldSubmitted: (_) => FocusScope.of(context).requestFocus(_whatsFocus),
                             keyboardType: TextInputType.phone,
                             decoration: const InputDecoration(
                               labelText: 'رقم الهاتف',
@@ -215,6 +233,9 @@ class _RegisterLabScreenState extends State<RegisterLabScreen> {
                           const SizedBox(height: 12),
                           TextFormField(
                             controller: _whats,
+                            focusNode: _whatsFocus,
+                            textInputAction: TextInputAction.next,
+                            onFieldSubmitted: (_) => FocusScope.of(context).requestFocus(_addressFocus),
                             keyboardType: TextInputType.phone,
                             decoration: InputDecoration(
                               labelText: 'رقم الواتساب',
@@ -225,6 +246,9 @@ class _RegisterLabScreenState extends State<RegisterLabScreen> {
                           const SizedBox(height: 12),
                           TextFormField(
                             controller: _address,
+                            focusNode: _addressFocus,
+                            textInputAction: TextInputAction.next,
+                            onFieldSubmitted: (_) => FocusScope.of(context).requestFocus(_passwordFocus),
                             decoration: const InputDecoration(
                               labelText: 'العنوان',
                               border: OutlineInputBorder(),
@@ -235,6 +259,9 @@ class _RegisterLabScreenState extends State<RegisterLabScreen> {
                           const SizedBox(height: 12),
                           TextFormField(
                             controller: _password,
+                            focusNode: _passwordFocus,
+                            textInputAction: TextInputAction.next,
+                            onFieldSubmitted: (_) => FocusScope.of(context).requestFocus(_confirmPasswordFocus),
                             obscureText: _obscure,
                             decoration: InputDecoration(
                               labelText: 'كلمة المرور',
@@ -250,6 +277,8 @@ class _RegisterLabScreenState extends State<RegisterLabScreen> {
                           const SizedBox(height: 12),
                           TextFormField(
                             controller: _confirmPassword,
+                            focusNode: _confirmPasswordFocus,
+                            textInputAction: TextInputAction.done,
                             obscureText: _obscure,
                             decoration: const InputDecoration(
                               labelText: 'تأكيد كلمة المرور',

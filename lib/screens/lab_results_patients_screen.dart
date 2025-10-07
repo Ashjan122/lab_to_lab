@@ -40,7 +40,7 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
 
   Widget _buildProgressBar(Map<String, dynamic> data) {
     final orderReceived = data['order_receieved'] == true;
-    final orderDelivering = data['order_delivering'] == true;
+    final sampledDelivered = data['sample_delivered'] == true;
     final pdfUrl = data['pdf_url']?.toString();
     final hasPdf = pdfUrl != null && pdfUrl.isNotEmpty;
 
@@ -52,7 +52,7 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
       progressColor = Colors.blue;
     }
     
-    if (orderDelivering) {
+    if (sampledDelivered) {
       progress = 0.6; // 60%
       progressColor = Colors.orange;
     }
@@ -69,7 +69,7 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              _getProgressText(orderReceived, orderDelivering, hasPdf),
+              _getProgressText(orderReceived, sampledDelivered, hasPdf),
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
@@ -97,10 +97,10 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
     );
   }
 
-  String _getProgressText(bool orderReceived, bool orderDelivering, bool hasPdf) {
+  String _getProgressText(bool orderReceived, bool sampledDelivered, bool hasPdf) {
     if (hasPdf) {
       return 'اكتملت النتيجة';
-    } else if (orderDelivering) {
+    } else if (sampledDelivered) {
       return 'تم توصيل العينات';
     } else if (orderReceived) {
       return 'تم استلام الطلب';

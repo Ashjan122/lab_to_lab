@@ -1,0 +1,590 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
+ 
+
+class OrderRequestScreen extends StatefulWidget {
+  final String labId;
+  final String labName;
+  final String patientDocId;
+  const OrderRequestScreen({super.key , required this.labId, required this.labName, required this.patientDocId});
+
+  @override
+  State<OrderRequestScreen> createState() => _OrderRequestScreenState();
+}
+
+class _OrderRequestScreenState extends State<OrderRequestScreen> {
+  bool _isReceived = false;
+  late Future<Map<String, dynamic>> _patientFuture;
+  bool _isLoading = false;
+
+
+  @override
+  void initState() {
+    super.initState();
+    _patientFuture = _loadPatientAndTests();
+  }
+
+  Future<Map<String, dynamic>> _loadPatientAndTests() async {
+    final patientRef = FirebaseFirestore.instance
+        .collection('labToLap')
+        .doc('global')
+        .collection('patients')
+        .doc(widget.patientDocId);
+    final pSnap = await patientRef.get();
+    final pData = pSnap.data() ?? {};
+    final idDyn = pData['id'];
+    final intId = (idDyn is int) ? idDyn : int.tryParse('${idDyn ?? ''}') ?? 0;
+    final testsSnap = await patientRef.collection('lab_request').get();
+    final tests = testsSnap.docs.map((d) => d.data()).toList();
+    
+    // Format date and time
+    String formattedDateTime = '';
+    final createdAt = pData['createdAt'];
+    if (createdAt != null) {
+      try {
+        DateTime dateTime;
+        if (createdAt is Timestamp) {
+          dateTime = createdAt.toDate();
+        } else if (createdAt is DateTime) {
+          dateTime = createdAt;
+        } else {
+          dateTime = DateTime.now();
+        }
+        formattedDateTime = '${dateTime.day}/${dateTime.month}/${dateTime.year} - ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+      } catch (e) {
+        formattedDateTime = '';
+      }
+    }
+    
+    final result = {
+      'id': intId,
+      'name': pData['name']?.toString() ?? '',
+      'phone': pData['phone']?.toString() ?? '',
+      'status': (pData['status']?.toString() ?? 'pending').toLowerCase(),
+      'tests': tests,
+      'pdf_url': pData['pdf_url']?.toString() ?? '',
+      'formattedDateTime': formattedDateTime,
+      'order_receieved': pData['order_receieved'] == true,
+    };
+    // initialize local received flag once on first load
+    _isReceived = (result['order_receieved'] as bool? ?? false);
+    return result;
+  }
+
+
+  String _formatPrice(num price) {
+    final str = price.toStringAsFixed(0);
+    return str.replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => ',');
+  }
+
+  num _calcTotal(List<Map<String, dynamic>> tests) {
+    num total = 0;
+    for (final t in tests) {
+      final p = t['price'];
+      if (p is num) {
+        total += p;
+      } else {
+        final n = num.tryParse('$p');
+        if (n != null) total += n;
+      }
+    }
+    return total;
+  }
+
+  Map<String, List<Map<String, dynamic>>> _groupTestsByContainer(List<Map<String, dynamic>> tests) {
+    final Map<String, List<Map<String, dynamic>>> grouped = {};
+    for (final t in tests) {
+      final String cid = _extractContainerId(t);
+      if (cid.isEmpty) continue;
+      grouped.putIfAbsent(cid, () => []);
+      grouped[cid]!.add(t);
+    }
+    return grouped;
+  }
+
+  String _extractContainerId(Map<String, dynamic> t) {
+    final possibleKeys = ['containerId', 'container_id', 'container', 'cid'];
+    for (final key in possibleKeys) {
+      final v = t[key];
+      if (v != null && v.toString().trim().isNotEmpty) {
+        return v.toString().trim();
+      }
+    }
+    return '';
+  }
+
+  String? _getContainerAssetPath(String containerId) {
+    if (containerId.isEmpty) return null;
+    return 'assets/containars/$containerId.png';
+  }
+
+  
+    
+  
+  // Back handled via Navigator.pop directly in UI; no helper needed.
+  Future<void> _receiveOrder(BuildContext context, String patientDocId, String labId) async {
+    setState(() => _isLoading = true);
+    try {
+      // Read controller name from local storage
+      String acceptedByName = 'المشرف';
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final n = prefs.getString('userName');
+        if (n != null && n.trim().isNotEmpty) {
+          acceptedByName = n.trim();
+        }
+      } catch (_) {}
+
+      // 1) Mark order as received
+      await FirebaseFirestore.instance
+          .collection('labToLap')
+          .doc('global')
+          .collection('patients')
+          .doc(patientDocId)
+          .update({
+            'order_receieved': true,
+            'order_receieved_by_name': acceptedByName,
+            'order_receieved_at': FieldValue.serverTimestamp(),
+          });
+
+      // 2) Load patient to get name & phone
+      final pSnap = await FirebaseFirestore.instance
+          .collection('labToLap')
+          .doc('global')
+          .collection('patients')
+          .doc(patientDocId)
+          .get();
+      final pData = pSnap.data() ?? {};
+      final patientName = pData['name']?.toString() ?? 'غير معروف';
+      final patientPhone = pData['phone']?.toString() ?? '';
+
+     
+      final topic = labId;
+      const title = 'تم استلام طلبك';
+      final body = patientPhone.isNotEmpty
+          ? 'اسم المريض: ' + patientName + '\nرقم الهاتف: ' + patientPhone
+          : 'اسم المريض: ' + patientName;
+
+      await FirebaseFirestore.instance.collection('push_requests').add({
+        'topic': topic,
+        'title': title,
+        'body': body,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      
+      if (mounted) {
+        setState(() {
+          _isReceived = true;
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('خطأ في استلام الطلب: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+  
+// فتح جوجل مابس بالإحداثيات
+Future<void> _openInGoogleMaps(double lat, double lng) async {
+  final Uri googleMapUrl = Uri.parse(
+    'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving',
+  );
+
+  if (await canLaunchUrl(googleMapUrl)) {
+    await launchUrl(googleMapUrl, mode: LaunchMode.externalApplication);
+  } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('لا يمكن فتح تطبيق الخرائط'), backgroundColor: Colors.red),
+    );
+  }
+}
+Future<Map<String, double>?> _fetchLabLocation() async {
+  try {
+    final docSnap = await FirebaseFirestore.instance
+        .collection('labToLap')
+        .doc(widget.labId)
+        .get();
+
+    if (!docSnap.exists) return null;
+
+    final data = docSnap.data();
+    if (data == null) return null;
+
+    final location = data['location'];
+    if (location == null) return null;
+
+    if (location is GeoPoint) {
+      return {'lat': location.latitude, 'lng': location.longitude};
+    }
+    final lat = location['lat'];
+    final lng = location['lng'];
+    if (lat is double && lng is double) {
+      return {'lat': lat, 'lng': lng};
+    } else if (lat is num && lng is num) {
+      return {'lat': lat.toDouble(), 'lng': lng.toDouble()};
+    }
+
+    return null;
+  } catch (e) {
+    print('Error fetching lab location: $e');
+    return null;
+  }
+}
+
+
+
+  @override
+  Widget build(BuildContext context) {
+    return 
+Directionality(
+      textDirection: TextDirection.ltr,
+      child: WillPopScope(
+        onWillPop: () async {
+          // Allow system back to pop to the exact previous screen
+          return true;
+        },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('بيانات الطلب', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+          centerTitle: true,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.grey.shade200,
+                const Color.fromARGB(255, 90, 138, 201).withOpacity(0.2),
+                const Color.fromARGB(255, 90, 138, 201).withOpacity(0.35),
+              ],
+            ),
+          ),
+          child: FutureBuilder<Map<String, dynamic>>(
+          future: _patientFuture,
+          builder: (context, snap) {
+            if (snap.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final data = snap.data ?? {'id': 0, 'name': '', 'phone': '', 'status': 'pending', 'tests': <Map<String, dynamic>>[], 'pdf_url': '', 'formattedDateTime': ''};
+            final intId = data['id'] as int? ?? 0;
+            final name = data['name'] as String? ?? '';
+            final phone = data['phone'] as String? ?? '';
+            final tests = (data['tests'] as List).cast<Map<String, dynamic>>();
+            final total = _calcTotal(tests);
+            final pdfUrl = data['pdf_url'] as String? ?? '';
+            final formattedDateTime = data['formattedDateTime'] as String? ?? '';
+            final receivedFromData = (data['order_receieved'] as bool? ?? false);
+            final bool isReceived = _isReceived || receivedFromData;
+
+            return Column(
+              children: [
+                const SizedBox(height: 8),
+
+
+// Patient info card with icons
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Card(
+                    color: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: const BorderSide(color: Color.fromARGB(255, 90, 138, 201), width: 1.5),
+                    ),
+                    elevation: 2,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                          // Code on the left with larger font
+                          Expanded(
+                            flex: 1,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'الكود',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  intId > 0 ? '$intId' : widget.patientDocId,
+                                  style: const TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color.fromARGB(255, 90, 138, 201),
+                                  ),
+                      ),
+                    ],
+                  ),
+                ),
+                          // Name and phone on the right
+                          Expanded(
+                            flex: 2,
+                    child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                                // Date and time above name
+                                if (formattedDateTime.isNotEmpty) ...[
+                                  Text(
+                                    formattedDateTime,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                ],
+                                // Patient name
+                                Text(
+                                  name,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                // Phone as subtitle
+                                if (phone.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    phone,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+
+// Tests + containers list within fixed area
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Builder(
+                      builder: (context) {
+                        final grouped = _groupTestsByContainer(tests);
+                        final entries = grouped.entries.toList();
+                        if (entries.isEmpty) {
+                          // Fallback: show flat tests list if no containers
+                          return ListView.separated(
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: tests.length,
+                      separatorBuilder: (_, __) => const Divider(height: 8),
+                      itemBuilder: (context, i) {
+                        final t = tests[i];
+                        final tName = t['name']?.toString() ?? '';
+                        final priceDyn = t['price'];
+                        final price = (priceDyn is num) ? priceDyn : (num.tryParse('$priceDyn') ?? 0);
+                        return Row(
+                          children: [
+                            Expanded(child: Text('${i + 1}- $tName', style: const TextStyle(fontWeight: FontWeight.bold))),
+                            Text(_formatPrice(price), style: const TextStyle(color: Colors.black87)),
+                          ],
+                              );
+                            },
+                          );
+                        }
+                        return Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: const BorderSide(color: Color.fromARGB(255, 90, 138, 201), width: 1.2),
+                          ),
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxHeight: 400),
+                            child: SingleChildScrollView(
+                              physics: const BouncingScrollPhysics(),
+                              child: Padding(
+                                padding: const EdgeInsets.all(12.0),
+                                child: Column(
+                                  children: entries.asMap().entries.map((entryWithIndex) {
+                                    final i = entryWithIndex.key;
+                                    final entry = entryWithIndex.value;
+                                    final cid = entry.key;
+                                    final testsForContainer = entry.value;
+                                    final assetPath = _getContainerAssetPath(cid);
+                                    final isLast = i == entries.length - 1;
+                                    
+                                    return Column(
+                                      children: [
+                                         Row(
+                                           crossAxisAlignment: testsForContainer.length <= 2 ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+                                          children: [
+                                            SizedBox(
+                                              width: 72,
+                                              height: 72,
+                                              child: assetPath == null
+                                                  ? const Center(child: Icon(Icons.image_not_supported, color: Colors.grey))
+                                                  : Image.asset(
+                                                      assetPath,
+                                                      fit: BoxFit.contain,
+                                                      errorBuilder: (context, error, stack) => const Center(child: Icon(Icons.image_not_supported, color: Colors.grey)),
+                                                    ),
+                                            ),
+
+
+const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  ...testsForContainer.map((t) {
+                                                    final tName = t['name']?.toString() ?? '';
+                                                    final priceDyn = t['price'];
+                                                    final price = (priceDyn is num) ? priceDyn : (num.tryParse('$priceDyn') ?? 0);
+                                                    return Padding(
+                                                      padding: const EdgeInsets.only(bottom: 4),
+                                                      child: Row(
+                                                        children: [
+                                                          Expanded(child: Text('- $tName', style: const TextStyle(fontWeight: FontWeight.bold))),
+                                                          Text(_formatPrice(price), style: const TextStyle(color: Colors.black87)),
+                                                        ],
+                                                      ),
+                                                    );
+                                                  }).toList(),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        if (!isLast) ...[
+                                          const SizedBox(height: 12),
+                                          const Divider(height: 1),
+                                          const SizedBox(height: 12),
+                                        ],
+                                      ],
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+
+
+// Bottom fixed area: total, Containers button (stacked), PDF button
+                SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Align(
+                          alignment: Alignment.center,
+                          child: Text('المبلغ: ${_formatPrice(total)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                        ),
+                        const SizedBox(height: 8),
+                       
+                       SizedBox(
+  width: double.infinity,
+  child: isReceived
+      ? ElevatedButton.icon(
+          icon: const Icon(Icons.location_on, color: Colors.white),
+          label: const Text('الموقع', style: TextStyle(color: Colors.white)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Color.fromARGB(255, 90, 138, 201),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          onPressed: () async {
+            final location = await _fetchLabLocation();
+            if (location != null) {
+              await _openInGoogleMaps(location['lat']!, location['lng']!);
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('لم يتم العثور على إحداثيات المختبر'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          },
+        )
+      : ElevatedButton(
+          onPressed:  _isLoading
+              ? null // تعطي null أثناء التحميل لعدم السماح بالضغط
+              : () {
+            _receiveOrder(context, widget.patientDocId, widget.labId);
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: BorderSide(
+                color: pdfUrl.isNotEmpty ? const Color.fromARGB(255, 90, 138, 201) : Colors.grey[400]!,
+                width: 2,
+              ),
+            ),
+          ),
+          child: _isLoading
+              ? const SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : const Text(
+                  'استلام الطلب',
+                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+        ),
+),
+
+                        const SizedBox(height: 10),
+                       
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+        ),
+        ),
+      ),
+    );
+  }
+}

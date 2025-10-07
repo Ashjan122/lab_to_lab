@@ -230,22 +230,42 @@ class _LabPriceListScreenState extends State<LabPriceListScreen> {
                               maxLines: 2,))
                             ],
                           ),
-                          subtitle: price != null
-      ? Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Text(
-            ' ${(price * 2).toStringAsFixed(0)} SDG',
-            style: const TextStyle(
-              color: Colors.grey,
-              decoration: TextDecoration.lineThrough,
-              decorationThickness: 2, // ⬅️ يزيد وضوح الخط
-              height: 2,             // ⬅️ توازن عام
-  
-              fontSize: 13,
-            ),
-          ),
-        )
-      : null,
+                         subtitle: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+  future: FirebaseFirestore.instance
+      .collection('labToLap')
+      .doc('global')
+      .collection('cashPriceList')
+      .doc(d.id) // لازم doc.id يكون نفس id المستخدم في cashPriceList
+      .get(),
+  builder: (context, snapshot) {
+    if (snapshot.connectionState == ConnectionState.waiting) {
+      return const SizedBox(); // أو Spinner بسيط لو حابة
+    }
+
+    if (!snapshot.hasData || !snapshot.data!.exists) {
+      return const SizedBox(); // ما في سعر نقدي
+    }
+
+    final cashPrice = snapshot.data!.data()?['price'];
+
+    if (cashPrice == null) return const SizedBox();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Text(
+        '$cashPrice SDG',
+        style: const TextStyle(
+          color: Colors.grey,
+          decoration: TextDecoration.lineThrough,
+          decorationThickness: 2,
+          height: 2,
+          fontSize: 13,
+        ),
+      ),
+    );
+  },
+),
+
 
                     
                           ),
