@@ -102,7 +102,7 @@ class LabPatientResultDetailScreen extends StatelessWidget {
     return 'assets/containars/$containerId.png';
   }
 
-  void _openPdf(BuildContext context, String pdfUrl) {
+  void _openPdf(BuildContext context, String pdfUrl, Map<String, dynamic> data ){
     if (pdfUrl.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -116,7 +116,7 @@ class LabPatientResultDetailScreen extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => _PdfViewerScreen(pdfUrl: pdfUrl),
+        builder: (context) => _PdfViewerScreen(pdfUrl: pdfUrl, data: data, labId: labId,),
       ),
     );
   }
@@ -385,7 +385,7 @@ class LabPatientResultDetailScreen extends StatelessWidget {
                           width: double.infinity,
                           child: ElevatedButton(
                             onPressed: pdfUrl.isNotEmpty ? () {
-                              _openPdf(context, pdfUrl);
+                              _openPdf(context, pdfUrl, data);
                             } : null,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: pdfUrl.isNotEmpty ? Colors.white : Colors.grey[300],
@@ -491,8 +491,10 @@ class LabPatientResultDetailScreen extends StatelessWidget {
 }
 class _PdfViewerScreen extends StatelessWidget {
   final String pdfUrl;
+  final Map<String, dynamic> data;
+  final String labId;
 
-  const _PdfViewerScreen({required this.pdfUrl});
+  const _PdfViewerScreen({required this.pdfUrl, required this.data, required this.labId});
   Future<void> _sendToWhatsapp(String toChatId, String pdfUrl, BuildContext context) async {
     try {
       // Send the PDF file itself using UltraMsg document API
@@ -544,65 +546,158 @@ class _PdfViewerScreen extends StatelessWidget {
       }
     }
   }
-  void _showWhatsappDialog(BuildContext context) {
+  String _formatPhoneNumber(String input) {
+  input = input.trim();
+  if (input.startsWith('0')) {
+    input = input.substring(1);
+  }
+  if (!input.startsWith('249')) {
+    input = '249$input';
+  }
+  return input;
+}
+
+ void _showWhatsappDialog(BuildContext context, Map<String, dynamic> data, String labId) {
   final TextEditingController _phoneController = TextEditingController();
+  String selectedRecipient = 'patient'; // default value
+  bool isLoading = false;
+
+  Future<void> _fillPhoneField() async {
+    if (selectedRecipient == 'lab') {
+      try {
+        final doc = await FirebaseFirestore.instance
+            .collection('labToLap')
+            .doc(labId)
+            .get();
+        final labPhone = doc.data()?['whatsApp']?.toString() ?? '';
+        _phoneController.text = labPhone;
+      } catch (e) {
+        _phoneController.text = '';
+      }
+    } else {
+      final patientPhone = data['phone']?.toString() ?? '';
+      _phoneController.text = patientPhone;
+    }
+  }
 
   showDialog(
     context: context,
     builder: (context) {
-      return AlertDialog(
-        title: const Text("إرسال النتيجة عبر واتساب"),
-        content: TextField(
-          controller: _phoneController,
-          keyboardType: TextInputType.phone,
-          decoration: InputDecoration(
-            hintText: "أدخل رقم واتساب",
-            labelText: "رقم الهاتف",
-            labelStyle: const TextStyle(color: Colors.black),
-            border: const OutlineInputBorder(
-              borderSide: BorderSide(color: Color.fromARGB(255, 90, 138, 201)),
-            ),
-          ),
-        ),
-        actions: [
-          // 🔲 زر إلغاء (أسود)
-          TextButton(
-            child: const Text(
-              "إلغاء",
-              style: TextStyle(color: Colors.black),
-            ),
-            onPressed: () {
-              Navigator.pop(context);
+      _fillPhoneField();
+
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text("إرسال النتيجة عبر واتساب"),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Radio<String>(
+                      value: 'patient',
+                      groupValue: selectedRecipient,
+                      onChanged: (value) {
+              setState(() {
+                          selectedRecipient = value!;
+                          _fillPhoneField();
+              });
+            },
+                    ),
+                    const Text("للمريض"),
+                    const SizedBox(width: 16),
+                    Radio<String>(
+                      value: 'lab',
+                      groupValue: selectedRecipient,
+                      onChanged: (value) {
+              setState(() {
+                          selectedRecipient = value!;
+                          _fillPhoneField();
+              });
             },
           ),
-
-          // 🟦 زر إرسال النتيجة (بلون مخصص)
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+                    const Text("لنفسي"),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: InputDecoration(
+                    hintText: "أدخل رقم واتساب",
+                    labelText: "رقم الهاتف",
+                    labelStyle: const TextStyle(color: Colors.black),
+                    border: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Color.fromARGB(255, 90, 138, 201)),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            child: const Text("إرسال النتيجة", style: TextStyle(color: Colors.white)),
-            onPressed: () {
-              Navigator.pop(context);
-              String input = _phoneController.text.trim();
+            actions: [
+              TextButton(
+                child: const Text("إلغاء", style: TextStyle(color: Colors.black)),
+                onPressed: () {
+                  if (!isLoading) Navigator.pop(context);
+                },
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+                ),
+                onPressed: isLoading
+                    ? null
+                    : () async {
+      setState(() {
+                          isLoading = true;
+                        });
 
-              // ✅ حذف أول صفر إذا وُجد
-              if (input.startsWith('0')) {
-                input = input.substring(1);
-              }
+                        String rawInput = _phoneController.text;
+                         String formattedPhone = _formatPhoneNumber(rawInput);
 
-              // ✅ إضافة مفتاح السودان داخليًا فقط
-              String phone = '249$input';
 
-              // ✅ إرسال إلى واتساب باستخدام chat ID
-              _sendToWhatsapp('$phone@c.us', pdfUrl, context);
-            },
-          ),
-        ],
+                        final pdfUrl = data['pdf_url']?.toString() ?? '';
+
+                        if (pdfUrl.isNotEmpty) {
+                          await _sendToWhatsapp('$formattedPhone@c.us', pdfUrl, context);
+                          if (context.mounted) Navigator.pop(context);
+                        } else {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('لا يوجد رابط PDF'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+
+                        if (context.mounted) {
+      setState(() {
+                            isLoading = false;
+                          });
+                        }
+                      },
+                child: isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text("إرسال النتيجة", style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          );
+        },
       );
     },
   );
-  }
+}
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -618,7 +713,8 @@ class _PdfViewerScreen extends StatelessWidget {
               icon: const Icon(FontAwesomeIcons.whatsapp, color: Color.fromARGB(255, 2, 48, 4)),
               tooltip: 'إرسال عبر واتساب',
               onPressed: () {
-                _showWhatsappDialog(context);
+               _showWhatsappDialog(context, data, labId);
+
               },
             ),
           ],

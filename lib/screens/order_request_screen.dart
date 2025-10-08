@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:lab_to_lab_admin/screens/lab_info_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
  
@@ -256,14 +257,33 @@ Directionality(
         },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('بيانات الطلب', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          backgroundColor: const Color.fromARGB(255, 90, 138, 201),
-          centerTitle: true,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
+         title:  GestureDetector(
+    onTap: () {
+      
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => LabInfoScreen(labId: widget.labId, labName: widget.labName,),
         ),
+      );
+    },
+    child: Text(
+      widget.labName,
+      style: const TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.bold,
+       
+      ),
+    ),
+  ),
+  backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+  centerTitle: true,
+  leading: IconButton(
+    icon: const Icon(Icons.arrow_back, color: Colors.white),
+    onPressed: () => Navigator.of(context).pop(),
+  ),
+),
+        
         body: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -357,14 +377,21 @@ Directionality(
                                   const SizedBox(height: 4),
                                 ],
                                 // Patient name
-                                Text(
-                                  name,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
-                                  ),
-                                ),
+                               Padding(
+  padding: const EdgeInsets.symmetric(vertical: 12.0), // ← زيادة المسافة للاسم الرباعي
+  child: Align(
+    alignment: Alignment.centerRight,
+    child: Text(
+      name,
+      textAlign: TextAlign.right,
+      style: const TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+        color: Colors.black87,
+      ),
+    ),
+  ),
+),
                                 // Phone as subtitle
                                 if (phone.isNotEmpty) ...[
                                   const SizedBox(height: 4),

@@ -50,6 +50,7 @@ class _LabToLabState extends State<LabToLab> {
     _whatsAppController.dispose();
     _orderController.dispose();
     _passwordController.dispose();
+    _searchController.dispose();
     _nameFocus.dispose();
     _addressFocus.dispose();
     _phoneFocus.dispose();
@@ -230,6 +231,11 @@ class _LabToLabState extends State<LabToLab> {
     });
     return list;
   }
+   final TextEditingController _searchController = TextEditingController();
+  DateTime _selectedDate = DateTime.now();
+  String _searchQuery = '';
+
+  
   @override
   Widget build(BuildContext context) {
     return Directionality(
@@ -261,6 +267,28 @@ class _LabToLabState extends State<LabToLab> {
         resizeToAvoidBottomInset: true,
         body: Column(
           children: [
+            // Search bar by lab name
+            Padding(
+                    padding: const EdgeInsets.all(16.0),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (value) {
+                                      setState(() {
+                    _searchQuery = value.trim().toLowerCase();
+                  });
+                },
+                decoration: InputDecoration(
+                  hintText: 'البحث باسم المعمل...',
+                  prefixIcon: const Icon(Icons.search),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey[100],
+                      ),
+                    ),
+                  ),
+
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance.collection('labToLap').snapshots(),
@@ -272,23 +300,36 @@ class _LabToLabState extends State<LabToLab> {
                     return const Center(child: CircularProgressIndicator());
                   }
                   final docs = _sortAndFilter(snapshot.data?.docs ?? []);
-                  if (docs.isEmpty) {
+                  final filtered = docs.where((d) {
+                    try {
+                      final data = d.data() as Map<String, dynamic>;
+                      final name = (data['name']?.toString() ?? '').toLowerCase();
+                      if (_searchQuery.isEmpty) return true;
+                      return name.contains(_searchQuery);
+                    } catch (_) {
+                      return true;
+                    }
+                  }).toList();
+                  if (filtered.isEmpty) {
                     return Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           const Icon(Icons.science, size: 64, color: Colors.grey),
                           const SizedBox(height: 12),
-                          const Text('لا توجد معامل مضافة بعد', style: TextStyle(color: Colors.grey)),
+                          Text(
+                            _searchQuery.isEmpty ? 'لا توجد معامل مضافة بعد' : 'لا توجد نتائج للبحث',
+                            style: const TextStyle(color: Colors.grey),
+                          ),
                         ],
                       ),
                     );
                   }
                    return ListView.builder(
-                    itemCount: docs.length,
+                    itemCount: filtered.length,
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     itemBuilder: (context, index) {
-                      final d = docs[index];
+                      final d = filtered[index];
                       final data = d.data() as Map<String, dynamic>;
                       final name = data['name']?.toString() ?? '';
                       final address = data['address']?.toString() ?? '';
@@ -316,7 +357,7 @@ class _LabToLabState extends State<LabToLab> {
                             );
                           },
                           leading: const Icon(Icons.science, color: kLabPrimary),
-                          title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold,fontSize: 20)),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [

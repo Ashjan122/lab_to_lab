@@ -276,7 +276,7 @@ class _LabInfoScreenState extends State<LabInfoScreen> with WidgetsBindingObserv
         appBar: AppBar(
           title: Text(_isEditing ? 'تعديل بيانات ${widget.labName}' : 'بيانات ${widget.labName}', 
                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          backgroundColor: const Color(0xFF1976D2),
+          backgroundColor: const Color.fromARGB(255, 90, 138, 201),
           centerTitle: true,
           leading: _fromControlPanel ? IconButton(
             onPressed: _goBackToDashboard,
