@@ -132,6 +132,9 @@ class _LabPriceListScreenState extends State<LabPriceListScreen> {
       },
     );
   }
+  
+
+ 
   @override
   Widget build(BuildContext context) {
     return  Directionality(
@@ -142,6 +145,9 @@ class _LabPriceListScreenState extends State<LabPriceListScreen> {
           title: Text('قائمة الأسعار - ${widget.labName}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           backgroundColor: const Color.fromARGB(255, 90, 138, 201),
           centerTitle: true,
+         
+
+          
           // Removed add button - no longer adding new tests
         ),
         body: Column(
@@ -179,15 +185,25 @@ class _LabPriceListScreenState extends State<LabPriceListScreen> {
                   }).toList();
                   // Sort by numeric id ascending (like DB). Items without numeric id go last by doc id
                   filtered.sort((a, b) {
-                    final ida = a.data()['id'];
-                    final idb = b.data()['id'];
-                    final ia = (ida is num) ? ida.toInt() : int.tryParse('${ida ?? ''}');
-                    final ib = (idb is num) ? idb.toInt() : int.tryParse('${idb ?? ''}');
-                    if (ia != null && ib != null) return ia.compareTo(ib);
-                    if (ia != null) return -1; // with id first
-                    if (ib != null) return 1;
-                    return a.id.compareTo(b.id);
-                  });
+  final orderA = a.data()['order'];
+  final orderB = b.data()['order'];
+
+  final hasOrderA = orderA is num && orderA > 0;
+  final hasOrderB = orderB is num && orderB > 0;
+
+  // الاتنين عندهم order > 0 => رتب تصاعديًا
+  if (hasOrderA && hasOrderB) {
+    return (orderA as num).compareTo(orderB as num);
+  }
+
+  // اللي عنده order > 0 يجي أول
+  if (hasOrderA) return -1;
+  if (hasOrderB) return 1;
+
+  // الاتنين بدون order => ترتيب عشوائي (مثلاً عشوائي حسب doc.id)
+  return a.id.compareTo(b.id) * (DateTime.now().millisecond.isEven ? 1 : -1);
+});
+
 
                   if (filtered.isEmpty) {
                     return Center(
@@ -211,7 +227,10 @@ class _LabPriceListScreenState extends State<LabPriceListScreen> {
                       final data = d.data();
                       final name = data['name']?.toString() ?? '';
                       final price = data['price'];
-                      return Card(
+                      final isUnavailable = data['available'] == false;
+
+                      return Column(children: [Card(
+                        color: isUnavailable ? Colors.grey.withOpacity(0.3) : null,
                         child: ListTile(
                           title: 
                           
@@ -227,10 +246,28 @@ class _LabPriceListScreenState extends State<LabPriceListScreen> {
                               style: const TextStyle(fontWeight: FontWeight.bold),
                               textAlign: TextAlign.left,
                               overflow: TextOverflow.visible,
-                              maxLines: 2,))
+                              maxLines: 2,
+
+                              ),
+                             
+                              )
                             ],
                           ),
-                         subtitle: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                          subtitle: isUnavailable
+      ? const Padding(
+          padding: EdgeInsets.only(top: 4),
+          child: Text(
+            'غير متاح',
+            style: TextStyle(
+              color: Colors.red,
+              fontSize: 12,
+            ),
+          ),
+        )
+      : null,
+
+                          
+                        /* subtitle: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
   future: FirebaseFirestore.instance
       .collection('labToLap')
       .doc('global')
@@ -264,13 +301,15 @@ class _LabPriceListScreenState extends State<LabPriceListScreen> {
       ),
     );
   },
-),
+),*/
 
 
-                    
                           ),
-                        );
+                          
+                      ),
                       
+                      ],
+                      );
                     },
                   );
                 },

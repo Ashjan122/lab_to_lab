@@ -7,17 +7,107 @@ import 'package:http/http.dart' as http;
 // removed containers_screen import; containers shown inline
 
 
-class LabPatientResultDetailScreen extends StatelessWidget {
+class LabPatientResultDetailScreen extends StatefulWidget {
    final String labId;
   final String labName;
   final String patientDocId;
   const LabPatientResultDetailScreen({super.key, required this.labId, required this.labName, required this.patientDocId});
+
+  @override
+  State<LabPatientResultDetailScreen> createState() => _LabPatientResultDetailScreenState();
+}
+
+class _LabPatientResultDetailScreenState extends State<LabPatientResultDetailScreen> with TickerProviderStateMixin {
+  final Map<String, AnimationController> _animationControllers = {};
+
+  @override
+  void dispose() {
+    // Dispose all animation controllers
+    for (final controller in _animationControllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  AnimationController _getAnimationController(String testId) {
+    if (!_animationControllers.containsKey(testId)) {
+      _animationControllers[testId] = AnimationController(
+        duration: const Duration(milliseconds: 1000),
+        vsync: this,
+      );
+      // Start the animation immediately
+      _animationControllers[testId]!.repeat(reverse: true);
+    }
+    return _animationControllers[testId]!;
+  }
+
+  void _showConditionDialog(BuildContext context, String condition) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          'إرشادات الفحص',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Color.fromARGB(255, 90, 138, 201),
+          ),
+          textAlign: TextAlign.right,
+        ),
+        content: Container(
+          constraints: const BoxConstraints(maxWidth: 300),
+          child: Text(
+            condition,
+            style: const TextStyle(
+              fontSize: 16,
+              height: 1.5,
+            ),
+            textAlign: TextAlign.right,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(
+              'حسناً',
+              style: TextStyle(
+                color: Color.fromARGB(255, 90, 138, 201),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+  }
+
+  Future<String?> _getTestCondition(String testId) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('labToLap')
+          .doc(widget.labId)
+          .collection('pricelist')
+          .doc(testId)
+          .get();
+      
+      if (doc.exists) {
+        final data = doc.data();
+        final condition = data?['condition']?.toString().trim();
+        return condition != null && condition.isNotEmpty ? condition : null;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
  Future<Map<String, dynamic>> _loadPatientAndTests() async {
     final patientRef = FirebaseFirestore.instance
         .collection('labToLap')
         .doc('global')
         .collection('patients')
-        .doc(patientDocId);
+        .doc(widget.patientDocId);
     final pSnap = await patientRef.get();
     final pData = pSnap.data() ?? {};
     final idDyn = pData['id'];
@@ -116,7 +206,7 @@ class LabPatientResultDetailScreen extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => _PdfViewerScreen(pdfUrl: pdfUrl, data: data, labId: labId,),
+        builder: (context) => _PdfViewerScreen(pdfUrl: pdfUrl, data: data, labId: widget.labId,),
       ),
     );
   }
@@ -202,7 +292,7 @@ class LabPatientResultDetailScreen extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  intId > 0 ? '$intId' : patientDocId,
+                                  intId > 0 ? '$intId' : widget.patientDocId,
                                   style: const TextStyle(
                                     fontSize: 24,
                                     fontWeight: FontWeight.bold,
@@ -280,9 +370,60 @@ class LabPatientResultDetailScreen extends StatelessWidget {
                         final tName = t['name']?.toString() ?? '';
                         final priceDyn = t['price'];
                         final price = (priceDyn is num) ? priceDyn : (num.tryParse('$priceDyn') ?? 0);
+                        final testId = t['testId']?.toString() ?? '';
+                        
                         return Row(
                           children: [
                             Expanded(child: Text('${i + 1}- $tName', style: const TextStyle(fontWeight: FontWeight.bold))),
+                            // Info button for condition
+                            if (testId.isNotEmpty)
+                              FutureBuilder<String?>(
+                                future: _getTestCondition(testId),
+                                builder: (context, snapshot) {
+                                  if (snapshot.hasData && snapshot.data != null && snapshot.data!.isNotEmpty) {
+                                    return Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        GestureDetector(
+                                          onTap: () {
+                                            _showConditionDialog(context, snapshot.data!);
+                                          },
+                                          child: AnimatedBuilder(
+                                            animation: _getAnimationController(testId),
+                                            builder: (context, child) {
+                                              return Transform.scale(
+                                                scale: 1.0 + (_getAnimationController(testId).value * 0.2),
+                                                child: Container(
+                                                  width: 20,
+                                                  height: 20,
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.orange,
+                                                    shape: BoxShape.circle,
+                                                    boxShadow: [
+                                                      BoxShadow(
+                                                        color: Colors.orange.withOpacity(0.3),
+                                                        blurRadius: 3,
+                                                        spreadRadius: 1,
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.info_outline,
+                                                    color: Colors.white,
+                                                    size: 12,
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                      ],
+                                    );
+                                  }
+                                  return const SizedBox.shrink();
+                                },
+                              ),
                             Text(_formatPrice(price), style: const TextStyle(color: Colors.black87)),
                           ],
                               );
@@ -335,11 +476,62 @@ class LabPatientResultDetailScreen extends StatelessWidget {
                                                     final tName = t['name']?.toString() ?? '';
                                                     final priceDyn = t['price'];
                                                     final price = (priceDyn is num) ? priceDyn : (num.tryParse('$priceDyn') ?? 0);
+                                                    final testId = t['testId']?.toString() ?? '';
+                                                    
                                                     return Padding(
                                                       padding: const EdgeInsets.only(bottom: 4),
                                                       child: Row(
                                                         children: [
                                                           Expanded(child: Text('- $tName', style: const TextStyle(fontWeight: FontWeight.bold))),
+                                                          // Info button for condition
+                                                          if (testId.isNotEmpty)
+                                                            FutureBuilder<String?>(
+                                                              future: _getTestCondition(testId),
+                                                              builder: (context, snapshot) {
+                                                                if (snapshot.hasData && snapshot.data != null && snapshot.data!.isNotEmpty) {
+                                                                  return Row(
+                                                                    mainAxisSize: MainAxisSize.min,
+                                                                    children: [
+                                                                      GestureDetector(
+                                                                        onTap: () {
+                                                                          _showConditionDialog(context, snapshot.data!);
+                                                                        },
+                                                                        child: AnimatedBuilder(
+                                                                          animation: _getAnimationController(testId),
+                                                                          builder: (context, child) {
+                                                                            return Transform.scale(
+                                                                              scale: 1.0 + (_getAnimationController(testId).value * 0.2),
+                                                                              child: Container(
+                                                                                width: 20,
+                                                                                height: 20,
+                                                                                decoration: BoxDecoration(
+                                                                                  color: Colors.orange,
+                                                                                  shape: BoxShape.circle,
+                                                                                  boxShadow: [
+                                                                                    BoxShadow(
+                                                                                      color: Colors.orange.withOpacity(0.3),
+                                                                                      blurRadius: 3,
+                                                                                      spreadRadius: 1,
+                                                                                    ),
+                                                                                  ],
+                                                                                ),
+                                                                                child: const Icon(
+                                                                                  Icons.info_outline,
+                                                                                  color: Colors.white,
+                                                                                  size: 12,
+                                                                                ),
+                                                                              ),
+                                                                            );
+                                                                          },
+                                                                        ),
+                                                                      ),
+                                                                      const SizedBox(width: 8),
+                                                                    ],
+                                                                  );
+                                                                }
+                                                                return const SizedBox.shrink();
+                                                              },
+                                                            ),
                                                           Text(_formatPrice(price), style: const TextStyle(color: Colors.black87)),
                                                         ],
                                                       ),

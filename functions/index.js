@@ -10,6 +10,8 @@ exports.sendLabOrderNotification = functions.firestore
     const topic = data.topic || 'lab_order';
     const title = data.title || 'إشعار';
     const body = data.body || '';
+    const labId = data.labId || '';
+    const labName = data.labName || '';
 
     const message = {
       topic,
@@ -21,6 +23,7 @@ exports.sendLabOrderNotification = functions.firestore
         priority: 'high',
         notification: {
           channelId: 'high_importance_channel',
+          sound: 'lab_notification',
         },
       },
       apns: {
@@ -32,6 +35,9 @@ exports.sendLabOrderNotification = functions.firestore
         },
       },
       data: {
+        topic: topic,
+        labId: labId,
+        labName: labName,
         createdAt: (Date.now()).toString(),
       },
     };
@@ -43,5 +49,3 @@ exports.sendLabOrderNotification = functions.firestore
       console.error('Error sending notification', e);
     }
   });
-
-

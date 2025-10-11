@@ -3,10 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:lab_to_lab_admin/screens/lab_info_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+import 'package:http/http.dart' as http;
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
  
 
 class OrderRequestScreen extends StatefulWidget {
-  final String labId;
+   final String labId;
   final String labName;
   final String patientDocId;
   const OrderRequestScreen({super.key , required this.labId, required this.labName, required this.patientDocId});
@@ -27,7 +30,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
     _patientFuture = _loadPatientAndTests();
   }
 
-  Future<Map<String, dynamic>> _loadPatientAndTests() async {
+Future<Map<String, dynamic>> _loadPatientAndTests() async {
     final patientRef = FirebaseFirestore.instance
         .collection('labToLap')
         .doc('global')
@@ -172,6 +175,8 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
         'topic': topic,
         'title': title,
         'body': body,
+        'labId': widget.labId,
+        'labName': widget.labName,
         'createdAt': FieldValue.serverTimestamp(),
       });
       
@@ -181,12 +186,12 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('خطأ في استلام الطلب: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ في استلام الطلب: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
     } finally {
       if (mounted) {
         setState(() {
@@ -257,32 +262,20 @@ Directionality(
         },
       child: Scaffold(
         appBar: AppBar(
-         title:  GestureDetector(
-    onTap: () {
-      
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => LabInfoScreen(labId: widget.labId, labName: widget.labName,),
+          title: Text(
+            widget.labName,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+          centerTitle: true,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
         ),
-      );
-    },
-    child: Text(
-      widget.labName,
-      style: const TextStyle(
-        color: Colors.white,
-        fontWeight: FontWeight.bold,
-       
-      ),
-    ),
-  ),
-  backgroundColor: const Color.fromARGB(255, 90, 138, 201),
-  centerTitle: true,
-  leading: IconButton(
-    icon: const Icon(Icons.arrow_back, color: Colors.white),
-    onPressed: () => Navigator.of(context).pop(),
-  ),
-),
         
         body: Container(
           decoration: BoxDecoration(
@@ -382,16 +375,16 @@ Directionality(
   child: Align(
     alignment: Alignment.centerRight,
     child: Text(
-      name,
+                                  name,
       textAlign: TextAlign.right,
-      style: const TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.bold,
-        color: Colors.black87,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87,
       ),
     ),
-  ),
-),
+                                  ),
+                                ),
                                 // Phone as subtitle
                                 if (phone.isNotEmpty) ...[
                                   const SizedBox(height: 4),
@@ -539,8 +532,70 @@ const SizedBox(width: 12),
                         ),
                         const SizedBox(height: 8),
                        
-                       SizedBox(
-  width: double.infinity,
+                        // Two buttons in a row: Lab Info and View Result
+                        Row(
+                          children: [
+                            // Lab Info Button
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                icon: const Icon(Icons.info_outline, color: Colors.white),
+                                label: const Text('بيانات المعمل', style: TextStyle(color: Colors.white)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => LabInfoScreen(
+                                        labId: widget.labId, 
+                                        labName: widget.labName,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // View Result Button
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
+                                label: const Text('عرض النتيجة', style: TextStyle(color: Colors.white)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: pdfUrl.isNotEmpty 
+                                      ? const Color.fromARGB(255, 90, 138, 201)
+                                      : Colors.grey[400]!,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                onPressed: pdfUrl.isNotEmpty ? () {
+                                  // Navigate to PDF viewer screen
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => _PdfViewerScreen(
+                                        pdfUrl: pdfUrl,
+                                        data: data,
+                                        labId: widget.labId,
+                                      ),
+                                    ),
+                                  );
+                                } : null,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                       
+                        SizedBox(
+                          width: double.infinity,
   child: isReceived
       ? ElevatedButton.icon(
           icon: const Icon(Icons.location_on, color: Colors.white),
@@ -572,17 +627,17 @@ const SizedBox(width: 12),
               : () {
             _receiveOrder(context, widget.patientDocId, widget.labId);
           },
-          style: ElevatedButton.styleFrom(
+                            style: ElevatedButton.styleFrom(
             backgroundColor: const Color.fromARGB(255, 90, 138, 201),
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-              side: BorderSide(
-                color: pdfUrl.isNotEmpty ? const Color.fromARGB(255, 90, 138, 201) : Colors.grey[400]!,
-                width: 2,
-              ),
-            ),
-          ),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                side: BorderSide(
+                                  color: pdfUrl.isNotEmpty ? const Color.fromARGB(255, 90, 138, 201) : Colors.grey[400]!,
+                                  width: 2,
+                                ),
+                              ),
+                            ),
           child: _isLoading
               ? const SizedBox(
                   width: 22,
@@ -593,11 +648,11 @@ const SizedBox(width: 12),
                   ),
                 )
               : const Text(
-                  'استلام الطلب',
+                             'استلام الطلب',
                   style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-                ),
-        ),
-),
+                            ),
+                          ),
+                        ),
 
                         const SizedBox(height: 10),
                        
@@ -610,6 +665,246 @@ const SizedBox(width: 12),
           },
         ),
         ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PdfViewerScreen extends StatelessWidget {
+  final String pdfUrl;
+  final Map<String, dynamic> data;
+  final String labId;
+
+  const _PdfViewerScreen({required this.pdfUrl, required this.data, required this.labId});
+  
+  Future<void> _sendToWhatsapp(String toChatId, String pdfUrl, BuildContext context) async {
+    try {
+      // Send the PDF file itself using UltraMsg document API
+      final uri = Uri.parse('https://api.ultramsg.com/instance140877/messages/document');
+      final request = http.Request('POST', uri);
+      request.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+      request.bodyFields = {
+        'token': 'df2r46jz82otkegg',
+        'to': toChatId, // e.g. 249XXXXXXXXX@c.us
+        'document': pdfUrl, // direct URL to the PDF
+        'filename': 'lab_result.pdf',
+        'caption': 'نتيجة التحليل PDF',
+      };
+
+      final response = await request.send();
+      if (response.statusCode == 200) {
+        await response.stream.bytesToString();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('تم إرسال النتيجة عبر واتساب')), 
+          );
+          // إظهار رسالة تأكيد واضحة للمستخدم
+          await showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('تم الإرسال'),
+              content: const Text('تم إرسال النتيجة بنجاح عبر واتساب.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('حسناً'),
+                ),
+              ],
+            ),
+          );
+        }
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('فشل الإرسال (${response.reasonPhrase})'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ أثناء الإرسال: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+  
+  String _formatPhoneNumber(String input) {
+    input = input.trim();
+    if (input.startsWith('0')) {
+      input = input.substring(1);
+    }
+    if (!input.startsWith('249')) {
+      input = '249$input';
+    }
+    return input;
+  }
+
+  void _showWhatsappDialog(BuildContext context, Map<String, dynamic> data, String labId) {
+    final TextEditingController _phoneController = TextEditingController();
+    String selectedRecipient = 'patient'; // default value
+    bool isLoading = false;
+
+    Future<void> _fillPhoneField() async {
+      if (selectedRecipient == 'lab') {
+        try {
+          final doc = await FirebaseFirestore.instance
+              .collection('labToLap')
+              .doc(labId)
+              .get();
+          final labPhone = doc.data()?['whatsApp']?.toString() ?? '';
+          _phoneController.text = labPhone;
+        } catch (e) {
+          _phoneController.text = '';
+        }
+      } else {
+        final patientPhone = data['phone']?.toString() ?? '';
+        _phoneController.text = patientPhone;
+      }
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        _fillPhoneField();
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text("إرسال النتيجة عبر واتساب"),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Radio<String>(
+                        value: 'patient',
+                        groupValue: selectedRecipient,
+                        onChanged: (value) {
+                          setState(() {
+                            selectedRecipient = value!;
+                            _fillPhoneField();
+                          });
+                        },
+                      ),
+                      const Text("للمريض"),
+                      const SizedBox(width: 16),
+                      Radio<String>(
+                        value: 'lab',
+                        groupValue: selectedRecipient,
+                        onChanged: (value) {
+                          setState(() {
+                            selectedRecipient = value!;
+                            _fillPhoneField();
+                          });
+                        },
+                      ),
+                      const Text("لنفسي"),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: InputDecoration(
+                      hintText: "أدخل رقم واتساب",
+                      labelText: "رقم الهاتف",
+                      labelStyle: const TextStyle(color: Colors.black),
+                      border: const OutlineInputBorder(
+                        borderSide: BorderSide(color: Color.fromARGB(255, 90, 138, 201)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  child: const Text("إلغاء", style: TextStyle(color: Colors.black)),
+                  onPressed: () {
+                    if (!isLoading) Navigator.pop(context);
+                  },
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+                  ),
+                  onPressed: isLoading
+                      ? null
+                      : () async {
+                          setState(() {
+                            isLoading = true;
+                          });
+
+                          String rawInput = _phoneController.text;
+                          String formattedPhone = _formatPhoneNumber(rawInput);
+
+                          final pdfUrl = data['pdf_url']?.toString() ?? '';
+
+                          if (pdfUrl.isNotEmpty) {
+                            await _sendToWhatsapp('$formattedPhone@c.us', pdfUrl, context);
+                            if (context.mounted) Navigator.pop(context);
+                          } else {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('لا يوجد رابط PDF'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+
+                          if (context.mounted) {
+                            setState(() {
+                              isLoading = false;
+                            });
+                          }
+                        },
+                  child: isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text("إرسال النتيجة", style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('عرض النتيجة PDF', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+          centerTitle: true,
+          actions: [
+            IconButton(
+              icon: const Icon(FontAwesomeIcons.whatsapp, color: Color.fromARGB(255, 2, 48, 4)),
+              tooltip: 'إرسال عبر واتساب',
+              onPressed: () {
+                _showWhatsappDialog(context, data, labId);
+              },
+            ),
+          ],
+        ),
+        
+        body: SfPdfViewer.network(
+          pdfUrl,
+          canShowScrollHead: true,
+          canShowScrollStatus: true,
+          enableDoubleTapZooming: true,
         ),
       ),
     );

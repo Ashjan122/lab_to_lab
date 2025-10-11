@@ -12,13 +12,14 @@ class LabSelectTestsScreen extends StatefulWidget {
   State<LabSelectTestsScreen> createState() => _LabSelectTestsScreenState();
 }
 
-class _LabSelectTestsScreenState extends State<LabSelectTestsScreen> {
+class _LabSelectTestsScreenState extends State<LabSelectTestsScreen> with TickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   final Set<String> _selectedIds = <String>{};
   final Set<String> _existingTestIds = <String>{}; // Track existing tests
   bool _saving = false;
   bool _loading = true;
+  final Map<String, AnimationController> _animationControllers = {};
 
   @override
   void initState() {
@@ -28,7 +29,66 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    // Dispose all animation controllers
+    for (final controller in _animationControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
+  }
+
+  AnimationController _getAnimationController(String testId) {
+    if (!_animationControllers.containsKey(testId)) {
+      _animationControllers[testId] = AnimationController(
+        duration: const Duration(milliseconds: 1000),
+        vsync: this,
+      );
+      // Start the animation immediately
+      _animationControllers[testId]!.repeat(reverse: true);
+    }
+    return _animationControllers[testId]!;
+  }
+
+  void _showConditionDialog(BuildContext context, String condition) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          'إرشادات الفحص',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Color.fromARGB(255, 90, 138, 201),
+            
+          ),
+          textAlign: TextAlign.right,
+        ),
+        content: Container(
+          constraints: const BoxConstraints(maxWidth: 300),
+          child: Text(
+            condition,
+            style: const TextStyle(
+              fontSize: 16,
+              height: 1.5,
+            ),
+            textAlign: TextAlign.right,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(
+              'حسناً',
+              style: TextStyle(
+                color: Color.fromARGB(255, 90, 138, 201),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
   }
   Future<void> _loadExistingTests() async {
     try {
@@ -126,6 +186,8 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen> {
             'topic': 'lab_order',
             'title': title,
             'body': body,
+            'labId': widget.labId,
+            'labName': widget.labName,
             'createdAt': FieldValue.serverTimestamp(),
           });
         } catch (_) {
@@ -218,15 +280,24 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen> {
                       }).toList();
                       // sort by numeric id ascending; items without valid id go last by doc id
                       docs.sort((a, b) {
-                        final ida = a.data()['id'];
-                        final idb = b.data()['id'];
-                        final ia = (ida is num) ? ida.toInt() : int.tryParse('${ida ?? ''}');
-                        final ib = (idb is num) ? idb.toInt() : int.tryParse('${idb ?? ''}');
-                        if (ia != null && ib != null) return ia.compareTo(ib);
-                        if (ia != null) return -1;
-                        if (ib != null) return 1;
-                        return a.id.compareTo(b.id);
-                      });
+  final orderA = a.data()['order'];
+  final orderB = b.data()['order'];
+
+  final hasOrderA = orderA is num && orderA > 0;
+  final hasOrderB = orderB is num && orderB > 0;
+
+  // لو الاتنين عندهم order > 0 نرتبهم
+  if (hasOrderA && hasOrderB) {
+    return (orderA as num).compareTo(orderB as num);
+  }
+
+  // لو واحد عنده order والتاني لا
+  if (hasOrderA) return -1;
+  if (hasOrderB) return 1;
+
+  // ما عندهم order أو order = 0 => ترتيب عشوائي بسيط
+  return a.id.compareTo(b.id) * (DateTime.now().millisecond.isEven ? 1 : -1);
+});
 
                       return ListView.separated(
                         itemCount: docs.length,
@@ -239,20 +310,69 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen> {
                           final price = data['price'];
                           final selected = _selectedIds.contains(d.id);
                           final isExisting = _existingTestIds.contains(d.id);
-                          
+                          final isUnavailable = data['available'] == false;
+                          final condition = data['condition']?.toString().trim();
+                          final hasCondition = condition != null && condition.isNotEmpty;
+
                           return Card(
-                            color: isExisting ? Colors.grey[100] : null,
-                            child: CheckboxListTile(
-                              value: selected,
-                              onChanged: (v) {
-                                setState(() {
-                                  if (v == true) {
-                                    _selectedIds.add(d.id);
-                                  } else {
-                                    _selectedIds.remove(d.id);
-                                  }
-                                });
-                              },
+                            color: !isUnavailable ? (isExisting ? Colors.grey[100] : null) : Colors.grey.withOpacity(0.3),
+                            child: ListTile(
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // Info button for condition
+                                  if (hasCondition)
+                                    GestureDetector(
+                                      onTap: () {
+                                        _showConditionDialog(context, condition);
+                                      },
+                                      child: AnimatedBuilder(
+                                        animation: _getAnimationController(d.id),
+                                        builder: (context, child) {
+                                          return Transform.scale(
+                                            scale: 1.0 + (_getAnimationController(d.id).value * 0.2),
+                                            child: Container(
+                                              width: 24,
+                                              height: 24,
+                                              decoration: BoxDecoration(
+                                                color: Colors.orange,
+                                                shape: BoxShape.circle,
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: Colors.orange.withOpacity(0.3),
+                                                    blurRadius: 4,
+                                                    spreadRadius: 1,
+                                                  ),
+                                                ],
+                                              ),
+                                              child: const Icon(
+                                                Icons.info_outline,
+                                                color: Colors.white,
+                                                size: 16,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  if (hasCondition) const SizedBox(width: 8),
+                                  // Checkbox
+                                  Checkbox(
+                                    value: selected,
+                                    onChanged: !isUnavailable 
+                                             ? (v) {
+                                        setState(() {
+                                           if (v == true) {
+                                          _selectedIds.add(d.id);
+                                            } else {
+                                          _selectedIds.remove(d.id);
+                                               }
+                                               });
+                                              }
+                                          : null,
+                                  ),
+                                ],
+                              ),
                               title: Text(
                                 name, 
                                 style: TextStyle(
@@ -273,6 +393,15 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen> {
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
+                                    if (isUnavailable)
+                                     const Text(
+                                      'غير متاح',
+                                      style: TextStyle(
+                                      color: Colors.red,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
                                 ],
                               ),
                             ),

@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:lab_to_lab_admin/screens/lab_dashboard_screen.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
 import 'package:lab_to_lab_admin/screens/login_screen.dart';
+import 'dart:convert';
 
 class RegisterLabScreen extends StatefulWidget {
   const RegisterLabScreen({super.key});
@@ -51,6 +53,17 @@ class _RegisterLabScreenState extends State<RegisterLabScreen> {
     try {
       final String labName = _labName.text.trim();
       final String ownerName = _userName.text.trim();
+      final String phoneRaw = _phone.text.trim();
+
+      // Send welcome SMS immediately on press (non-blocking for overall flow)
+      // If it fails, continue registration normally
+      try {
+        await _sendWelcomeSms(phone: phoneRaw, labName: labName)
+            .timeout(const Duration(seconds: 10));
+      } catch (e) {
+        // ignore: avoid_print
+        print('SMS immediate send error: $e');
+      }
 
       // Prevent duplicate lab name
       final nameDup = await FirebaseFirestore.instance
@@ -101,7 +114,7 @@ class _RegisterLabScreenState extends State<RegisterLabScreen> {
         'name': labName,
         'ownerUserName': ownerName,
         'address': _address.text.trim(),
-        'phone': _phone.text.trim(),
+        'phone': phoneRaw,
         'whatsApp': _whats.text.trim().isEmpty ? null : _whats.text.trim(),
         'password': _password.text.trim(),
         'available': true,
@@ -114,12 +127,14 @@ class _RegisterLabScreenState extends State<RegisterLabScreen> {
       final notificationTitle = 'تم إنشاء تعاقد جديد';
       final notificationBody = '''الاسم: $labName
 العنوان: ${_address.text.trim()}
-رقم الهاتف: ${_phone.text.trim()}''';
+رقم الهاتف: $phoneRaw''';
 
       await FirebaseFirestore.instance.collection('push_requests').add({
         'topic': 'new_lab',
         'title': notificationTitle,
         'body': notificationBody,
+        'labId': doc.id,
+        'labName': labName,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
@@ -142,6 +157,52 @@ class _RegisterLabScreenState extends State<RegisterLabScreen> {
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  // Format Sudan phone to 249XXXXXXXXX
+  String _formatSudanPhone(String raw) {
+    String digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.startsWith('00')) {
+      digits = digits.substring(2);
+    }
+    if (digits.startsWith('0')) {
+      digits = '249${digits.substring(1)}';
+    } else if (digits.startsWith('249')) {
+      // already OK
+    } else if (digits.length == 9) {
+      // assume local without leading 0
+      digits = '249$digits';
+    }
+    return digits;
+  }
+
+  Future<void> _sendWelcomeSms({required String phone, required String labName}) async {
+    final String formatted = _formatSudanPhone(phone);
+
+    // Use Airtel HTML GET API with provided credentials
+    const String baseUrl = 'https://www.airtel.sd/api/html_send_sms/';
+    const String username = 'jawda';
+    const String password = 'Wda%^054J)(aDSn^';
+    const String sender = 'Jawda';
+
+    final String message = 'مرحبا بك $labName في خدمة Lab To Lab مع مركز الرومي الطبي\nسيتم اخطارك عند اعتماد التعاقد ورفع قائمة الاسعار';
+
+    final String encodedText = Uri.encodeComponent(message);
+    final String encodedSender = Uri.encodeComponent(sender);
+    final String url = '${baseUrl}?username=${username}&password=${Uri.encodeComponent(password)}&phone_number=${formatted}&message=${encodedText}&sender=${encodedSender}';
+
+    try {
+      final response = await http.get(Uri.parse(url));
+      // ignore: avoid_print
+      print('Airtel HTML SMS resp: ${response.statusCode} ${response.body}');
+      if (response.statusCode != 200) {
+        throw Exception('Airtel HTML SMS failed: ${response.statusCode} ${response.body}');
+      }
+    } catch (e) {
+      // ignore: avoid_print
+      print('Airtel HTML SMS exception: $e');
+      rethrow;
     }
   }
 

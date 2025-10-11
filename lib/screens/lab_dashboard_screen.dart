@@ -13,41 +13,96 @@ import 'package:lab_to_lab_admin/screens/lab_support_numbers_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lab_to_lab_admin/screens/login_screen.dart';
 import 'package:lab_to_lab_admin/screens/lab_to_lab.dart';
+import 'package:lab_to_lab_admin/screens/update_checker.dart';
+import 'package:lottie/lottie.dart';
+
 // import 'package:lab_to_lab_admin/screens/lab_order_received_notifications_screen.dart';
 
-
-class LabDashboardScreen extends StatelessWidget {
+class LabDashboardScreen extends StatefulWidget {
   final String labId;
   final String labName;
   const LabDashboardScreen({super.key, required this.labId, required this.labName});
 
+  @override
+  State<LabDashboardScreen> createState() => _LabDashboardScreenState();
+}
+
+class _LabDashboardScreenState extends State<LabDashboardScreen> {
+  bool _hasCheckedUpdate = false;
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // فحص التحديثات مرة واحدة فقط
+    if (!_hasCheckedUpdate) {
+      _hasCheckedUpdate = true;
+      Future.delayed(const Duration(milliseconds: 1000), () {
+        if (mounted) {
+          UpdateChecker.checkForUpdate(context);
+        }
+      });
+    }
+  }
+
   
-  Widget _buildCard({required IconData icon, required String title, required VoidCallback onTap, bool enabled = true, Color color = const Color.fromARGB(255, 90, 138, 201)}) {
-    final Color resolvedColor = enabled ? color : Colors.grey;
-    return InkWell(
-      onTap: enabled ? onTap : null,
-      borderRadius: BorderRadius.circular(16),
-      child: Ink(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: resolvedColor, width: 1.5),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 32, color: resolvedColor.withOpacity(enabled ? 1 : 0.5)),
-              const SizedBox(height: 12),
-              Text(title, textAlign: TextAlign.center, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: enabled ? null : Colors.grey)),
-            ],
+  Widget _buildCard({
+  required Widget iconWidget,
+  required String title,
+  required VoidCallback onTap,
+  bool enabled = true,
+  Color color = const Color.fromARGB(255, 90, 138, 201),
+}) {
+  final BorderRadius cardRadius = BorderRadius.circular(12);
+  final Color resolvedColor = enabled ? color : Colors.grey.shade400;
+
+  return LayoutBuilder(
+    builder: (context, constraints) {
+      final width = constraints.maxWidth;
+      final iconSize = (width * 0.25).clamp(20.0, 32.0); // أيقونة متناسبة مع العرض
+      final fontSize = (width * 0.10).clamp(20.0, 24.0);
+
+      return Opacity(
+        opacity: enabled ? 1.0 : 0.5,
+        child: Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: cardRadius),
+          child: InkWell(
+            borderRadius: cardRadius,
+            onTap: enabled ? onTap : null,
+            child: Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                
+                children: [
+                  
+                  
+                  
+                 
+                   Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      
+                      fontSize: fontSize,
+                      color: enabled ? Colors.black87 : Colors.grey,
+                    ),
+                  ),
+                   const SizedBox(width:14),
+                  iconWidget,
+                ],
+              ),
+            ),
           ),
         ),
-      ),
-    );
-  }
+      );
+    },
+  );
+}
 
   void _navigateBackToControl(BuildContext context) async {
     final shouldShow = await _shouldShowBackToControl();
@@ -60,6 +115,7 @@ class LabDashboardScreen extends StatelessWidget {
       Navigator.of(context).pop();
     }
   }
+  
 
   @override
   Widget build(BuildContext context) {
@@ -72,7 +128,7 @@ class LabDashboardScreen extends StatelessWidget {
         },
         child: Scaffold(
         appBar: AppBar(
-          title: Text('لوحة $labName', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          title: Text('لوحة ${widget.labName}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           backgroundColor: const Color.fromARGB(255, 90, 138, 201),
           centerTitle: true,
           leading: FutureBuilder<bool>(
@@ -112,12 +168,26 @@ class LabDashboardScreen extends StatelessWidget {
             ),
           ],
         ),
-        body: Padding(
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.grey.shade200,
+                const Color.fromARGB(255, 90, 138, 201).withOpacity(0.2),
+                const Color.fromARGB(255, 90, 138, 201).withOpacity(0.35),
+              ],
+            ),
+          ),
+          width: double.infinity,
+          height: double.infinity,
+          child:  Padding(
           padding: const EdgeInsets.all(8.0),
           child: StreamBuilder(
             stream: FirebaseFirestore.instance
                 .collection('labToLap')
-                .doc(labId)
+                .doc(widget.labId)
                
                 .snapshots(),
             builder: (context, snapshot) {
@@ -128,7 +198,7 @@ class LabDashboardScreen extends StatelessWidget {
   return const Center(child: Text("لا توجد بيانات حالياً"));
 }
 final doc = snapshot.data!;
-final docData = doc?.data() as Map<String, dynamic>? ?? {};
+final docData = doc.data() ?? {};
 final bool isApproved = docData['isApproved'] != false;
 
 
@@ -137,36 +207,55 @@ final bool isApproved = docData['isApproved'] != false;
                 child: Column(
                   children: [
                     GridView.count(
-                      crossAxisCount: 3,
-                      childAspectRatio: 0.9,
+                      crossAxisCount:  1,
+                      childAspectRatio: 4,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       children: [
                         _buildCard(
-                          icon: FontAwesomeIcons.syringe,
+                          iconWidget: Lottie.asset(
+                            'assets/lordicons/Medical Animation _ Syringe _ Injection.json',
+                             width: 60,
+                            height: 60,
+                          ),
                           title: 'عينة جديدة',
-                          enabled: isApproved,
                           onTap: () {
-                            Navigator.push(context, MaterialPageRoute(builder:  (context) => LabNewSampleScreen(labId: labId, labName: labName)));
+                            Navigator.push(context, MaterialPageRoute(builder:  (context) => LabNewSampleScreen(labId: widget.labId, labName: widget.labName)));
                           },
                         ),
                         _buildCard(
-                          icon: Icons.print,
+                          iconWidget:Lottie.asset(
+                            'assets/lordicons/Printer.json',
+                            width: 60,
+                            height: 60,
+                          ),
                           title: 'المرضى',
                           onTap: () {
-                            Navigator.push(context, MaterialPageRoute(builder:  (context) => LabResultsPatientsScreen(labId: labId, labName: labName)));
+                            Navigator.push(context, MaterialPageRoute(builder:  (context) => LabResultsPatientsScreen(labId: widget.labId, labName: widget.labName)));
                           },
                         ),
-                        _buildCard(icon: Icons.receipt_long, title: "المطالبة", onTap: (){
-                           Navigator.push(context, MaterialPageRoute(builder:  (context) => ClaimScreen(labId: labId, labName: labName)));
+                        _buildCard(iconWidget: Lottie.asset(
+                            'assets/lordicons/Printer.json',
+                             width: 60,
+                            height: 60,
+                          ),title: "المطالبة", onTap: (){
+                           Navigator.push(context, MaterialPageRoute(builder:  (context) => ClaimScreen(labId: widget.labId, labName: widget.labName)));
                         }),
-                        _buildCard(icon: Icons.support_agent, title: "الدعم الفني", onTap: (){
+                        _buildCard(iconWidget: Lottie.asset(
+                            'assets/lordicons/Contact us (1).json',
+                             width: 60,
+                            height: 60,
+                          ), title: "الدعم الفني", onTap: (){
                            Navigator.push(context, MaterialPageRoute(builder:  (context) => LabSupportNumbersScreen()));
                         }),
-                        _buildCard(icon: Icons.settings, title: "إعدادات", onTap: (){
-                          Navigator.push(context, MaterialPageRoute(builder:  (context) => LabSettingsScreen(labId: labId, labName: labName)));
+                        _buildCard(iconWidget: Lottie.asset(
+                            'assets/lordicons/Gears Lottie Animation.json',
+                            width: 60,
+                            height: 60,
+                          ), title: "إعدادات", onTap: (){
+                          Navigator.push(context, MaterialPageRoute(builder:  (context) => LabSettingsScreen(labId: widget.labId, labName: widget.labName)));
                         }),
                       ],
                     ),
@@ -186,9 +275,9 @@ final bool isApproved = docData['isApproved'] != false;
             },
           ),
         ),
-        ),
-      ),
-    );
+        
+      ),)
+    ));
   }
 }
 

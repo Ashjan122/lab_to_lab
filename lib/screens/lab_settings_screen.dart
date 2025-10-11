@@ -9,31 +9,54 @@ class LabSettingsScreen extends StatelessWidget {
   final String labId;
   final String labName;
   const LabSettingsScreen({super.key, required this.labId, required this.labName});
-  Widget _buildCardSettings({required IconData icon, required String title, required VoidCallback onTap, Color color = const Color.fromARGB(255, 90, 138, 201)}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Ink(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color, width: 1.5),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 32, color: color),
-              const SizedBox(height: 12),
-              Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-            ],
+ Widget _buildCardSettings({
+  required IconData icon,
+  required String title,
+  required VoidCallback onTap,
+  Color color = const Color.fromARGB(255, 90, 138, 201),
+}) {
+  final BorderRadius cardRadius = BorderRadius.circular(12);
+
+  return LayoutBuilder(
+    builder: (context, constraints) {
+      final width = constraints.maxWidth;
+
+      final iconSize = (width * 0.25).clamp(20.0, 32.0); // أيقونة متناسبة
+      final fontSize = (width * 0.10).clamp(12.0, 14.0); // خط متناسب
+
+      return Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: cardRadius),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: cardRadius,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 8),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: iconSize, color: color),
+                  const SizedBox(height: 8),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: fontSize,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
-      ),
-    );
-  }
+      );
+    },
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -44,7 +67,19 @@ class LabSettingsScreen extends StatelessWidget {
           title: Text('إعدادات $labName', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           backgroundColor: const Color.fromARGB(255, 90, 138, 201),
           centerTitle: true,),
-          body: Padding(
+          body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.grey.shade200,
+                const Color.fromARGB(255, 90, 138, 201).withOpacity(0.2),
+                const Color.fromARGB(255, 90, 138, 201).withOpacity(0.35),
+              ],
+            ),
+          ),
+          child:  Padding(
           padding: const EdgeInsets.all(8.0),
           child: GridView.count(
             crossAxisCount: 3,
@@ -78,6 +113,6 @@ class LabSettingsScreen extends StatelessWidget {
 
             ],
 
-      ))));
+      )))));
   }
 }
