@@ -10,24 +10,28 @@ class UsersScreen extends StatelessWidget {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('المستخدمين', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          title: const Text(
+            'المستخدمين',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
           backgroundColor: const Color.fromARGB(255, 90, 138, 201),
           centerTitle: true,
         ),
         body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance
-              .collection('users')
-              .where('userType', isEqualTo: 'labUser')
-              .snapshots(),
+          stream:
+              FirebaseFirestore.instance
+                  .collection('users')
+                  .where('userType', isEqualTo: 'labUser')
+                  .snapshots(),
           builder: (context, snapshot) {
             if (snapshot.hasError) {
               return Center(child: Text('خطأ: ${snapshot.error}'));
             }
-            
+
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
-            
+
             final docs = snapshot.data?.docs ?? [];
             if (docs.isEmpty) {
               return const Center(child: Text('لا يوجد مستخدمين'));

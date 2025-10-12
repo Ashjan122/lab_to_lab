@@ -16,6 +16,8 @@ class _LabNewSampleScreenState extends State<LabNewSampleScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+  final FocusNode _nameFocus = FocusNode();
+  final FocusNode _phoneFocus = FocusNode();
   bool _saving = false;
   @override
   void dispose() {
@@ -95,11 +97,15 @@ class _LabNewSampleScreenState extends State<LabNewSampleScreen> {
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _fullNameController,
+                  focusNode: _nameFocus,
                   decoration: const InputDecoration(
                     labelText: 'الاسم الثلاثي',
                     border: OutlineInputBorder(),
                   ),
                   textInputAction: TextInputAction.next,
+                  onFieldSubmitted: (_) {
+                  FocusScope.of(context).requestFocus(_phoneFocus); // ينتقل للحقل التالي
+                    },
                   validator: (v) {
   if (v == null || v.trim().isEmpty) {
     return 'يرجى إدخال الاسم الثلاثي';
@@ -116,6 +122,7 @@ class _LabNewSampleScreenState extends State<LabNewSampleScreen> {
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _phoneController,
+                  focusNode: _phoneFocus,
                   textDirection: TextDirection.ltr,
                   decoration: const InputDecoration(
                     labelText: 'رقم الهاتف',
@@ -123,6 +130,9 @@ class _LabNewSampleScreenState extends State<LabNewSampleScreen> {
                   ),
                   keyboardType: TextInputType.phone,
                   textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) {
+                     _save(); // ينفذ الحفظ عند الضغط على "تم"
+                  },
                   validator: (v) {
   if (v == null || v.trim().isEmpty) {
     return 'يرجى إدخال رقم الهاتف';

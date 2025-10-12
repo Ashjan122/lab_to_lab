@@ -44,7 +44,11 @@ class _ControlPanalScreenState extends State<ControlPanalScreen> {
       final controlUserId = prefs.getString('control_user_id');
       if (controlUserId != null) {
         try {
-          final snap = await FirebaseFirestore.instance.collection('controlUsers').doc(controlUserId).get();
+          final snap =
+              await FirebaseFirestore.instance
+                  .collection('controlUsers')
+                  .doc(controlUserId)
+                  .get();
           if (snap.exists) {
             name = snap.data()?['userName']?.toString();
             if (name != null && name.isNotEmpty) {
@@ -59,6 +63,7 @@ class _ControlPanalScreenState extends State<ControlPanalScreen> {
       _userName = name;
     });
   }
+
   Widget _buildControlCard({
     required IconData icon,
     required String title,
@@ -77,7 +82,11 @@ class _ControlPanalScreenState extends State<ControlPanalScreen> {
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: color ?? const Color.fromARGB(255, 90, 138, 201), size: 25),
+              Icon(
+                icon,
+                color: color ?? const Color.fromARGB(255, 90, 138, 201),
+                size: 25,
+              ),
               const SizedBox(height: 8),
               Text(
                 title,
@@ -96,16 +105,20 @@ class _ControlPanalScreenState extends State<ControlPanalScreen> {
     final Color primary = const Color.fromARGB(255, 90, 138, 201);
     final DateTime now = DateTime.now();
     final DateTime startOfToday = DateTime(now.year, now.month, now.day);
-    final int thresholdMs = _lastSeenPatientsMs ?? startOfToday.millisecondsSinceEpoch;
-    final Timestamp thresholdTs = Timestamp.fromMillisecondsSinceEpoch(thresholdMs);
+    final int thresholdMs =
+        _lastSeenPatientsMs ?? startOfToday.millisecondsSinceEpoch;
+    final Timestamp thresholdTs = Timestamp.fromMillisecondsSinceEpoch(
+      thresholdMs,
+    );
 
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('labToLap')
-          .doc('global')
-          .collection('patients')
-          .where('createdAt', isGreaterThanOrEqualTo: thresholdTs)
-          .snapshots(),
+      stream:
+          FirebaseFirestore.instance
+              .collection('labToLap')
+              .doc('global')
+              .collection('patients')
+              .where('createdAt', isGreaterThanOrEqualTo: thresholdTs)
+              .snapshots(),
       builder: (context, snap) {
         final int count = snap.hasData ? snap.data!.docs.length : 0;
         return Stack(
@@ -151,7 +164,10 @@ class _ControlPanalScreenState extends State<ControlPanalScreen> {
                 top: -4,
                 left: -4,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.red,
                     borderRadius: BorderRadius.circular(12),
@@ -159,7 +175,11 @@ class _ControlPanalScreenState extends State<ControlPanalScreen> {
                   ),
                   child: Text(
                     '$count',
-                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
@@ -171,9 +191,12 @@ class _ControlPanalScreenState extends State<ControlPanalScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return  Scaffold(
+    return Scaffold(
       appBar: AppBar(
-        title: Text("لوحة تحكم الكنترول",style: TextStyle(color: Colors.white,fontWeight: FontWeight.bold),),
+        title: Text(
+          "لوحة تحكم الكنترول",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         centerTitle: true,
         backgroundColor: const Color.fromARGB(255, 90, 138, 201),
         elevation: 0,
@@ -208,13 +231,22 @@ class _ControlPanalScreenState extends State<ControlPanalScreen> {
                 padding: const EdgeInsets.only(bottom: 12.0),
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: Row(children: [
-                    Icon(Icons.person,color: Color.fromARGB(255, 90, 138, 201),),
-                   Text(
-                    ' ${_userName!}',
-                    textAlign: TextAlign.right,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),])
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.person,
+                        color: Color.fromARGB(255, 90, 138, 201),
+                      ),
+                      Text(
+                        ' ${_userName!}',
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -225,62 +257,73 @@ class _ControlPanalScreenState extends State<ControlPanalScreen> {
                 mainAxisSpacing: 12,
                 children: [
                   _buildControlCard(
-              icon: Icons.biotech,
-              title: 'المعامل',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => LabToLab()),
-                );
-              },
-            ),
+                    icon: Icons.biotech,
+                    title: 'المعامل',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => LabToLab()),
+                      );
+                    },
+                  ),
                   _buildControlCard(
-              icon: Icons.support_agent,
-              title: 'الدعم الفني',
-              onTap: () {
-               Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => SupportNumbersScreen()),
-                );
-              },
-            ),
+                    icon: Icons.support_agent,
+                    title: 'الدعم الفني',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => SupportNumbersScreen(),
+                        ),
+                      );
+                    },
+                  ),
                   _buildControlCard(
-              icon: Icons.notifications,
-              title: 'الاشعارات',
-              onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const ControlNotificationsScreen()));
-              },
-            ),
+                    icon: Icons.notifications,
+                    title: 'الاشعارات',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ControlNotificationsScreen(),
+                        ),
+                      );
+                    },
+                  ),
                   _buildControlCard(
-              icon: Icons.query_stats,
-              title: 'احصائيات ',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const UserStatsScreen()),
-                );
-              },
-            ),
+                    icon: Icons.query_stats,
+                    title: 'احصائيات ',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const UserStatsScreen(),
+                        ),
+                      );
+                    },
+                  ),
                   _buildControlCard(
-              icon: Icons.people_alt,
-              title: 'المستخدمين',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const UsersScreen()),
-                );
-              },
-            ),
+                    icon: Icons.people_alt,
+                    title: 'المستخدمين',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const UsersScreen()),
+                      );
+                    },
+                  ),
                   _buildControlCard(
-              icon: Icons.receipt_long,
-              title: 'المطالبة',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ClaimLabsPickerScreen()),
-                );
-              },
-            ),
+                    icon: Icons.receipt_long,
+                    title: 'المطالبة',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ClaimLabsPickerScreen(),
+                        ),
+                      );
+                    },
+                  ),
                   _buildPatientsCardWithBadge(),
                 ],
               ),

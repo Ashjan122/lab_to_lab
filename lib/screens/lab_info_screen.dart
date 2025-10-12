@@ -6,9 +6,9 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 
-
 // Global variable to track if user came from control panel
 bool globalFromControlPanel = false;
+
 class LabInfoScreen extends StatefulWidget {
   final String labId;
   final String labName;
@@ -18,7 +18,8 @@ class LabInfoScreen extends StatefulWidget {
   State<LabInfoScreen> createState() => _LabInfoScreenState();
 }
 
-class _LabInfoScreenState extends State<LabInfoScreen> with WidgetsBindingObserver, RouteAware {
+class _LabInfoScreenState extends State<LabInfoScreen>
+    with WidgetsBindingObserver, RouteAware {
   bool _loading = true;
   bool _isEditing = false;
   bool _saving = false;
@@ -26,8 +27,7 @@ class _LabInfoScreenState extends State<LabInfoScreen> with WidgetsBindingObserv
   Map<String, dynamic>? _labData;
   File? _selectedImage;
   String? _imageUrl;
-  
-  
+
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _whatsappController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
@@ -82,11 +82,12 @@ class _LabInfoScreenState extends State<LabInfoScreen> with WidgetsBindingObserv
 
   Future<void> _loadLabData() async {
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('labToLap')
-          .doc(widget.labId)
-          .get();
-      
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('labToLap')
+              .doc(widget.labId)
+              .get();
+
       if (mounted) {
         setState(() {
           _labData = doc.data();
@@ -101,7 +102,10 @@ class _LabInfoScreenState extends State<LabInfoScreen> with WidgetsBindingObserv
       if (mounted) {
         setState(() => _loading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ في تحميل البيانات: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('خطأ في تحميل البيانات: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -114,7 +118,10 @@ class _LabInfoScreenState extends State<LabInfoScreen> with WidgetsBindingObserv
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('لا يمكن فتح تطبيق الهاتف'), backgroundColor: Colors.red),
+          const SnackBar(
+            content: Text('لا يمكن فتح تطبيق الهاتف'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -126,14 +133,17 @@ class _LabInfoScreenState extends State<LabInfoScreen> with WidgetsBindingObserv
     if (!cleanPhone.startsWith('966')) {
       cleanPhone = '966$cleanPhone';
     }
-    
+
     final Uri whatsappUri = Uri.parse('https://wa.me/$cleanPhone');
     if (await canLaunchUrl(whatsappUri)) {
       await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('لا يمكن فتح واتساب'), backgroundColor: Colors.red),
+          const SnackBar(
+            content: Text('لا يمكن فتح واتساب'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -144,10 +154,10 @@ class _LabInfoScreenState extends State<LabInfoScreen> with WidgetsBindingObserv
       final prefs = await SharedPreferences.getInstance();
       final fromControlPanel = prefs.getBool('fromControlPanel') ?? false;
       print('Checking fromControlPanel: $fromControlPanel'); // Debug log
-      
+
       // Update global variable
       globalFromControlPanel = fromControlPanel;
-      
+
       if (mounted) {
         setState(() {
           _fromControlPanel = fromControlPanel;
@@ -172,8 +182,13 @@ class _LabInfoScreenState extends State<LabInfoScreen> with WidgetsBindingObserv
   Future<void> _pickImage(ImageSource source) async {
     try {
       final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(source: source, maxWidth: 800, maxHeight: 800, imageQuality: 80);
-      
+      final XFile? image = await picker.pickImage(
+        source: source,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 80,
+      );
+
       if (image != null) {
         setState(() {
           _selectedImage = File(image.path);
@@ -182,7 +197,10 @@ class _LabInfoScreenState extends State<LabInfoScreen> with WidgetsBindingObserv
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ في اختيار الصورة: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('خطأ في اختيار الصورة: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -190,22 +208,27 @@ class _LabInfoScreenState extends State<LabInfoScreen> with WidgetsBindingObserv
 
   Future<String?> _uploadImage() async {
     if (_selectedImage == null) return _imageUrl;
-    
+
     try {
       final ref = FirebaseStorage.instance
           .ref()
           .child('lab_images')
-          .child('${widget.labId}_${DateTime.now().millisecondsSinceEpoch}.jpg');
-      
+          .child(
+            '${widget.labId}_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          );
+
       final uploadTask = ref.putFile(_selectedImage!);
       final snapshot = await uploadTask;
       final downloadUrl = await snapshot.ref.getDownloadURL();
-      
+
       return downloadUrl;
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ في رفع الصورة: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('خطأ في رفع الصورة: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
       return null;
@@ -214,36 +237,42 @@ class _LabInfoScreenState extends State<LabInfoScreen> with WidgetsBindingObserv
 
   Future<void> _saveData() async {
     setState(() => _saving = true);
-    
+
     try {
       String? newImageUrl = await _uploadImage();
-      
+
       await FirebaseFirestore.instance
           .collection('labToLap')
           .doc(widget.labId)
           .update({
-        'phone': _phoneController.text.trim(),
-        'whatsapp': _whatsappController.text.trim(),
-        'address': _addressController.text.trim(),
-        if (newImageUrl != null) 'imageUrl': newImageUrl,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-      
+            'phone': _phoneController.text.trim(),
+            'whatsapp': _whatsappController.text.trim(),
+            'address': _addressController.text.trim(),
+            if (newImageUrl != null) 'imageUrl': newImageUrl,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+
       if (mounted) {
         setState(() {
           _isEditing = false;
           _selectedImage = null;
           if (newImageUrl != null) _imageUrl = newImageUrl;
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تم تحديث البيانات بنجاح'), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Text('تم تحديث البيانات بنجاح'),
+            backgroundColor: Colors.green,
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ في التحديث: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('خطأ في التحديث: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -256,10 +285,12 @@ class _LabInfoScreenState extends State<LabInfoScreen> with WidgetsBindingObserv
       _isEditing = false;
       _selectedImage = null;
       _phoneController.text = _labData?['phone']?.toString() ?? '';
-      _whatsappController.text = _labData?['whatsapp']?.toString() ?? '0991961111';
+      _whatsappController.text =
+          _labData?['whatsapp']?.toString() ?? '0991961111';
       _addressController.text = _labData?['address']?.toString() ?? '';
     });
   }
+
   @override
   Widget build(BuildContext context) {
     // Check fromControlPanel on every build
@@ -274,41 +305,67 @@ class _LabInfoScreenState extends State<LabInfoScreen> with WidgetsBindingObserv
       textDirection: TextDirection.rtl,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(_isEditing ? 'تعديل بيانات ${widget.labName}' : 'بيانات ${widget.labName}', 
-                     style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          title: Text(
+            _isEditing
+                ? 'تعديل بيانات ${widget.labName}'
+                : 'بيانات ${widget.labName}',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           backgroundColor: const Color.fromARGB(255, 90, 138, 201),
           centerTitle: true,
-          leading: _fromControlPanel ? IconButton(
-            onPressed: _goBackToDashboard,
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            tooltip: 'العودة للوحة التحكم',
-          ) : null,
-          actions: _isEditing ? [
-            IconButton(
-              onPressed: _saving ? null : _saveData,
-              icon: _saving 
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)))
-                  : const Icon(Icons.save, color: Colors.white),
-              tooltip: 'حفظ',
-            ),
-            IconButton(
-              onPressed: _saving ? null : _cancelEdit,
-              icon: const Icon(Icons.close, color: Colors.white),
-              tooltip: 'إلغاء',
-            ),
-          ] : [
-            IconButton(
-              onPressed: () => setState(() => _isEditing = true),
-              icon: const Icon(Icons.edit, color: Colors.white),
-              tooltip: 'تعديل البيانات',
-            ),
-          ],
+          leading:
+              _fromControlPanel
+                  ? IconButton(
+                    onPressed: _goBackToDashboard,
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    tooltip: 'العودة للوحة التحكم',
+                  )
+                  : null,
+          actions:
+              _isEditing
+                  ? [
+                    IconButton(
+                      onPressed: _saving ? null : _saveData,
+                      icon:
+                          _saving
+                              ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                              : const Icon(Icons.save, color: Colors.white),
+                      tooltip: 'حفظ',
+                    ),
+                    IconButton(
+                      onPressed: _saving ? null : _cancelEdit,
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      tooltip: 'إلغاء',
+                    ),
+                  ]
+                  : [
+                    IconButton(
+                      onPressed: () => setState(() => _isEditing = true),
+                      icon: const Icon(Icons.edit, color: Colors.white),
+                      tooltip: 'تعديل البيانات',
+                    ),
+                  ],
         ),
-        body: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _labData == null
+        body:
+            _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _labData == null
                 ? const Center(child: Text('لا توجد بيانات متاحة'))
-                : _isEditing ? _buildEditView() : _buildViewMode(),
+                : _isEditing
+                ? _buildEditView()
+                : _buildViewMode(),
       ),
     );
   }
@@ -317,7 +374,7 @@ class _LabInfoScreenState extends State<LabInfoScreen> with WidgetsBindingObserv
     return Column(
       children: [
         const SizedBox(height: 8),
-        
+
         // Lab Image and Name (centered like patient info)
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -332,7 +389,10 @@ class _LabInfoScreenState extends State<LabInfoScreen> with WidgetsBindingObserv
                     height: 120,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(60),
-                      border: Border.all(color: const Color(0xFF1976D2), width: 3),
+                      border: Border.all(
+                        color: const Color(0xFF1976D2),
+                        width: 3,
+                      ),
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(57),
@@ -342,7 +402,11 @@ class _LabInfoScreenState extends State<LabInfoScreen> with WidgetsBindingObserv
                         errorBuilder: (context, error, stackTrace) {
                           return Container(
                             color: Colors.grey[200],
-                            child: const Icon(Icons.business, size: 50, color: Colors.grey),
+                            child: const Icon(
+                              Icons.business,
+                              size: 50,
+                              color: Colors.grey,
+                            ),
                           );
                         },
                       ),
@@ -355,19 +419,29 @@ class _LabInfoScreenState extends State<LabInfoScreen> with WidgetsBindingObserv
                     decoration: BoxDecoration(
                       color: Colors.grey[200],
                       borderRadius: BorderRadius.circular(60),
-                      border: Border.all(color: const Color(0xFF1976D2), width: 3),
+                      border: Border.all(
+                        color: const Color(0xFF1976D2),
+                        width: 3,
+                      ),
                     ),
-                    child: const Icon(Icons.business, size: 50, color: Colors.grey),
+                    child: const Icon(
+                      Icons.business,
+                      size: 50,
+                      color: Colors.grey,
+                    ),
                   ),
                 const SizedBox(height: 16),
-                
+
                 // Lab Name
                 Text(
                   _labData!['name']?.toString() ?? widget.labName,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 26),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 26,
+                  ),
                 ),
               ],
             ),
@@ -419,23 +493,32 @@ class _LabInfoScreenState extends State<LabInfoScreen> with WidgetsBindingObserv
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(57),
-                  child: _selectedImage != null
-                      ? Image.file(_selectedImage!, fit: BoxFit.cover)
-                      : _imageUrl != null
+                  child:
+                      _selectedImage != null
+                          ? Image.file(_selectedImage!, fit: BoxFit.cover)
+                          : _imageUrl != null
                           ? Image.network(
-                              _imageUrl!,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  color: Colors.grey[200],
-                                  child: const Icon(Icons.business, size: 50, color: Colors.grey),
-                                );
-                              },
-                            )
+                            _imageUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                color: Colors.grey[200],
+                                child: const Icon(
+                                  Icons.business,
+                                  size: 50,
+                                  color: Colors.grey,
+                                ),
+                              );
+                            },
+                          )
                           : Container(
-                              color: Colors.grey[200],
-                              child: const Icon(Icons.business, size: 50, color: Colors.grey),
+                            color: Colors.grey[200],
+                            child: const Icon(
+                              Icons.business,
+                              size: 50,
+                              color: Colors.grey,
                             ),
+                          ),
                 ),
               ),
             ),
@@ -456,7 +539,9 @@ class _LabInfoScreenState extends State<LabInfoScreen> with WidgetsBindingObserv
               filled: true,
               fillColor: Colors.grey[100],
             ),
-            controller: TextEditingController(text: _labData!['name']?.toString() ?? widget.labName),
+            controller: TextEditingController(
+              text: _labData!['name']?.toString() ?? widget.labName,
+            ),
           ),
           const SizedBox(height: 16),
 
@@ -500,35 +585,36 @@ class _LabInfoScreenState extends State<LabInfoScreen> with WidgetsBindingObserv
   void _showImagePicker() {
     showModalBottomSheet(
       context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('الكاميرا'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickImage(ImageSource.camera);
-              },
+      builder:
+          (context) => SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.camera_alt),
+                  title: const Text('الكاميرا'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickImage(ImageSource.camera);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library),
+                  title: const Text('المعرض'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickImage(ImageSource.gallery);
+                  },
+                ),
+              ],
             ),
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('المعرض'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickImage(ImageSource.gallery);
-              },
-            ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 
   List<Map<String, dynamic>> _getInfoItems() {
     final items = <Map<String, dynamic>>[];
-    
+
     // Phone Number
     if (_labData!['phone'] != null) {
       items.add({
@@ -539,7 +625,7 @@ class _LabInfoScreenState extends State<LabInfoScreen> with WidgetsBindingObserv
         'isClickable': true,
       });
     }
-    
+
     // WhatsApp Number - Always show with default number
     items.add({
       'icon': Icons.chat,
@@ -548,7 +634,7 @@ class _LabInfoScreenState extends State<LabInfoScreen> with WidgetsBindingObserv
       'onTap': () => _launchWhatsApp(_labData!['whatsapp'] ?? '0991961111'),
       'isClickable': true,
     });
-    
+
     // Address
     if (_labData!['address'] != null) {
       items.add({
@@ -559,7 +645,7 @@ class _LabInfoScreenState extends State<LabInfoScreen> with WidgetsBindingObserv
         'isClickable': false,
       });
     }
-    
+
     return items;
   }
 

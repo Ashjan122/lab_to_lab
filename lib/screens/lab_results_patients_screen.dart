@@ -1,5 +1,3 @@
-
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:lab_to_lab_admin/screens/lab_dashboard_screen.dart';
@@ -7,11 +5,16 @@ import 'package:lab_to_lab_admin/screens/lab_dashboard_screen.dart';
 import 'package:lab_to_lab_admin/screens/lab_patient_result_detail_screen.dart';
 
 class LabResultsPatientsScreen extends StatefulWidget {
- final String labId;
+  final String labId;
   final String labName;
-  const LabResultsPatientsScreen({super.key, required this.labId, required this.labName});
+  const LabResultsPatientsScreen({
+    super.key,
+    required this.labId,
+    required this.labName,
+  });
   @override
-  State<LabResultsPatientsScreen> createState() => _LabResultsPatientsScreenState();
+  State<LabResultsPatientsScreen> createState() =>
+      _LabResultsPatientsScreenState();
 }
 
 class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
@@ -51,12 +54,12 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
       progress = 0.3; // 30%
       progressColor = Colors.blue;
     }
-    
+
     if (sampledDelivered) {
       progress = 0.6; // 60%
       progressColor = Colors.orange;
     }
-    
+
     if (hasPdf) {
       progress = 1.0; // 100%
       progressColor = Colors.green;
@@ -97,7 +100,11 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
     );
   }
 
-  String _getProgressText(bool orderReceived, bool sampledDelivered, bool hasPdf) {
+  String _getProgressText(
+    bool orderReceived,
+    bool sampledDelivered,
+    bool hasPdf,
+  ) {
     if (hasPdf) {
       return 'اكتملت النتيجة';
     } else if (sampledDelivered) {
@@ -105,9 +112,10 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
     } else if (orderReceived) {
       return 'تم استلام الطلب';
     } else {
-      return 'في الانتظار';
+      return ' في انتظار المندوب';
     }
   }
+
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
@@ -124,6 +132,7 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
       });
     }
   }
+
   @override
   Widget build(BuildContext context) {
     final col = FirebaseFirestore.instance
@@ -134,33 +143,40 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         appBar: AppBar(
-          title: Text('مرضى ${widget.labName}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          title: Text(
+            'مرضى ${widget.labName}',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           backgroundColor: const Color.fromARGB(255, 90, 138, 201),
           centerTitle: true,
-          leading:IconButton(
-              tooltip: 'اختيار التاريخ',
-              icon: const Icon(Icons.calendar_today, color: Colors.white),
-              onPressed: _pickDate,
-            ),
-          
-          actions: [
-           IconButton(
-            icon: const Icon(Icons.arrow_forward, color: Colors.white),
-            onPressed: () {
-              // الرجوع إلى لوحة تحكم المعمل مباشرة
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => LabDashboardScreen(
-                    labId: widget.labId,
-                    labName: widget.labName,
-                  ),
-                ),
-                (route) => false,
-              );
-            },
-            tooltip: 'الرجوع إلى لوحة المعمل',
+          leading: IconButton(
+            tooltip: 'اختيار التاريخ',
+            icon: const Icon(Icons.calendar_today, color: Colors.white),
+            onPressed: _pickDate,
           ),
+
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.arrow_forward, color: Colors.white),
+              onPressed: () {
+                // الرجوع إلى لوحة تحكم المعمل مباشرة
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) => LabDashboardScreen(
+                          labId: widget.labId,
+                          labName: widget.labName,
+                        ),
+                  ),
+                  (route) => false,
+                );
+              },
+              tooltip: 'الرجوع إلى لوحة المعمل',
+            ),
           ],
         ),
         body: Column(
@@ -195,7 +211,10 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
                   const SizedBox(width: 8),
                   Text(
                     'التاريخ: ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey,
+                    ),
                   ),
                 ],
               ),
@@ -206,23 +225,36 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
               child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                 stream: col.where('labId', isEqualTo: widget.labId).snapshots(),
                 builder: (context, snap) {
-                  if (snap.hasError) return Center(child: Text('خطأ: ${snap.error}'));
-                  if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+                  if (snap.hasError)
+                    return Center(child: Text('خطأ: ${snap.error}'));
+                  if (!snap.hasData)
+                    return const Center(child: CircularProgressIndicator());
 
                   // فلترة حسب تاريخ اليوم المحدد
-                  final dateFiltered = snap.data!.docs.where((doc) {
-                    final m = doc.data();
-                    final ts = m['createdAt'];
-                    final t = (ts is Timestamp) ? ts : null;
-                    return _isSameDay(t, _selectedDate);
-                  }).toList();
+                  final allDocs = snap.data!.docs;
 
-                  // فلترة حسب البحث
-                  final filtered = dateFiltered.where((doc) {
-                    final data = doc.data();
-                    final patientName = data['name']?.toString().toLowerCase() ?? '';
-                    return patientName.contains(_searchQuery);
-                  }).toList();
+                  List<QueryDocumentSnapshot<Map<String, dynamic>>> filtered =
+                      [];
+
+                  if (_searchQuery.isNotEmpty) {
+                    // لو فيه بحث: تجاهل التاريخ وابحث في الكل
+                    filtered =
+                        allDocs.where((doc) {
+                          final data = doc.data();
+                          final patientName =
+                              data['name']?.toString().toLowerCase() ?? '';
+                          return patientName.contains(_searchQuery);
+                        }).toList();
+                  } else {
+                    // لو ما فيه بحث: فلتر على حسب التاريخ
+                    filtered =
+                        allDocs.where((doc) {
+                          final m = doc.data();
+                          final ts = m['createdAt'];
+                          final t = (ts is Timestamp) ? ts : null;
+                          return _isSameDay(t, _selectedDate);
+                        }).toList();
+                  }
 
                   // ترتيب تنازلي حسب createdAt
                   filtered.sort((a, b) {
@@ -238,7 +270,11 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
 
                   if (filtered.isEmpty) {
                     return Center(
-                      child: Text(_searchQuery.isNotEmpty ? 'لا توجد نتائج للبحث' : 'لا توجد عينات لليوم المحدد'),
+                      child: Text(
+                        _searchQuery.isNotEmpty
+                            ? 'لا توجد نتائج للبحث'
+                            : 'لا توجد عينات لليوم المحدد',
+                      ),
                     );
                   }
 
@@ -250,8 +286,17 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
                     itemBuilder: (context, i) {
                       final d = filtered[i];
                       final data = d.data();
+                      final rawId = data['id'];
+                      final patientCode =
+                          (rawId is int)
+                              ? rawId.toString()
+                              : (int.tryParse('$rawId') ?? 0) > 0
+                              ? '$rawId'
+                              : d.id; // fallback للـ docId
+
                       final name = data['name']?.toString() ?? '';
-                      final dayNumber = perDayTotal - i; // رقم اليوم يبدأ من 1 لكل يوم
+                      final dayNumber =
+                          perDayTotal - i; // رقم اليوم يبدأ من 1 لكل يوم
                       return Card(
                         child: ListTileTheme(
                           data: const ListTileThemeData(
@@ -261,38 +306,51 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
                           ),
                           child: ListTile(
                             minLeadingWidth: 0,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                            leading: Container(
-                              width: 38,
-                              height: 38,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.white,
-                                border: Border.all(color: const Color.fromARGB(255, 90, 138, 201), width: 2),
-                              ),
-                              child: Text(
-                                '$dayNumber',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF1976D2),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                            ),
+                            leading: SizedBox(
+                              width: 50,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  border: Border.all(
+                                    color: Color.fromARGB(255, 90, 138, 201),
+                                    width: 2,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  patientCode,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF1976D2),
+                                  ),
+                                  textAlign: TextAlign.center,
                                 ),
                               ),
                             ),
-                            title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
+
+                            title: Text(
+                              name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  'كود المريض: ${((data['id'] is int) ? data['id'] as int : (int.tryParse('${data['id'] ?? ''}') ?? 0)) > 0 ? (data['id'] is int) ? data['id'] as int : (int.tryParse('${data['id'] ?? ''}') ?? 0) : d.id}',
-                                  style: const TextStyle(color: Colors.black54),
-                                ),
                                 const SizedBox(height: 8),
                                 _buildProgressBar(data),
                               ],
                             ),
-                             /*trailing: Container(
+                            /*trailing: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
                                 color: chipColor.withOpacity(0.12),
@@ -304,18 +362,19 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
                                 style: TextStyle(color: chipColor, fontWeight: FontWeight.bold, fontSize: 12),
                               ),
                             ),*/
-                             onTap: () {
-                               Navigator.push(
-                                 context,
-                                 MaterialPageRoute(
-                                   builder: (context) => LabPatientResultDetailScreen(
-                                     labId: widget.labId,
-                                     labName: widget.labName,
-                                     patientDocId: d.id,
-                                   ),
-                                 ),
-                               );
-                             },
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) => LabPatientResultDetailScreen(
+                                        labId: widget.labId,
+                                        labName: widget.labName,
+                                        patientDocId: d.id,
+                                      ),
+                                ),
+                              );
+                            },
                           ),
                         ),
                       );

@@ -29,7 +29,9 @@ class OnboardingLandingScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(24.0),
                 child: Card(
                   elevation: 4,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.all(24.0),
                     child: Column(
@@ -40,12 +42,18 @@ class OnboardingLandingScreen extends StatelessWidget {
                           children: [
                             SizedBox(
                               height: 96,
-                              child: Image.asset('assets/images/logo.png', fit: BoxFit.contain),
+                              child: Image.asset(
+                                'assets/images/logo.png',
+                                fit: BoxFit.contain,
+                              ),
                             ),
                             const SizedBox(height: 16),
                             const Text(
                               'إدارة المعامل الطبية',
-                              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             const SizedBox(height: 8),
                             const Text(
@@ -56,9 +64,20 @@ class OnboardingLandingScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 32),
                         ElevatedButton(
-                          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterLabScreen())),
+                          onPressed:
+                              () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const RegisterLabScreen(),
+                                ),
+                              ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+                            backgroundColor: const Color.fromARGB(
+                              255,
+                              90,
+                              138,
+                              201,
+                            ),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
@@ -66,8 +85,16 @@ class OnboardingLandingScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 12),
                         OutlinedButton(
-                          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen())),
-                          style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+                          onPressed:
+                              () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const LoginScreen(),
+                                ),
+                              ),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
                           child: const Text('تسجيل الدخول'),
                         ),
                       ],
@@ -82,5 +109,3 @@ class OnboardingLandingScreen extends StatelessWidget {
     );
   }
 }
-
-

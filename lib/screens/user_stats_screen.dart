@@ -45,30 +45,51 @@ class UserStatsScreen extends StatelessWidget {
         length: 2,
         child: Scaffold(
           appBar: AppBar(
-            title: const Text('احصائيات المستخدمين', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            title: const Text(
+              'احصائيات المستخدمين',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             backgroundColor: const Color.fromARGB(255, 90, 138, 201),
             centerTitle: true,
             bottom: const TabBar(
-              tabs: [
-                Tab(text: 'سجلوا اليوم'),
-                Tab(text: 'متصلون الآن'),
-              ],
+              tabs: [Tab(text: 'سجلوا اليوم'), Tab(text: 'متصلون الآن')],
             ),
           ),
           body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: usersCol.where('userType', isEqualTo: 'labUser').snapshots(),
+            stream:
+                usersCol.where('userType', isEqualTo: 'labUser').snapshots(),
             builder: (context, snap) {
-            if (snap.hasError) return Center(child: Text('خطأ: ${snap.error}'));
-            if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-            final docs = snap.data!.docs;
+              if (snap.hasError)
+                return Center(child: Text('خطأ: ${snap.error}'));
+              if (!snap.hasData)
+                return const Center(child: CircularProgressIndicator());
+              final docs = snap.data!.docs;
 
-            final loggedInToday = docs.where((d) => _tsIsToday(d.data()['lastLoginAt']) || _tsOnOrAfter(d.data()['lastLoginAt'], todayStart)).toList();
-            final onlineNow = docs.where((d) => _tsOnOrAfter(d.data()['lastSeenAt'], onlineFrom)).toList();
+              final loggedInToday =
+                  docs
+                      .where(
+                        (d) =>
+                            _tsIsToday(d.data()['lastLoginAt']) ||
+                            _tsOnOrAfter(d.data()['lastLoginAt'], todayStart),
+                      )
+                      .toList();
+              final onlineNow =
+                  docs
+                      .where(
+                        (d) => _tsOnOrAfter(d.data()['lastSeenAt'], onlineFrom),
+                      )
+                      .toList();
 
-            Widget buildList(List<QueryDocumentSnapshot<Map<String, dynamic>>> list, {required bool showOnline}) {
-              return list.isEmpty
-                  ? const Center(child: Text('لا يوجد مستخدمين'))
-                  : ListView.separated(
+              Widget buildList(
+                List<QueryDocumentSnapshot<Map<String, dynamic>>> list, {
+                required bool showOnline,
+              }) {
+                return list.isEmpty
+                    ? const Center(child: Text('لا يوجد مستخدمين'))
+                    : ListView.separated(
                       itemCount: list.length,
                       separatorBuilder: (_, __) => const Divider(height: 0),
                       itemBuilder: (_, i) {
@@ -77,37 +98,63 @@ class UserStatsScreen extends StatelessWidget {
                         final userName = data['userName']?.toString() ?? '';
                         final labName = data['labName']?.toString() ?? '';
                         final phone = data['userPhone']?.toString() ?? '';
-                        final isOnline = _tsOnOrAfter(data['lastSeenAt'], onlineFrom);
+                        final isOnline = _tsOnOrAfter(
+                          data['lastSeenAt'],
+                          onlineFrom,
+                        );
                         return ListTile(
-                          title: Text(userName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          title: Text(
+                            userName,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               if (labName.isNotEmpty) Text('المعمل: $labName'),
-                              Text(phone.isEmpty ? 'بدون رقم' : 'الهاتف: $phone'),
+                              Text(
+                                phone.isEmpty ? 'بدون رقم' : 'الهاتف: $phone',
+                              ),
                             ],
                           ),
-                          trailing: showOnline
-                              ? Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(isOnline ? Icons.circle : Icons.circle_outlined, size: 12, color: isOnline ? Colors.green : Colors.grey),
-                                    const SizedBox(width: 6),
-                                    Text(isOnline ? 'متصل' : 'غير متصل', style: TextStyle(color: isOnline ? Colors.green : Colors.grey)),
-                                  ],
-                                )
-                              : null,
+                          trailing:
+                              showOnline
+                                  ? Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        isOnline
+                                            ? Icons.circle
+                                            : Icons.circle_outlined,
+                                        size: 12,
+                                        color:
+                                            isOnline
+                                                ? Colors.green
+                                                : Colors.grey,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        isOnline ? 'متصل' : 'غير متصل',
+                                        style: TextStyle(
+                                          color:
+                                              isOnline
+                                                  ? Colors.green
+                                                  : Colors.grey,
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                  : null,
                         );
                       },
                     );
-            }
+              }
 
-            return TabBarView(
-              children: [
-                buildList(loggedInToday, showOnline: false),
-                buildList(onlineNow, showOnline: true),
-              ],
-            );
+              return TabBarView(
+                children: [
+                  buildList(loggedInToday, showOnline: false),
+                  buildList(onlineNow, showOnline: true),
+                ],
+              );
             },
           ),
         ),
@@ -115,5 +162,3 @@ class UserStatsScreen extends StatelessWidget {
     );
   }
 }
-
-

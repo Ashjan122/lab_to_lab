@@ -7,10 +7,12 @@ class LabOrderReceivedNotificationsScreen extends StatefulWidget {
   const LabOrderReceivedNotificationsScreen({super.key});
 
   @override
-  State<LabOrderReceivedNotificationsScreen> createState() => _LabOrderReceivedNotificationsScreenState();
+  State<LabOrderReceivedNotificationsScreen> createState() =>
+      _LabOrderReceivedNotificationsScreenState();
 }
 
-class _LabOrderReceivedNotificationsScreenState extends State<LabOrderReceivedNotificationsScreen> {
+class _LabOrderReceivedNotificationsScreenState
+    extends State<LabOrderReceivedNotificationsScreen> {
   bool isSubscribed = false;
   String? labId;
   String? labName;
@@ -30,31 +32,36 @@ class _LabOrderReceivedNotificationsScreenState extends State<LabOrderReceivedNo
     labName = prefs.getString('labName');
     userName = prefs.getString('userName');
     userType = prefs.getString('userType');
-    
+
     // Check subscription status based on user type
     if (userType == 'labUser' && userName != null) {
       // For lab users, check in users collection
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .where('userName', isEqualTo: userName)
-          .limit(1)
-          .get();
+      final userDoc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .where('userName', isEqualTo: userName)
+              .limit(1)
+              .get();
       if (userDoc.docs.isNotEmpty) {
         // derive labId from user document for lab-specific topic
         labId = userDoc.docs.first.data()['labId']?.toString();
         setState(() {
-          isSubscribed = userDoc.docs.first.data()['lab_order_received_subscribed'] ?? false;
+          isSubscribed =
+              userDoc.docs.first.data()['lab_order_received_subscribed'] ??
+              false;
         });
       }
     } else if (labId != null) {
       // For lab owners, check in labToLap collection
-      final labDoc = await FirebaseFirestore.instance
-          .collection('labToLap')
-          .doc(labId)
-          .get();
+      final labDoc =
+          await FirebaseFirestore.instance
+              .collection('labToLap')
+              .doc(labId)
+              .get();
       if (labDoc.exists) {
         setState(() {
-          isSubscribed = labDoc.data()?['lab_order_received_subscribed'] ?? false;
+          isSubscribed =
+              labDoc.data()?['lab_order_received_subscribed'] ?? false;
         });
       }
     }
@@ -77,11 +84,12 @@ class _LabOrderReceivedNotificationsScreenState extends State<LabOrderReceivedNo
   Future<void> _save(bool status) async {
     if (userType == 'labUser' && userName != null) {
       // For lab users, save in users collection
-      final userQuery = await FirebaseFirestore.instance
-          .collection('users')
-          .where('userName', isEqualTo: userName)
-          .limit(1)
-          .get();
+      final userQuery =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .where('userName', isEqualTo: userName)
+              .limit(1)
+              .get();
       if (userQuery.docs.isNotEmpty) {
         await FirebaseFirestore.instance
             .collection('users')
@@ -90,10 +98,9 @@ class _LabOrderReceivedNotificationsScreenState extends State<LabOrderReceivedNo
       }
     } else if (labId != null) {
       // For lab owners, save in labToLap collection
-      await FirebaseFirestore.instance
-          .collection('labToLap')
-          .doc(labId)
-          .update({'lab_order_received_subscribed': status});
+      await FirebaseFirestore.instance.collection('labToLap').doc(labId).update(
+        {'lab_order_received_subscribed': status},
+      );
     }
   }
 
@@ -116,7 +123,10 @@ class _LabOrderReceivedNotificationsScreenState extends State<LabOrderReceivedNo
       textDirection: TextDirection.rtl,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('الإشعارات', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          title: const Text(
+            'الإشعارات',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
           backgroundColor: const Color.fromARGB(255, 90, 138, 201),
           centerTitle: true,
         ),
@@ -131,32 +141,56 @@ class _LabOrderReceivedNotificationsScreenState extends State<LabOrderReceivedNo
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: isSubscribed ? Colors.green : Colors.orange, width: 2),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2))],
+                    border: Border.all(
+                      color: isSubscribed ? Colors.green : Colors.orange,
+                      width: 2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: Column(
                     children: [
-                       Row(
-                         children: [
-                           Icon(isSubscribed ? Icons.check_circle : Icons.notifications_off, color: isSubscribed ? Colors.green : Colors.orange, size: 32),
-                           const SizedBox(width: 12),
-                           const Expanded(
-                             child: Text('الاشتراك في الإشعارات', style: TextStyle(fontSize: 16)),
-                           ),
-                         ],
-                       ),
+                      Row(
+                        children: [
+                          Icon(
+                            isSubscribed
+                                ? Icons.check_circle
+                                : Icons.notifications_off,
+                            color: isSubscribed ? Colors.green : Colors.orange,
+                            size: 32,
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Text(
+                              'الاشتراك في الإشعارات',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 20),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
                           onPressed: _toggle,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: isSubscribed ? Colors.green : Colors.orange,
+                            backgroundColor:
+                                isSubscribed ? Colors.green : Colors.orange,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
-                          child: Text(isSubscribed ? 'إلغاء الاشتراك' : 'اشتراك', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          child: Text(
+                            isSubscribed ? 'إلغاء الاشتراك' : 'اشتراك',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                         ),
                       ),
                     ],
@@ -170,5 +204,3 @@ class _LabOrderReceivedNotificationsScreenState extends State<LabOrderReceivedNo
     );
   }
 }
-
-

@@ -263,7 +263,7 @@ Directionality(
       child: Scaffold(
         appBar: AppBar(
           title: Text(
-            widget.labName,
+             widget.labName.contains('معمل') ? widget.labName : 'معمل ${widget.labName}',
             style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,

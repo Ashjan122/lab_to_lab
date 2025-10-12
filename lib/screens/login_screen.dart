@@ -35,12 +35,13 @@ class _LoginScreenState extends State<LoginScreen> {
       final String inputPass = _password.text.trim();
 
       // 0) Try control user login from 'controlUsers' collection
-      final controlSnap = await FirebaseFirestore.instance
-          .collection('controlUsers')
-          .where('userName', isEqualTo: inputUser)
-          .where('userPassword', isEqualTo: inputPass)
-          .limit(1)
-          .get();
+      final controlSnap =
+          await FirebaseFirestore.instance
+              .collection('controlUsers')
+              .where('userName', isEqualTo: inputUser)
+              .where('userPassword', isEqualTo: inputPass)
+              .limit(1)
+              .get();
       if (controlSnap.docs.isNotEmpty) {
         final controlDoc = controlSnap.docs.first;
         final controlUserId = controlDoc.id;
@@ -49,7 +50,10 @@ class _LoginScreenState extends State<LoginScreen> {
         await prefs.setString('userType', 'controlUser');
         await prefs.setString('control_user_id', controlUserId);
         // Save displayed user name for Control Panel greeting
-        await prefs.setString('userName', controlDoc.data()['userName']?.toString() ?? inputUser);
+        await prefs.setString(
+          'userName',
+          controlDoc.data()['userName']?.toString() ?? inputUser,
+        );
         await prefs.remove('lab_id');
         await prefs.remove('labName');
         if (!mounted) return;
@@ -61,12 +65,13 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       // 1) Try logging in as lab user from 'users' collection
-      final userSnap = await FirebaseFirestore.instance
-          .collection('users')
-          .where('userName', isEqualTo: inputUser)
-          .where('userPassword', isEqualTo: inputPass)
-          .limit(1)
-          .get();
+      final userSnap =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .where('userName', isEqualTo: inputUser)
+              .where('userPassword', isEqualTo: inputPass)
+              .limit(1)
+              .get();
 
       if (userSnap.docs.isNotEmpty) {
         final doc = userSnap.docs.first;
@@ -75,38 +80,50 @@ class _LoginScreenState extends State<LoginScreen> {
         final String labName = data['labName']?.toString() ?? 'المعمل';
 
         // Update login timestamps
-        await FirebaseFirestore.instance.collection('users').doc(doc.id).update({
-          'lastLoginAt': FieldValue.serverTimestamp(),
-          'lastSeenAt': FieldValue.serverTimestamp(),
-        });
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(doc.id)
+            .update({
+              'lastLoginAt': FieldValue.serverTimestamp(),
+              'lastSeenAt': FieldValue.serverTimestamp(),
+            });
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool('isLoggedIn', true);
         await prefs.setBool('hasContract', true);
         // Save userName for consistency even if not used in control panel
-        await prefs.setString('userName', data['userName']?.toString() ?? inputUser);
+        await prefs.setString(
+          'userName',
+          data['userName']?.toString() ?? inputUser,
+        );
         if (labId.isNotEmpty) await prefs.setString('lab_id', labId);
         await prefs.setString('labName', labName);
 
         if (!mounted) return;
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => LabDashboardScreen(labId: labId, labName: labName)),
+          MaterialPageRoute(
+            builder: (_) => LabDashboardScreen(labId: labId, labName: labName),
+          ),
           (route) => false,
         );
         return;
       }
 
       // 2) Fallback to lab owner credentials in 'labToLap'
-      final snap = await FirebaseFirestore.instance
-          .collection('labToLap')
-          .where('ownerUserName', isEqualTo: inputUser)
-          .where('password', isEqualTo: inputPass)
-          .limit(1)
-          .get();
+      final snap =
+          await FirebaseFirestore.instance
+              .collection('labToLap')
+              .where('ownerUserName', isEqualTo: inputUser)
+              .where('password', isEqualTo: inputPass)
+              .limit(1)
+              .get();
       if (snap.docs.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('بيانات غير صحيحة'), backgroundColor: Colors.red),
+            const SnackBar(
+              content: Text('بيانات غير صحيحة'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
         return;
@@ -121,7 +138,9 @@ class _LoginScreenState extends State<LoginScreen> {
       await prefs.setString('labName', labName);
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => LabDashboardScreen(labId: doc.id, labName: labName)),
+        MaterialPageRoute(
+          builder: (_) => LabDashboardScreen(labId: doc.id, labName: labName),
+        ),
         (route) => false,
       );
     } catch (e) {
@@ -159,76 +178,115 @@ class _LoginScreenState extends State<LoginScreen> {
                 padding: const EdgeInsets.all(20),
                 child: Card(
                   elevation: 4,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Form(
                       key: _formKey,
-                    child: Column(
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                        Column(
-                          children: [
-                            SizedBox(height: 8),
-                            SizedBox(
-                              height: 80,
-                              child: Image.asset('assets/images/logo.png'),
+                          Column(
+                            children: [
+                              SizedBox(height: 8),
+                              SizedBox(
+                                height: 80,
+                                child: Image.asset('assets/images/logo.png'),
+                              ),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'تسجيل الدخول',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              const Text(
+                                'ادخل بياناتك للمتابعة',
+                                style: TextStyle(color: Colors.black54),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _userName,
+                            decoration: const InputDecoration(
+                              labelText: 'اسم المستخدم',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.person),
                             ),
-                            const SizedBox(height: 12),
-                            const Text('تسجيل الدخول', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 4),
-                            const Text('ادخل بياناتك للمتابعة', style: TextStyle(color: Colors.black54)),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _userName,
-                          decoration: const InputDecoration(
-                            labelText: 'اسم المستخدم',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.person),
+                            validator:
+                                (v) =>
+                                    (v == null || v.trim().isEmpty)
+                                        ? 'مطلوب'
+                                        : null,
                           ),
-                          validator: (v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _password,
-                          obscureText: _obscure,
-                          decoration: InputDecoration(
-                            labelText: 'كلمة المرور',
-                            border: const OutlineInputBorder(),
-                            prefixIcon: const Icon(Icons.lock_outline),
-                            suffixIcon: IconButton(
-                              icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
-                              onPressed: () => setState(() => _obscure = !_obscure),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _password,
+                            obscureText: _obscure,
+                            decoration: InputDecoration(
+                              labelText: 'كلمة المرور',
+                              border: const OutlineInputBorder(),
+                              prefixIcon: const Icon(Icons.lock_outline),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscure
+                                      ? Icons.visibility
+                                      : Icons.visibility_off,
+                                ),
+                                onPressed:
+                                    () => setState(() => _obscure = !_obscure),
+                              ),
+                            ),
+                            validator:
+                                (v) =>
+                                    (v == null || v.trim().isEmpty)
+                                        ? 'مطلوب'
+                                        : null,
+                          ),
+                          const SizedBox(height: 18),
+                          ElevatedButton(
+                            onPressed: _submitting ? null : _login,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child:
+                                _submitting
+                                    ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              Colors.white,
+                                            ),
+                                      ),
+                                    )
+                                    : const Text('دخول'),
+                          ),
+                          const SizedBox(height: 12),
+                          Center(
+                            child: TextButton(
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const RegisterLabScreen(),
+                                  ),
+                                );
+                              },
+                              child: const Text('ليس لديك تعاقد؟ إنشاء تعاقد'),
                             ),
                           ),
-                          validator: (v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
-                        ),
-                        const SizedBox(height: 18),
-                        ElevatedButton(
-                          onPressed: _submitting ? null : _login,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _primary,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                          child: _submitting
-                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)))
-                              : const Text('دخول'),
-                        ),
-                        const SizedBox(height: 12),
-                        Center(
-                          child: TextButton(
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => const RegisterLabScreen()),
-                              );
-                            },
-                            child: const Text('ليس لديك تعاقد؟ إنشاء تعاقد'),
-                          ),
-                        ),
                         ],
                       ),
                     ),
@@ -242,5 +300,3 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-
-

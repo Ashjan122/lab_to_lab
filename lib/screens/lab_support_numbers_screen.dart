@@ -6,7 +6,8 @@ class LabSupportNumbersScreen extends StatefulWidget {
   const LabSupportNumbersScreen({super.key});
 
   @override
-  State<LabSupportNumbersScreen> createState() => _LabSupportNumbersScreenState();
+  State<LabSupportNumbersScreen> createState() =>
+      _LabSupportNumbersScreenState();
 }
 
 class _LabSupportNumbersScreenState extends State<LabSupportNumbersScreen> {
@@ -39,14 +40,17 @@ class _LabSupportNumbersScreenState extends State<LabSupportNumbersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return  Directionality(
+    return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: Colors.white,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Color.fromARGB(255, 90, 138, 201),),
+            icon: const Icon(
+              Icons.arrow_back,
+              color: Color.fromARGB(255, 90, 138, 201),
+            ),
             onPressed: () => Navigator.of(context).pop(),
           ),
           title: const Text(
@@ -56,10 +60,10 @@ class _LabSupportNumbersScreenState extends State<LabSupportNumbersScreen> {
               color: Color.fromARGB(255, 90, 138, 201),
               fontSize: 24,
             ),
-            ),
+          ),
           centerTitle: true,
         ),
-        body:  SafeArea(
+        body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -67,7 +71,11 @@ class _LabSupportNumbersScreenState extends State<LabSupportNumbersScreen> {
                 const SizedBox(height: 8),
                 Expanded(
                   child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                    stream: FirebaseFirestore.instance.collection('support').doc('labNumbers').snapshots(),
+                    stream:
+                        FirebaseFirestore.instance
+                            .collection('support')
+                            .doc('labNumbers')
+                            .snapshots(),
                     builder: (context, snapshot) {
                       if (snapshot.hasError) {
                         return Center(child: Text('خطأ: ${snapshot.error}'));
@@ -76,15 +84,23 @@ class _LabSupportNumbersScreenState extends State<LabSupportNumbersScreen> {
                         return const Center(child: CircularProgressIndicator());
                       }
                       final data = snapshot.data!.data() ?? {};
-                      final List<dynamic> numbers = (data['numbers'] as List<dynamic>? ?? []);
+                      final List<dynamic> numbers =
+                          (data['numbers'] as List<dynamic>? ?? []);
                       if (numbers.isEmpty) {
                         return Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.support_agent, color: Colors.grey[400], size: 64),
+                              Icon(
+                                Icons.support_agent,
+                                color: Colors.grey[400],
+                                size: 64,
+                              ),
                               const SizedBox(height: 12),
-                              Text('لا توجد أرقام مسجلة', style: TextStyle(color: Colors.grey[600])),
+                              Text(
+                                'لا توجد أرقام مسجلة',
+                                style: TextStyle(color: Colors.grey[600]),
+                              ),
                             ],
                           ),
                         );
@@ -122,7 +138,6 @@ class _LabSupportNumbersScreenState extends State<LabSupportNumbersScreen> {
                                   ),
                                 ],
                               ),
-                             
                             ),
                           );
                         },
