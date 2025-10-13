@@ -396,7 +396,7 @@ class _LabUsersScreenState extends State<LabUsersScreen> {
                     TextFormField(
                       controller: _passwordController,
                       decoration: const InputDecoration(
-                        labelText: 'كلمة المرور',
+                        labelText: ' تغيير كلمة المرور ',
                         border: OutlineInputBorder(),
                       ),
                       obscureText: true,

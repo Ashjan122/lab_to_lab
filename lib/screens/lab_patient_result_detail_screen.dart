@@ -8,7 +8,7 @@ import 'package:http/http.dart' as http;
 // removed containers_screen import; containers shown inline
 
 class LabPatientResultDetailScreen extends StatefulWidget {
-  final String labId;
+   final String labId;
   final String labName;
   final String patientDocId;
   const LabPatientResultDetailScreen({
@@ -54,38 +54,38 @@ class _LabPatientResultDetailScreenState
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text(
-              'إرشادات الفحص',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Color.fromARGB(255, 90, 138, 201),
-              ),
-              textAlign: TextAlign.right,
-            ),
-            content: Container(
-              constraints: const BoxConstraints(maxWidth: 300),
-              child: Text(
-                condition,
+        title: const Text(
+          'إرشادات الفحص',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Color.fromARGB(255, 90, 138, 201),
+          ),
+          textAlign: TextAlign.right,
+        ),
+        content: Container(
+          constraints: const BoxConstraints(maxWidth: 300),
+          child: Text(
+            condition,
                 style: const TextStyle(fontSize: 16, height: 1.5),
-                textAlign: TextAlign.right,
+            textAlign: TextAlign.right,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(
+              'حسناً',
+              style: TextStyle(
+                color: Color.fromARGB(255, 90, 138, 201),
+                fontWeight: FontWeight.bold,
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text(
-                  'حسناً',
-                  style: TextStyle(
-                    color: Color.fromARGB(255, 90, 138, 201),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
             ),
           ),
+        ],
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
     );
   }
 
@@ -93,12 +93,12 @@ class _LabPatientResultDetailScreenState
     try {
       final doc =
           await FirebaseFirestore.instance
-              .collection('labToLap')
-              .doc(widget.labId)
-              .collection('pricelist')
-              .doc(testId)
-              .get();
-
+          .collection('labToLap')
+          .doc(widget.labId)
+          .collection('pricelist')
+          .doc(testId)
+          .get();
+      
       if (doc.exists) {
         final data = doc.data();
         final condition = data?['condition']?.toString().trim();
@@ -110,7 +110,7 @@ class _LabPatientResultDetailScreenState
     }
   }
 
-  Future<Map<String, dynamic>> _loadPatientAndTests() async {
+ Future<Map<String, dynamic>> _loadPatientAndTests() async {
     final patientRef = FirebaseFirestore.instance
         .collection('labToLap')
         .doc('global')
@@ -122,7 +122,7 @@ class _LabPatientResultDetailScreenState
     final intId = (idDyn is int) ? idDyn : int.tryParse('${idDyn ?? ''}') ?? 0;
     final testsSnap = await patientRef.collection('lab_request').get();
     final tests = testsSnap.docs.map((d) => d.data()).toList();
-
+    
     // Format date and time
     String formattedDateTime = '';
     final createdAt = pData['createdAt'];
@@ -142,7 +142,7 @@ class _LabPatientResultDetailScreenState
         formattedDateTime = '';
       }
     }
-
+    
     return {
       'id': intId,
       'name': pData['name']?.toString() ?? '',
@@ -240,8 +240,8 @@ class _LabPatientResultDetailScreenState
           // Allow system back to pop to the exact previous screen
           return true;
         },
-        child: Scaffold(
-          appBar: AppBar(
+      child: Scaffold(
+        appBar: AppBar(
             title: const Text(
               'بيانات المريض',
               style: TextStyle(
@@ -249,13 +249,13 @@ class _LabPatientResultDetailScreenState
                 fontWeight: FontWeight.bold,
               ),
             ),
-            backgroundColor: const Color.fromARGB(255, 90, 138, 201),
-            centerTitle: true,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            actions: [
+          backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+          centerTitle: true,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          actions: [
               Builder(
                 builder: (context) {
                   return FutureBuilder<Map<String, dynamic>>(
@@ -272,19 +272,19 @@ class _LabPatientResultDetailScreenState
                       // إظهار زر الإضافة فقط إذا لم توجد فحوصات
                       if (tests.isEmpty) {
                         return IconButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
                                 builder:
                                     (context) => LabSelectTestsScreen(
-                                      labId: widget.labId,
-                                      labName: widget.labName,
-                                      patientId: widget.patientDocId,
-                                    ),
-                              ),
-                            );
-                          },
+                      labId: widget.labId,
+                      labName: widget.labName,
+                      patientId: widget.patientDocId,
+                    ),
+                  ),
+                );
+              },
                           icon: const Icon(Icons.add, color: Colors.white),
                         );
                       }
@@ -293,26 +293,26 @@ class _LabPatientResultDetailScreenState
                   );
                 },
               ),
-            ],
-          ),
-          body: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.grey.shade200,
-                  const Color.fromARGB(255, 90, 138, 201).withOpacity(0.2),
-                  const Color.fromARGB(255, 90, 138, 201).withOpacity(0.35),
-                ],
-              ),
+          ],
+        ),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.grey.shade200,
+                const Color.fromARGB(255, 90, 138, 201).withOpacity(0.2),
+                const Color.fromARGB(255, 90, 138, 201).withOpacity(0.35),
+              ],
             ),
-            child: FutureBuilder<Map<String, dynamic>>(
-              future: _loadPatientAndTests(),
-              builder: (context, snap) {
-                if (snap.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+          ),
+          child: FutureBuilder<Map<String, dynamic>>(
+          future: _loadPatientAndTests(),
+          builder: (context, snap) {
+            if (snap.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
                 final data =
                     snap.data ??
                     {
@@ -324,146 +324,146 @@ class _LabPatientResultDetailScreenState
                       'pdf_url': '',
                       'formattedDateTime': '',
                     };
-                final intId = data['id'] as int? ?? 0;
-                final name = data['name'] as String? ?? '';
-                final phone = data['phone'] as String? ?? '';
+            final intId = data['id'] as int? ?? 0;
+            final name = data['name'] as String? ?? '';
+            final phone = data['phone'] as String? ?? '';
                 final tests =
                     (data['tests'] as List).cast<Map<String, dynamic>>();
-                final total = _calcTotal(tests);
-                final pdfUrl = data['pdf_url'] as String? ?? '';
+            final total = _calcTotal(tests);
+            final pdfUrl = data['pdf_url'] as String? ?? '';
                 final formattedDateTime =
                     data['formattedDateTime'] as String? ?? '';
 
-                return Column(
-                  children: [
-                    const SizedBox(height: 8),
+            return Column(
+              children: [
+                const SizedBox(height: 8),
 
-                    // Patient info card with icons
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: Card(
-                        color: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                // Patient info card with icons
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Card(
+                    color: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                           side: const BorderSide(
                             color: Color.fromARGB(255, 90, 138, 201),
                             width: 1.5,
                           ),
-                        ),
-                        elevation: 2,
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Row(
-                            children: [
-                              // Code on the left with larger font
-                              Expanded(
-                                flex: 1,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'الكود',
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
+                    ),
+                    elevation: 2,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                          // Code on the left with larger font
+                          Expanded(
+                            flex: 1,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'الكود',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
                                       intId > 0
                                           ? '$intId'
                                           : widget.patientDocId,
-                                      style: const TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.bold,
+                                  style: const TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
                                         color: Color.fromARGB(
                                           255,
                                           90,
                                           138,
                                           201,
                                         ),
-                                      ),
+                                  ),
+                      ),
+                    ],
+                  ),
+                ),
+                          // Name and phone on the right
+                          Expanded(
+                            flex: 2,
+                    child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                                // Date and time above name
+                                if (formattedDateTime.isNotEmpty) ...[
+                                  Text(
+                                    formattedDateTime,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                      fontWeight: FontWeight.w500,
                                     ),
-                                  ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                ],
+                                // Patient name
+                                Text(
+                                  name,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87,
+                                  ),
                                 ),
-                              ),
-                              // Name and phone on the right
-                              Expanded(
-                                flex: 2,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    // Date and time above name
-                                    if (formattedDateTime.isNotEmpty) ...[
-                                      Text(
-                                        formattedDateTime,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                    ],
-                                    // Patient name
-                                    Text(
-                                      name,
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black87,
-                                      ),
+                                // Phone as subtitle
+                                if (phone.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    phone,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey,
                                     ),
-                                    // Phone as subtitle
-                                    if (phone.isNotEmpty) ...[
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        phone,
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey,
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                            ],
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                     ),
+                  ),
+                ),
 
-                    const SizedBox(height: 12),
+                const SizedBox(height: 12),
 
-                    // Tests + containers list within fixed area
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: Builder(
-                          builder: (context) {
-                            final grouped = _groupTestsByContainer(tests);
-                            final entries = grouped.entries.toList();
-                            if (entries.isEmpty) {
-                              // Fallback: show flat tests list if no containers
-                              return ListView.separated(
-                                physics: const BouncingScrollPhysics(),
-                                itemCount: tests.length,
+                // Tests + containers list within fixed area
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Builder(
+                      builder: (context) {
+                        final grouped = _groupTestsByContainer(tests);
+                        final entries = grouped.entries.toList();
+                        if (entries.isEmpty) {
+                          // Fallback: show flat tests list if no containers
+                          return ListView.separated(
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: tests.length,
                                 separatorBuilder:
                                     (_, __) => const Divider(height: 8),
-                                itemBuilder: (context, i) {
-                                  final t = tests[i];
-                                  final tName = t['name']?.toString() ?? '';
-                                  final priceDyn = t['price'];
+                      itemBuilder: (context, i) {
+                        final t = tests[i];
+                        final tName = t['name']?.toString() ?? '';
+                        final priceDyn = t['price'];
                                   final price =
                                       (priceDyn is num)
                                           ? priceDyn
                                           : (num.tryParse('$priceDyn') ?? 0);
-                                  final testId = t['testId']?.toString() ?? '';
-
-                                  return Row(
-                                    children: [
+                        final testId = t['testId']?.toString() ?? '';
+                        
+                        return Row(
+                          children: [
                                       Expanded(
                                         child: Text(
                                           '${i + 1}- $tName',
@@ -472,25 +472,25 @@ class _LabPatientResultDetailScreenState
                                           ),
                                         ),
                                       ),
-                                      // Info button for condition
-                                      if (testId.isNotEmpty)
-                                        FutureBuilder<String?>(
-                                          future: _getTestCondition(testId),
-                                          builder: (context, snapshot) {
+                            // Info button for condition
+                            if (testId.isNotEmpty)
+                              FutureBuilder<String?>(
+                                future: _getTestCondition(testId),
+                                builder: (context, snapshot) {
                                             if (snapshot.hasData &&
                                                 snapshot.data != null &&
                                                 snapshot.data!.isNotEmpty) {
-                                              return Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  GestureDetector(
-                                                    onTap: () {
+                                    return Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        GestureDetector(
+                                          onTap: () {
                                                       _showConditionDialog(
                                                         context,
                                                         snapshot.data!,
                                                       );
-                                                    },
-                                                    child: AnimatedBuilder(
+                                          },
+                                          child: AnimatedBuilder(
                                                       animation:
                                                           _getAnimationController(
                                                             testId,
@@ -499,100 +499,100 @@ class _LabPatientResultDetailScreenState
                                                         context,
                                                         child,
                                                       ) {
-                                                        return Transform.scale(
+                                              return Transform.scale(
                                                           scale:
                                                               1.0 +
                                                               (_getAnimationController(
                                                                     testId,
                                                                   ).value *
                                                                   0.2),
-                                                          child: Container(
-                                                            width: 20,
-                                                            height: 20,
-                                                            decoration: BoxDecoration(
+                                                child: Container(
+                                                  width: 20,
+                                                  height: 20,
+                                                  decoration: BoxDecoration(
                                                               color:
                                                                   Colors.orange,
                                                               shape:
                                                                   BoxShape
                                                                       .circle,
-                                                              boxShadow: [
-                                                                BoxShadow(
+                                                    boxShadow: [
+                                                      BoxShadow(
                                                                   color: Colors
                                                                       .orange
                                                                       .withOpacity(
                                                                         0.3,
                                                                       ),
-                                                                  blurRadius: 3,
+                                                        blurRadius: 3,
                                                                   spreadRadius:
                                                                       1,
-                                                                ),
-                                                              ],
-                                                            ),
-                                                            child: const Icon(
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  child: const Icon(
                                                               Icons
                                                                   .info_outline,
                                                               color:
                                                                   Colors.white,
-                                                              size: 12,
-                                                            ),
-                                                          ),
-                                                        );
-                                                      },
-                                                    ),
+                                                    size: 12,
                                                   ),
-                                                  const SizedBox(width: 8),
-                                                ],
+                                                ),
                                               );
-                                            }
-                                            return const SizedBox.shrink();
-                                          },
+                                            },
+                                          ),
                                         ),
+                                        const SizedBox(width: 8),
+                                      ],
+                                    );
+                                  }
+                                  return const SizedBox.shrink();
+                                },
+                              ),
                                       Text(
                                         _formatPrice(price),
                                         style: const TextStyle(
                                           color: Colors.black87,
                                         ),
                                       ),
-                                    ],
-                                  );
-                                },
+                          ],
                               );
-                            }
-                            return Card(
-                              elevation: 2,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                            },
+                          );
+                        }
+                        return Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                                 side: const BorderSide(
                                   color: Color.fromARGB(255, 90, 138, 201),
                                   width: 1.2,
                                 ),
-                              ),
-                              child: ConstrainedBox(
+                          ),
+                          child: ConstrainedBox(
                                 constraints: const BoxConstraints(
                                   maxHeight: 400,
                                 ),
-                                child: SingleChildScrollView(
-                                  physics: const BouncingScrollPhysics(),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(12.0),
-                                    child: Column(
+                            child: SingleChildScrollView(
+                              physics: const BouncingScrollPhysics(),
+                              child: Padding(
+                                padding: const EdgeInsets.all(12.0),
+                                child: Column(
                                       children:
                                           entries.asMap().entries.map((
                                             entryWithIndex,
                                           ) {
-                                            final i = entryWithIndex.key;
-                                            final entry = entryWithIndex.value;
-                                            final cid = entry.key;
+                                    final i = entryWithIndex.key;
+                                    final entry = entryWithIndex.value;
+                                    final cid = entry.key;
                                             final testsForContainer =
                                                 entry.value;
                                             final assetPath =
                                                 _getContainerAssetPath(cid);
                                             final isLast =
                                                 i == entries.length - 1;
-
-                                            return Column(
-                                              children: [
-                                                Row(
+                                    
+                                    return Column(
+                                      children: [
+                                         Row(
                                                   crossAxisAlignment:
                                                       testsForContainer
                                                                   .length <=
@@ -601,10 +601,10 @@ class _LabPatientResultDetailScreenState
                                                               .center
                                                           : CrossAxisAlignment
                                                               .start,
-                                                  children: [
-                                                    SizedBox(
-                                                      width: 72,
-                                                      height: 72,
+                                          children: [
+                                            SizedBox(
+                                              width: 72,
+                                              height: 72,
                                                       child:
                                                           assetPath == null
                                                               ? const Center(
@@ -616,8 +616,8 @@ class _LabPatientResultDetailScreenState
                                                                           .grey,
                                                                 ),
                                                               )
-                                                              : Image.asset(
-                                                                assetPath,
+                                                  : Image.asset(
+                                                      assetPath,
                                                                 fit:
                                                                     BoxFit
                                                                         .contain,
@@ -634,15 +634,15 @@ class _LabPatientResultDetailScreenState
                                                                             Colors.grey,
                                                                       ),
                                                                     ),
-                                                              ),
                                                     ),
-                                                    const SizedBox(width: 12),
-                                                    Expanded(
-                                                      child: Column(
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
                                                         crossAxisAlignment:
                                                             CrossAxisAlignment
                                                                 .start,
-                                                        children: [
+                                                children: [
                                                           ...testsForContainer.map((
                                                             t,
                                                           ) {
@@ -664,14 +664,14 @@ class _LabPatientResultDetailScreenState
                                                                 t['testId']
                                                                     ?.toString() ??
                                                                 '';
-
-                                                            return Padding(
+                                                    
+                                                    return Padding(
                                                               padding:
                                                                   const EdgeInsets.only(
                                                                     bottom: 4,
                                                                   ),
-                                                              child: Row(
-                                                                children: [
+                                                      child: Row(
+                                                        children: [
                                                                   Expanded(
                                                                     child: Text(
                                                                       '- $tName',
@@ -681,7 +681,7 @@ class _LabPatientResultDetailScreenState
                                                                       ),
                                                                     ),
                                                                   ),
-                                                                  // Info button for condition
+                                                          // Info button for condition
                                                                   if (testId
                                                                       .isNotEmpty)
                                                                     FutureBuilder<
@@ -699,18 +699,18 @@ class _LabPatientResultDetailScreenState
                                                                             snapshot.data !=
                                                                                 null &&
                                                                             snapshot.data!.isNotEmpty) {
-                                                                          return Row(
+                                                                  return Row(
                                                                             mainAxisSize:
                                                                                 MainAxisSize.min,
-                                                                            children: [
-                                                                              GestureDetector(
-                                                                                onTap: () {
+                                                                    children: [
+                                                                      GestureDetector(
+                                                                        onTap: () {
                                                                                   _showConditionDialog(
                                                                                     context,
                                                                                     snapshot.data!,
                                                                                   );
-                                                                                },
-                                                                                child: AnimatedBuilder(
+                                                                        },
+                                                                        child: AnimatedBuilder(
                                                                                   animation: _getAnimationController(
                                                                                     testId,
                                                                                   ),
@@ -718,25 +718,25 @@ class _LabPatientResultDetailScreenState
                                                                                     context,
                                                                                     child,
                                                                                   ) {
-                                                                                    return Transform.scale(
+                                                                            return Transform.scale(
                                                                                       scale:
                                                                                           1.0 +
                                                                                           (_getAnimationController(
                                                                                                 testId,
                                                                                               ).value *
                                                                                               0.2),
-                                                                                      child: Container(
+                                                                              child: Container(
                                                                                         width:
                                                                                             20,
                                                                                         height:
                                                                                             20,
-                                                                                        decoration: BoxDecoration(
+                                                                                decoration: BoxDecoration(
                                                                                           color:
                                                                                               Colors.orange,
                                                                                           shape:
                                                                                               BoxShape.circle,
-                                                                                          boxShadow: [
-                                                                                            BoxShadow(
+                                                                                  boxShadow: [
+                                                                                    BoxShadow(
                                                                                               color: Colors.orange.withOpacity(
                                                                                                 0.3,
                                                                                               ),
@@ -744,31 +744,31 @@ class _LabPatientResultDetailScreenState
                                                                                                   3,
                                                                                               spreadRadius:
                                                                                                   1,
-                                                                                            ),
-                                                                                          ],
-                                                                                        ),
-                                                                                        child: const Icon(
-                                                                                          Icons.info_outline,
+                                                                                    ),
+                                                                                  ],
+                                                                                ),
+                                                                                child: const Icon(
+                                                                                  Icons.info_outline,
                                                                                           color:
                                                                                               Colors.white,
                                                                                           size:
                                                                                               12,
-                                                                                        ),
-                                                                                      ),
-                                                                                    );
-                                                                                  },
                                                                                 ),
                                                                               ),
+                                                                            );
+                                                                          },
+                                                                        ),
+                                                                      ),
                                                                               const SizedBox(
                                                                                 width:
                                                                                     8,
                                                                               ),
-                                                                            ],
-                                                                          );
-                                                                        }
-                                                                        return const SizedBox.shrink();
-                                                                      },
-                                                                    ),
+                                                                    ],
+                                                                  );
+                                                                }
+                                                                return const SizedBox.shrink();
+                                                              },
+                                                            ),
                                                                   Text(
                                                                     _formatPrice(
                                                                       price,
@@ -779,43 +779,43 @@ class _LabPatientResultDetailScreenState
                                                                               .black87,
                                                                     ),
                                                                   ),
-                                                                ],
-                                                              ),
-                                                            );
-                                                          }).toList(),
                                                         ],
                                                       ),
-                                                    ),
-                                                  ],
-                                                ),
-                                                if (!isLast) ...[
-                                                  const SizedBox(height: 12),
-                                                  const Divider(height: 1),
-                                                  const SizedBox(height: 12),
+                                                    );
+                                                  }).toList(),
                                                 ],
-                                              ],
-                                            );
-                                          }).toList(),
-                                    ),
-                                  ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        if (!isLast) ...[
+                                          const SizedBox(height: 12),
+                                          const Divider(height: 1),
+                                          const SizedBox(height: 12),
+                                        ],
+                                      ],
+                                    );
+                                  }).toList(),
                                 ),
                               ),
-                            );
-                          },
-                        ),
-                      ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
+                  ),
+                ),
 
-                    // Bottom fixed area: total, Containers button (stacked), PDF button
-                    SafeArea(
-                      top: false,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Align(
-                              alignment: Alignment.center,
+                // Bottom fixed area: total, Containers button (stacked), PDF button
+                SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Align(
+                          alignment: Alignment.center,
                               child: Text(
                                 'المبلغ: ${_formatPrice(total)}',
                                 style: const TextStyle(
@@ -823,18 +823,18 @@ class _LabPatientResultDetailScreenState
                                   fontSize: 18,
                                 ),
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
                                 onPressed:
                                     pdfUrl.isNotEmpty
                                         ? () {
-                                          _openPdf(context, pdfUrl, data);
+                              _openPdf(context, pdfUrl, data);
                                         }
                                         : null,
-                                style: ElevatedButton.styleFrom(
+                            style: ElevatedButton.styleFrom(
                                   backgroundColor:
                                       pdfUrl.isNotEmpty
                                           ? Colors.white
@@ -846,9 +846,9 @@ class _LabPatientResultDetailScreenState
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 14,
                                   ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    side: BorderSide(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                side: BorderSide(
                                       color:
                                           pdfUrl.isNotEmpty
                                               ? const Color.fromARGB(
@@ -858,23 +858,23 @@ class _LabPatientResultDetailScreenState
                                                 201,
                                               )
                                               : Colors.grey[400]!,
-                                      width: 2,
-                                    ),
-                                  ),
+                                  width: 2,
                                 ),
-                                child: Text(
+                              ),
+                            ),
+                            child: Text(
                                   pdfUrl.isNotEmpty
                                       ? 'عرض النتيجة PDF'
                                       : 'لا يوجد نتيجة حاليا',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                   ),
-                                ),
-                              ),
                             ),
-                            const SizedBox(height: 10),
-                            // Segmented progress bar (4 segments) LTR: pending starts at left
-                            /*Builder(
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        // Segmented progress bar (4 segments) LTR: pending starts at left
+                        /*Builder(
                           builder: (context) {
                             final labels = ['pending', 'received', 'inprocess', 'completed'];
                             final colors = [Colors.grey, Colors.blue, Colors.orange, Colors.green];
@@ -942,15 +942,15 @@ class _LabPatientResultDetailScreenState
                             );
                           },
                         ),*/
-                          ],
-                        ),
-                      ),
+                      ],
                     ),
-                  ],
-                );
-              },
-            ),
-          ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+        ),
         ),
       ),
     );
@@ -992,22 +992,22 @@ class _PdfViewerScreen extends StatelessWidget {
         await response.stream.bytesToString();
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('تم إرسال النتيجة عبر واتساب')),
+            const SnackBar(content: Text('تم إرسال النتيجة عبر واتساب')), 
           );
           // إظهار رسالة تأكيد واضحة للمستخدم
           await showDialog(
             context: context,
             builder:
                 (ctx) => AlertDialog(
-                  title: const Text('تم الإرسال'),
-                  content: const Text('تم إرسال النتيجة بنجاح عبر واتساب.'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(ctx).pop(),
-                      child: const Text('حسناً'),
-                    ),
-                  ],
+              title: const Text('تم الإرسال'),
+              content: const Text('تم إرسال النتيجة بنجاح عبر واتساب.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('حسناً'),
                 ),
+              ],
+            ),
           );
         }
       } else {
@@ -1033,175 +1033,175 @@ class _PdfViewerScreen extends StatelessWidget {
   }
 
   String _formatPhoneNumber(String input) {
-    input = input.trim();
-    if (input.startsWith('0')) {
-      input = input.substring(1);
-    }
-    if (!input.startsWith('249')) {
-      input = '249$input';
-    }
-    return input;
+  input = input.trim();
+  if (input.startsWith('0')) {
+    input = input.substring(1);
   }
+  if (!input.startsWith('249')) {
+    input = '249$input';
+  }
+  return input;
+}
 
   void _showWhatsappDialog(
     BuildContext context,
     Map<String, dynamic> data,
     String labId,
   ) {
-    final TextEditingController _phoneController = TextEditingController();
-    String selectedRecipient = 'patient'; // default value
-    bool isLoading = false;
+  final TextEditingController _phoneController = TextEditingController();
+  String selectedRecipient = 'patient'; // default value
+  bool isLoading = false;
 
-    Future<void> _fillPhoneField() async {
-      if (selectedRecipient == 'lab') {
-        try {
+  Future<void> _fillPhoneField() async {
+    if (selectedRecipient == 'lab') {
+      try {
           final doc =
               await FirebaseFirestore.instance
-                  .collection('labToLap')
-                  .doc(labId)
-                  .get();
-          final labPhone = doc.data()?['whatsApp']?.toString() ?? '';
-          _phoneController.text = labPhone;
-        } catch (e) {
-          _phoneController.text = '';
-        }
-      } else {
-        final patientPhone = data['phone']?.toString() ?? '';
-        _phoneController.text = patientPhone;
+            .collection('labToLap')
+            .doc(labId)
+            .get();
+        final labPhone = doc.data()?['whatsApp']?.toString() ?? '';
+        _phoneController.text = labPhone;
+      } catch (e) {
+        _phoneController.text = '';
       }
+    } else {
+      final patientPhone = data['phone']?.toString() ?? '';
+      _phoneController.text = patientPhone;
     }
+  }
 
-    showDialog(
-      context: context,
-      builder: (context) {
-        _fillPhoneField();
+  showDialog(
+    context: context,
+    builder: (context) {
+      _fillPhoneField();
 
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text("إرسال النتيجة عبر واتساب"),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      Radio<String>(
-                        value: 'patient',
-                        groupValue: selectedRecipient,
-                        onChanged: (value) {
-                          setState(() {
-                            selectedRecipient = value!;
-                            _fillPhoneField();
-                          });
-                        },
-                      ),
-                      const Text("للمريض"),
-                      const SizedBox(width: 16),
-                      Radio<String>(
-                        value: 'lab',
-                        groupValue: selectedRecipient,
-                        onChanged: (value) {
-                          setState(() {
-                            selectedRecipient = value!;
-                            _fillPhoneField();
-                          });
-                        },
-                      ),
-                      const Text("لنفسي"),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _phoneController,
-                    keyboardType: TextInputType.phone,
-                    decoration: InputDecoration(
-                      hintText: "أدخل رقم واتساب",
-                      labelText: "رقم الهاتف",
-                      labelStyle: const TextStyle(color: Colors.black),
-                      border: const OutlineInputBorder(
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text("إرسال النتيجة عبر واتساب"),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Radio<String>(
+                      value: 'patient',
+                      groupValue: selectedRecipient,
+                      onChanged: (value) {
+              setState(() {
+                          selectedRecipient = value!;
+                          _fillPhoneField();
+              });
+            },
+                    ),
+                    const Text("للمريض"),
+                    const SizedBox(width: 16),
+                    Radio<String>(
+                      value: 'lab',
+                      groupValue: selectedRecipient,
+                      onChanged: (value) {
+              setState(() {
+                          selectedRecipient = value!;
+                          _fillPhoneField();
+              });
+            },
+          ),
+                    const Text("لنفسي"),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: InputDecoration(
+                    hintText: "أدخل رقم واتساب",
+                    labelText: "رقم الهاتف",
+                    labelStyle: const TextStyle(color: Colors.black),
+                    border: const OutlineInputBorder(
                         borderSide: BorderSide(
                           color: Color.fromARGB(255, 90, 138, 201),
                         ),
-                      ),
                     ),
                   ),
-                ],
-              ),
-              actions: [
-                TextButton(
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
                   child: const Text(
                     "إلغاء",
                     style: TextStyle(color: Colors.black),
                   ),
-                  onPressed: () {
-                    if (!isLoading) Navigator.pop(context);
-                  },
+                onPressed: () {
+                  if (!isLoading) Navigator.pop(context);
+                },
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color.fromARGB(255, 90, 138, 201),
                 ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromARGB(255, 90, 138, 201),
-                  ),
                   onPressed:
                       isLoading
-                          ? null
-                          : () async {
-                            setState(() {
-                              isLoading = true;
-                            });
+                    ? null
+                    : () async {
+      setState(() {
+                          isLoading = true;
+                        });
 
-                            String rawInput = _phoneController.text;
+                        String rawInput = _phoneController.text;
                             String formattedPhone = _formatPhoneNumber(
                               rawInput,
                             );
 
-                            final pdfUrl = data['pdf_url']?.toString() ?? '';
+                        final pdfUrl = data['pdf_url']?.toString() ?? '';
 
-                            if (pdfUrl.isNotEmpty) {
+                        if (pdfUrl.isNotEmpty) {
                               await _sendToWhatsapp(
                                 '$formattedPhone@c.us',
                                 pdfUrl,
                                 context,
                               );
-                              if (context.mounted) Navigator.pop(context);
-                            } else {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('لا يوجد رابط PDF'),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
-                              }
-                            }
+                          if (context.mounted) Navigator.pop(context);
+                        } else {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('لا يوجد رابط PDF'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
 
-                            if (context.mounted) {
-                              setState(() {
-                                isLoading = false;
-                              });
-                            }
-                          },
+                        if (context.mounted) {
+      setState(() {
+                            isLoading = false;
+                          });
+                        }
+                      },
                   child:
                       isLoading
-                          ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
                           : const Text(
                             "إرسال النتيجة",
                             style: TextStyle(color: Colors.white),
                           ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -1223,12 +1223,12 @@ class _PdfViewerScreen extends StatelessWidget {
               ),
               tooltip: 'إرسال عبر واتساب',
               onPressed: () {
-                _showWhatsappDialog(context, data, labId);
+               _showWhatsappDialog(context, data, labId);
               },
             ),
           ],
         ),
-
+        
         body: SfPdfViewer.network(
           pdfUrl,
           canShowScrollHead: true,

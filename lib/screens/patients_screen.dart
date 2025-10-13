@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:lab_to_lab_admin/screens/login_screen.dart';
 
 import 'package:lab_to_lab_admin/screens/order_request_screen.dart';
 
@@ -165,7 +167,7 @@ class _PatientsScreenState extends State<PatientsScreen> {
           Expanded(
             child: Text(
               title,
-              textAlign: TextAlign.right, // عشان النص يكون على اليمين
+              textAlign: TextAlign.right,
               style: const TextStyle(fontSize: 14),
             ),
           ),
@@ -192,21 +194,27 @@ class _PatientsScreenState extends State<PatientsScreen> {
   // دالة مساعدة لتنسيق الأرقام: 1 => 01
   String _twoDigits(int n) => n.toString().padLeft(2, '0');
 
+  Future<bool> _isDeliveryUser() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString('userType') == 'userDelivery';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _logoutDelivery(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final startOfDay = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-    );
-    final endOfDay = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-      23,
-      59,
-      59,
-    );
 
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -224,10 +232,23 @@ class _PatientsScreenState extends State<PatientsScreen> {
             tooltip: 'اختيار التاريخ',
           ),
           actions: [
-            IconButton(
-              icon: const Icon(Icons.arrow_forward, color: Colors.white),
-              onPressed: () {
-                Navigator.of(context).pop();
+            FutureBuilder<bool>(
+              future: _isDeliveryUser(),
+              builder: (context, snapshot) {
+                final isDelivery = snapshot.data == true;
+                if (isDelivery) {
+                  return IconButton(
+                    icon: const Icon(Icons.logout, color: Colors.white),
+                    tooltip: 'تسجيل الخروج',
+                    onPressed: () => _logoutDelivery(context),
+                  );
+                }
+                return IconButton(
+                  icon: const Icon(Icons.arrow_forward, color: Colors.white),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                );
               },
             ),
           ],
@@ -319,10 +340,12 @@ class _PatientsScreenState extends State<PatientsScreen> {
                       final labId = data['labId']?.toString() ?? '';
                       final patientDocId = doc.id;
                       final bool received = (data['order_receieved'] == true);
+                      final String status = data['status']?.toString() ?? 'pending';
+                      final bool isCancelled = status == 'cancelled';
 
                       return Card(
                         elevation: 2,
-                        color: Colors.white,
+                        color: isCancelled ? Colors.red.withOpacity(0.1) : Colors.white,
                         child: FutureBuilder<String>(
                           future: _getLabName(labId),
                           builder: (context, labSnapshot) {
@@ -340,11 +363,15 @@ class _PatientsScreenState extends State<PatientsScreen> {
                                     horizontal: 8,
                                   ),
                                   decoration: BoxDecoration(
-                                    color:
-                                        received ? Colors.green : Colors.white,
+                                    color: isCancelled
+                                        ? Colors.red.withOpacity(0.2)
+                                        : received
+                                            ? Colors.green
+                                            : Colors.white,
                                     border: Border.all(
-                                      color:
-                                          received
+                                      color: isCancelled
+                                          ? Colors.red
+                                          : received
                                               ? Colors.green
                                               : const Color.fromARGB(
                                                 255,
@@ -360,8 +387,9 @@ class _PatientsScreenState extends State<PatientsScreen> {
                                     child: Text(
                                       patientId,
                                       style: TextStyle(
-                                        color:
-                                            received
+                                        color: isCancelled
+                                            ? Colors.red
+                                            : received
                                                 ? Colors.white
                                                 : const Color.fromARGB(
                                                   255,
@@ -376,12 +404,28 @@ class _PatientsScreenState extends State<PatientsScreen> {
                                   ),
                                 ),
                               ),
-                              title: Text(
-                                patientName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
+                              title: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      patientName,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                  ),
+                                  if (isCancelled)
+                                    Text(
+                                      '(ملغي)',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                ],
                               ),
                               subtitle: Text(
                                 labName,

@@ -148,15 +148,15 @@ class _LabToLabState extends State<LabToLab> {
           .collection('labToLap')
           .doc(_editingLabId)
           .update({
-            'name': _nameController.text.trim(),
-            'address': _addressController.text.trim(),
-            'phone': _phoneController.text.trim(),
-            'whatsApp': _whatsAppController.text.trim(),
-            'password': _passwordController.text.trim(),
-            'order': newOrder,
+        'name': _nameController.text.trim(),
+        'address': _addressController.text.trim(),
+        'phone': _phoneController.text.trim(),
+        'whatsApp': _whatsAppController.text.trim(),
+        'password': _passwordController.text.trim(),
+        'order': newOrder,
             'imageUrl':
                 _selectedImageUrl.isNotEmpty ? _selectedImageUrl : currentImage,
-          });
+      });
       _clearForm();
       if (mounted) {
         setState(() {
@@ -265,10 +265,10 @@ class _LabToLabState extends State<LabToLab> {
     return list;
   }
 
-  final TextEditingController _searchController = TextEditingController();
+   final TextEditingController _searchController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
   String _searchQuery = '';
-
+  
   @override
   Widget build(BuildContext context) {
     return Directionality(
@@ -291,51 +291,51 @@ class _LabToLabState extends State<LabToLab> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            backgroundColor: const Color.fromARGB(255, 90, 138, 201),
-            centerTitle: true,
-            leading: FutureBuilder<bool>(
-              future: _shouldShowBackToControl(),
-              builder: (context, snapshot) {
-                final show = snapshot.data == true;
-                if (!show) return const SizedBox.shrink();
-                return IconButton(
-                  tooltip: 'الرجوع للكنترول',
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(builder: (_) => ControlPanalScreen()),
-                      (route) => false,
-                    );
-                  },
-                );
-              },
-            ),
-            actions: const [],
+          backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+          centerTitle: true,
+          leading: FutureBuilder<bool>(
+            future: _shouldShowBackToControl(),
+            builder: (context, snapshot) {
+              final show = snapshot.data == true;
+              if (!show) return const SizedBox.shrink();
+              return IconButton(
+                tooltip: 'الرجوع للكنترول',
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => ControlPanalScreen()),
+                    (route) => false,
+                  );
+                },
+              );
+            },
           ),
-          resizeToAvoidBottomInset: true,
-          body: Column(
-            children: [
-              // Search bar by lab name
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: (value) {
-                    setState(() {
-                      _searchQuery = value.trim().toLowerCase();
-                    });
-                  },
-                  decoration: InputDecoration(
-                    hintText: 'البحث باسم المعمل...',
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey[100],
+          actions: const [],
+        ),
+        resizeToAvoidBottomInset: true,
+        body: Column(
+          children: [
+            // Search bar by lab name
+            Padding(
+                    padding: const EdgeInsets.all(16.0),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (value) {
+                                      setState(() {
+                    _searchQuery = value.trim().toLowerCase();
+                  });
+                },
+                decoration: InputDecoration(
+                  hintText: 'البحث باسم المعمل...',
+                  prefixIcon: const Icon(Icons.search),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                ),
-              ),
+                  filled: true,
+                  fillColor: Colors.grey[100],
+                      ),
+                    ),
+                  ),
 
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
@@ -343,83 +343,83 @@ class _LabToLabState extends State<LabToLab> {
                       FirebaseFirestore.instance
                           .collection('labToLap')
                           .snapshots(),
-                  builder: (context, snapshot) {
-                    if (snapshot.hasError) {
-                      return Center(child: Text('خطأ: ${snapshot.error}'));
-                    }
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    final docs = _sortAndFilter(snapshot.data?.docs ?? []);
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return Center(child: Text('خطأ: ${snapshot.error}'));
+                  }
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final docs = _sortAndFilter(snapshot.data?.docs ?? []);
                     final filtered =
                         docs.where((d) {
-                          try {
-                            final data = d.data() as Map<String, dynamic>;
+                    try {
+                      final data = d.data() as Map<String, dynamic>;
                             final name =
                                 (data['name']?.toString() ?? '').toLowerCase();
-                            if (_searchQuery.isEmpty) return true;
-                            return name.contains(_searchQuery);
-                          } catch (_) {
-                            return true;
-                          }
-                        }).toList();
-                    if (filtered.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
+                      if (_searchQuery.isEmpty) return true;
+                      return name.contains(_searchQuery);
+                    } catch (_) {
+                      return true;
+                    }
+                  }).toList();
+                  if (filtered.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
                             const Icon(
                               Icons.science,
                               size: 64,
                               color: Colors.grey,
                             ),
-                            const SizedBox(height: 12),
-                            Text(
+                          const SizedBox(height: 12),
+                          Text(
                               _searchQuery.isEmpty
                                   ? 'لا توجد معامل مضافة بعد'
                                   : 'لا توجد نتائج للبحث',
-                              style: const TextStyle(color: Colors.grey),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                    return ListView.builder(
-                      itemCount: filtered.length,
+                            style: const TextStyle(color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                   return ListView.builder(
+                    itemCount: filtered.length,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 8,
                       ),
-                      itemBuilder: (context, index) {
-                        final d = filtered[index];
-                        final data = d.data() as Map<String, dynamic>;
-                        final name = data['name']?.toString() ?? '';
-                        final address = data['address']?.toString() ?? '';
-                        final phone = data['phone']?.toString() ?? '';
-                        final whats = data['whatsApp']?.toString() ?? '';
-                        final available = data['available'] as bool? ?? false;
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          child: ListTile(
-                            onTap: () async {
+                    itemBuilder: (context, index) {
+                      final d = filtered[index];
+                      final data = d.data() as Map<String, dynamic>;
+                      final name = data['name']?.toString() ?? '';
+                      final address = data['address']?.toString() ?? '';
+                      final phone = data['phone']?.toString() ?? '';
+                      final whats = data['whatsApp']?.toString() ?? '';
+                      final available = data['available'] as bool? ?? false;
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          onTap: () async {
                               final prefs =
                                   await SharedPreferences.getInstance();
-                              await prefs.setString('lab_id', d.id);
-                              await prefs.setString('labName', name);
-                              await prefs.setBool('fromControlPanel', true);
-                              // ensure logged-in session persists to dashboard after restart
-                              await prefs.setBool('isLoggedIn', true);
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
+                            await prefs.setString('lab_id', d.id);
+                            await prefs.setString('labName', name);
+                            await prefs.setBool('fromControlPanel', true);
+                            // ensure logged-in session persists to dashboard after restart
+                            await prefs.setBool('isLoggedIn', true);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
                                   builder:
                                       (context) => LabDashboardScreen(
-                                        labId: d.id,
-                                        labName: name,
-                                      ),
+                                  labId: d.id,
+                                  labName: name,
                                 ),
-                              );
-                            },
+                              ),
+                            );
+                          },
                             leading: const Icon(
                               Icons.science,
                               color: kLabPrimary,
@@ -431,14 +431,14 @@ class _LabToLabState extends State<LabToLab> {
                                 fontSize: 20,
                               ),
                             ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('العنوان: $address'),
-                                Text('هاتف: $phone'),
-                                Text('واتساب: $whats'),
-                                Row(
-                                  children: [
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('العنوان: $address'),
+                              Text('هاتف: $phone'),
+                              Text('واتساب: $whats'),
+                              Row(
+                                children: [
                                     Icon(
                                       available
                                           ? Icons.check_circle
@@ -447,7 +447,7 @@ class _LabToLabState extends State<LabToLab> {
                                           available ? Colors.green : Colors.red,
                                       size: 16,
                                     ),
-                                    const SizedBox(width: 4),
+                                  const SizedBox(width: 4),
                                     Text(
                                       available ? 'مفعل' : 'غير مفعل',
                                       style: TextStyle(
@@ -458,13 +458,13 @@ class _LabToLabState extends State<LabToLab> {
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                    const SizedBox(width: 16),
+                                  const SizedBox(width: 16),
                                     const Icon(
                                       Icons.sort,
                                       size: 16,
                                       color: kLabPrimary,
                                     ),
-                                    const SizedBox(width: 4),
+                                  const SizedBox(width: 4),
                                     Text(
                                       'ترتيب: ${data['order'] ?? 999}',
                                       style: const TextStyle(
@@ -472,23 +472,23 @@ class _LabToLabState extends State<LabToLab> {
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            trailing: PopupMenuButton<String>(
-                              icon: const Icon(Icons.more_vert),
-                              onSelected: (value) {
-                                switch (value) {
-                                  case 'toggle':
-                                    _toggleAvailability(d.id, available);
-                                    break;
-                                }
-                              },
+                                ],
+                              ),
+                            ],
+                          ),
+                          trailing: PopupMenuButton<String>(
+                            icon: const Icon(Icons.more_vert),
+                            onSelected: (value) {
+                              switch (value) {
+                                case 'toggle':
+                                  _toggleAvailability(d.id, available);
+                                  break;
+                              }
+                            },
                               itemBuilder:
                                   (context) => [
-                                    PopupMenuItem<String>(
-                                      value: 'toggle',
+                              PopupMenuItem<String>(
+                                value: 'toggle',
                                       child: Row(
                                         children: [
                                           Icon(
@@ -501,7 +501,7 @@ class _LabToLabState extends State<LabToLab> {
                                                     : Colors.green,
                                             size: 20,
                                           ),
-                                          const SizedBox(width: 8),
+                                  const SizedBox(width: 8),
                                           Text(
                                             available
                                                 ? 'إلغاء التفعيل'
@@ -509,18 +509,18 @@ class _LabToLabState extends State<LabToLab> {
                                           ),
                                         ],
                                       ),
-                                    ),
-                                  ],
-                            ),
+                              ),
+                            ],
                           ),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
+                        ),
+                      );
+                    },
+                   );
+                 },
+               ),
+             ),
+          ],
+        ),
         ),
       ),
     );

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:lab_to_lab_admin/screens/lab_info_screen.dart';
+import 'package:lab_to_lab_admin/screens/lab_select_tests_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
@@ -71,6 +72,8 @@ Future<Map<String, dynamic>> _loadPatientAndTests() async {
       'pdf_url': pData['pdf_url']?.toString() ?? '',
       'formattedDateTime': formattedDateTime,
       'order_receieved': pData['order_receieved'] == true,
+      // delivered flag to control delete availability
+      'sample_delivered': pData['sample_delivered'] == true,
     };
     // initialize local received flag once on first load
     _isReceived = (result['order_receieved'] as bool? ?? false);
@@ -124,10 +127,207 @@ Future<Map<String, dynamic>> _loadPatientAndTests() async {
     return 'assets/containars/$containerId.png';
   }
 
+  Future<void> _deleteTest(String testId) async {
+    if (testId.isEmpty) return;
+    
+    // تأكيد الحذف
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('تأكيد الحذف'),
+        content: const Text('هل أنت متأكد من حذف هذا الفحص؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('حذف', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      // البحث عن الفحص في مجموعة lab_request وحذفه
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('labToLap')
+          .doc('global')
+          .collection('patients')
+          .doc(widget.patientDocId)
+          .collection('lab_request')
+          .where('testId', isEqualTo: testId)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        final batch = FirebaseFirestore.instance.batch();
+        for (final doc in querySnapshot.docs) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('تم حذف الفحص بنجاح'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          
+          // تحديث البيانات
+          setState(() {
+            _patientFuture = _loadPatientAndTests();
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ في حذف الفحص: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // تمت إزالة التعديل حسب الطلب؛ يُسمح فقط بالحذف قبل التوصيل
+
   
     
   
   // Back handled via Navigator.pop directly in UI; no helper needed.
+  Future<void> _cancelOrder(BuildContext context, String patientDocId, String labId) async {
+    // تأكيد الإلغاء
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('تأكيد الإلغاء'),
+        content: const Text('هل أنت متأكد من إلغاء هذا الطلب؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('تأكيد الإلغاء', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _isLoading = true);
+    try {
+      // جلب اسم المستخدم من SharedPreferences
+      String cancelledByName = 'المشرف';
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final userName = prefs.getString('userName');
+        if (userName != null && userName.trim().isNotEmpty) {
+          cancelledByName = userName.trim();
+        }
+      } catch (_) {}
+
+      // تحديث حالة الطلب إلى ملغي
+      await FirebaseFirestore.instance
+          .collection('labToLap')
+          .doc('global')
+          .collection('patients')
+          .doc(patientDocId)
+          .update({
+            'status': 'cancelled',
+            'cancelled_at': FieldValue.serverTimestamp(),
+            'cancelled_by': cancelledByName,
+          });
+
+      // جلب بيانات المريض لإرسال الرسالة
+      final pSnap = await FirebaseFirestore.instance
+          .collection('labToLap')
+          .doc('global')
+          .collection('patients')
+          .doc(patientDocId)
+          .get();
+      final pData = pSnap.data() ?? {};
+      final patientName = pData['name']?.toString() ?? 'غير معروف';
+      final patientPhone = pData['phone']?.toString() ?? '';
+
+      // جلب رقم الهاتف العادي للمعمل
+      final labDoc = await FirebaseFirestore.instance
+          .collection('labToLap')
+          .doc(labId)
+          .get();
+      final labPhone = labDoc.data()?['phone']?.toString() ?? '';
+
+      // إرسال رسالة نصية للمعمل
+      if (labPhone.isNotEmpty) {
+        await _sendCancellationSms(labPhone, patientName, patientPhone);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم إلغاء الطلب بنجاح'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        // العودة للصفحة السابقة
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ في إلغاء الطلب: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _sendCancellationSms(String labPhone, String patientName, String patientPhone) async {
+    try {
+      final String formattedPhone = _formatSudanPhone(labPhone);
+      const String baseUrl = 'https://api.airtel.com.sd/api/send-sms';
+      const String username = 'jawda';
+      const String password = 'jawda123';
+      const String sender = 'Jawda';
+
+      final String message = 'تم إلغاء طلب المريض\nاسم المريض: $patientName\nرقم الهاتف: $patientPhone';
+      final String encodedText = Uri.encodeComponent(message);
+      final String encodedSender = Uri.encodeComponent(sender);
+      final String url = '${baseUrl}?username=${username}&password=${Uri.encodeComponent(password)}&phone_number=${formattedPhone}&message=${encodedText}&sender=${encodedSender}';
+
+      final response = await http.get(Uri.parse(url));
+      print('SMS Response: ${response.statusCode} ${response.body}');
+    } catch (e) {
+      print('SMS Error: $e');
+    }
+  }
+
+  String _formatSudanPhone(String phone) {
+    phone = phone.trim();
+    if (phone.startsWith('0')) {
+      phone = phone.substring(1);
+    }
+    if (!phone.startsWith('249')) {
+      phone = '249$phone';
+    }
+    return phone;
+  }
+
   Future<void> _receiveOrder(BuildContext context, String patientDocId, String labId) async {
     setState(() => _isLoading = true);
     try {
@@ -275,6 +475,30 @@ Directionality(
             icon: const Icon(Icons.arrow_back, color: Colors.white),
             onPressed: () => Navigator.of(context).pop(),
           ),
+          actions: [
+            IconButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => LabSelectTestsScreen(
+                      labId: widget.labId,
+                      labName: widget.labName,
+                      patientId: widget.patientDocId,
+                      skipNotification: true, // تخطي الإشعار عند الإضافة من صفحة الطلب
+                    ),
+                  ),
+                ).then((_) {
+                  // تحديث البيانات عند العودة من صفحة إضافة الفحوصات
+                  setState(() {
+                    _patientFuture = _loadPatientAndTests();
+                  });
+                });
+              },
+              icon: const Icon(Icons.add, color: Colors.white),
+              tooltip: 'إضافة فحص جديد',
+            ),
+          ],
         ),
         
         body: Container(
@@ -305,6 +529,9 @@ Directionality(
             final formattedDateTime = data['formattedDateTime'] as String? ?? '';
             final receivedFromData = (data['order_receieved'] as bool? ?? false);
             final bool isReceived = _isReceived || receivedFromData;
+            final String status = data['status']?.toString() ?? 'pending';
+            final bool isCancelled = status == 'cancelled';
+            final bool isDelivered = (data['sample_delivered'] as bool? ?? false);
 
             return Column(
               children: [
@@ -418,6 +645,56 @@ Directionality(
                         final entries = grouped.entries.toList();
                         if (entries.isEmpty) {
                           // Fallback: show flat tests list if no containers
+                          if (tests.isEmpty) {
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  
+                                  const SizedBox(height: 16),
+                                  const Text(
+                                    'لا توجد فحوصات مضافة',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      color: Colors.grey,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  
+                                  
+                                  const SizedBox(height: 24),
+                                  ElevatedButton.icon(
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => LabSelectTestsScreen(
+                                            labId: widget.labId,
+                                            labName: widget.labName,
+                                            patientId: widget.patientDocId,
+                                            skipNotification: true, // تخطي الإشعار عند الإضافة من صفحة الطلب
+                                          ),
+                                        ),
+                                      ).then((_) {
+                                        setState(() {
+                                          _patientFuture = _loadPatientAndTests();
+                                        });
+                                      });
+                                    },
+                                    icon: const Icon(Icons.add),
+                                    label: const Text('إضافة فحوصات'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                          
                           return ListView.separated(
                       physics: const BouncingScrollPhysics(),
                       itemCount: tests.length,
@@ -427,15 +704,97 @@ Directionality(
                         final tName = t['name']?.toString() ?? '';
                         final priceDyn = t['price'];
                         final price = (priceDyn is num) ? priceDyn : (num.tryParse('$priceDyn') ?? 0);
+                        final testId = t['testId']?.toString() ?? '';
+                        
                         return Row(
                           children: [
                             Expanded(child: Text('${i + 1}- $tName', style: const TextStyle(fontWeight: FontWeight.bold))),
                             Text(_formatPrice(price), style: const TextStyle(color: Colors.black87)),
+                            // حذف فقط قبل توصيل العينة (flat list)
+                            if (!isDelivered) PopupMenuButton<String>(
+                              icon: const Icon(Icons.more_vert, size: 16),
+                              onSelected: (value) async {
+                                if (value == 'delete') {
+                                  await _deleteTest(testId);
+                                }
+                              },
+                              itemBuilder: (context) => [
+                                const PopupMenuItem<String>(
+                                  value: 'delete',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.delete, color: Colors.red, size: 16),
+                                      SizedBox(width: 8),
+                                      Text('حذف', style: TextStyle(color: Colors.red)),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ],
                               );
                             },
                           );
                         }
+                        if (tests.isEmpty) {
+                          return Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.science,
+                                  size: 64,
+                                  color: Colors.grey,
+                                ),
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'لا توجد فحوصات مضافة',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    color: Colors.grey,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  'اضغط على زر + لإضافة فحوصات جديدة',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                                ElevatedButton.icon(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => LabSelectTestsScreen(
+                                          labId: widget.labId,
+                                          labName: widget.labName,
+                                          patientId: widget.patientDocId,
+                                          skipNotification: true, // تخطي الإشعار عند الإضافة من صفحة الطلب
+                                        ),
+                                      ),
+                                    ).then((_) {
+                                      setState(() {
+                                        _patientFuture = _loadPatientAndTests();
+                                      });
+                                    });
+                                  },
+                                  icon: const Icon(Icons.add),
+                                  label: const Text('إضافة فحوصات'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                        
                         return Card(
                           elevation: 2,
                           shape: RoundedRectangleBorder(
@@ -484,12 +843,35 @@ const SizedBox(width: 12),
                                                     final tName = t['name']?.toString() ?? '';
                                                     final priceDyn = t['price'];
                                                     final price = (priceDyn is num) ? priceDyn : (num.tryParse('$priceDyn') ?? 0);
+                                                    final testId = t['testId']?.toString() ?? '';
+                                                    
                                                     return Padding(
                                                       padding: const EdgeInsets.only(bottom: 4),
                                                       child: Row(
                                                         children: [
                                                           Expanded(child: Text('- $tName', style: const TextStyle(fontWeight: FontWeight.bold))),
                                                           Text(_formatPrice(price), style: const TextStyle(color: Colors.black87)),
+                                                          // حذف فقط قبل توصيل العينة (grouped list)
+                                                          if (!isDelivered) PopupMenuButton<String>(
+                                                            icon: const Icon(Icons.more_vert, size: 16),
+                                                            onSelected: (value) async {
+                                                              if (value == 'delete') {
+                                                                await _deleteTest(testId);
+                                                              }
+                                                            },
+                                                            itemBuilder: (context) => [
+                                                              const PopupMenuItem<String>(
+                                                                value: 'delete',
+                                                                child: Row(
+                                                                  children: [
+                                                                    Icon(Icons.delete, color: Colors.red, size: 16),
+                                                                    SizedBox(width: 8),
+                                                                    Text('حذف', style: TextStyle(color: Colors.red)),
+                                                                  ],
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
                                                         ],
                                                       ),
                                                     );
@@ -594,64 +976,98 @@ const SizedBox(width: 12),
                         ),
                         const SizedBox(height: 8),
                        
-                        SizedBox(
-                          width: double.infinity,
-  child: isReceived
-      ? ElevatedButton.icon(
-          icon: const Icon(Icons.location_on, color: Colors.white),
-          label: const Text('الموقع', style: TextStyle(color: Colors.white)),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Color.fromARGB(255, 90, 138, 201),
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-          onPressed: () async {
-            final location = await _fetchLabLocation();
-            if (location != null) {
-              await _openInGoogleMaps(location['lat']!, location['lng']!);
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('لم يتم العثور على إحداثيات المختبر'),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            }
-          },
-        )
-      : ElevatedButton(
-          onPressed:  _isLoading
-              ? null // تعطي null أثناء التحميل لعدم السماح بالضغط
-              : () {
-            _receiveOrder(context, widget.patientDocId, widget.labId);
-          },
-                            style: ElevatedButton.styleFrom(
-            backgroundColor: const Color.fromARGB(255, 90, 138, 201),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                side: BorderSide(
-                                  color: pdfUrl.isNotEmpty ? const Color.fromARGB(255, 90, 138, 201) : Colors.grey[400]!,
-                                  width: 2,
+                        // زرين في صف واحد: استلام الطلب وإلغاء الطلب
+                        Row(
+                          children: [
+                            // زر استلام الطلب
+                            Expanded(
+                              child: isReceived
+                                  ? ElevatedButton.icon(
+                                      icon: const Icon(Icons.location_on, color: Colors.white),
+                                      label: const Text('الموقع', style: TextStyle(color: Colors.white)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+                                        padding: const EdgeInsets.symmetric(vertical: 14),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                      ),
+                                      onPressed: () async {
+                                        final location = await _fetchLabLocation();
+                                        if (location != null) {
+                                          await _openInGoogleMaps(location['lat']!, location['lng']!);
+                                        } else {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('لم يتم العثور على إحداثيات المختبر'),
+                                              backgroundColor: Colors.red,
+                                            ),
+                                          );
+                                        }
+                                      },
+                                    )
+                                  : ElevatedButton(
+                                      onPressed: _isLoading || isCancelled
+                                          ? null
+                                          : () {
+                                              _receiveOrder(context, widget.patientDocId, widget.labId);
+                                            },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: isCancelled 
+                                            ? Colors.grey 
+                                            : const Color.fromARGB(255, 90, 138, 201),
+                                        padding: const EdgeInsets.symmetric(vertical: 14),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                      ),
+                                      child: _isLoading
+                                          ? const SizedBox(
+                                              width: 22,
+                                              height: 22,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2.5,
+                                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                              ),
+                                            )
+                                          : Text(
+                                              isCancelled ? 'استلام الطلب' : 'استلام الطلب',
+                                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                                            ),
+                                    ),
+                            ),
+                            const SizedBox(width: 8),
+                            // زر إلغاء الطلب
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: _isLoading || isCancelled
+                                    ? null
+                                    : () {
+                                        _cancelOrder(context, widget.patientDocId, widget.labId);
+                                      },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: isCancelled ? Colors.grey : Colors.red,
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
                                 ),
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        width: 22,
+                                        height: 22,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.5,
+                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        ),
+                                      )
+                                    : Text(
+                                        isCancelled ? 'تم الإلغاء' : 'إلغاء الطلب',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                                      ),
                               ),
                             ),
-          child: _isLoading
-              ? const SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                )
-              : const Text(
-                             'استلام الطلب',
-                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-                            ),
-                          ),
+                          ],
                         ),
 
                         const SizedBox(height: 10),

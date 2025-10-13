@@ -48,6 +48,15 @@ class _RegisterLabScreenState extends State<RegisterLabScreen> {
     super.dispose();
   }
 
+  Future<void> _handleSubmitWithTerms() async {
+    final agreed = await _showTermsDialog(); // ننتظر النتيجة من الديالوق
+    if (agreed == true) {
+      await _submit(); // كمل التسجيل
+    } else {
+      // لم يوافق، فقط نرجع
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);
@@ -227,8 +236,8 @@ class _RegisterLabScreenState extends State<RegisterLabScreen> {
     }
   }
 
-  void _showTermsDialog() {
-    showDialog(
+  Future<bool> _showTermsDialog() async {
+    return await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
@@ -291,25 +300,19 @@ class _RegisterLabScreenState extends State<RegisterLabScreen> {
                 style: TextStyle(color: Colors.red),
               ),
               onPressed: () {
-                Navigator.of(context).pop();
-                setState(() {
-                  _agreedToTerms = false;
-                });
+                Navigator.of(context).pop(false); // يرجع false
               },
             ),
             TextButton(
               child: const Text('أوافق ✅'),
               onPressed: () {
-                Navigator.of(context).pop();
-                setState(() {
-                  _agreedToTerms = true;
-                });
+                Navigator.of(context).pop(true); // يرجع true
               },
             ),
           ],
         );
       },
-    );
+    ).then((value) => value ?? false);
   }
 
   @override
@@ -513,30 +516,10 @@ class _RegisterLabScreenState extends State<RegisterLabScreen> {
                                         : null,
                           ),
                           const SizedBox(height: 18),
-                          CheckboxListTile(
-                            value: _agreedToTerms,
-                            onChanged: (val) {
-                              if (val == true) {
-                                _showTermsDialog(); // فتح ديالوق الموافقة
-                              } else {
-                                setState(() {
-                                  _agreedToTerms = false;
-                                });
-                              }
-                            },
-                            title: const Text(
-                              'أوافق على الشروط والأحكام',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            controlAffinity: ListTileControlAffinity.leading,
-                            contentPadding: EdgeInsets.zero,
-                          ),
 
                           ElevatedButton(
                             onPressed:
-                                (_submitting || !_agreedToTerms)
-                                    ? null
-                                    : _submit,
+                                _submitting ? null : _handleSubmitWithTerms,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: _primary,
                               foregroundColor: Colors.white,

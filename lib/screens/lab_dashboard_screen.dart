@@ -132,7 +132,7 @@ class _LabDashboardScreenState extends State<LabDashboardScreen> {
             title: Text(
               widget.labName.contains('معمل')
                   ? widget.labName
-                  : 'معمل ${widget.labName}',
+                  : 'مختبر ${widget.labName}',
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,

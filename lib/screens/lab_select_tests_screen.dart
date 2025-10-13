@@ -6,11 +6,13 @@ class LabSelectTestsScreen extends StatefulWidget {
   final String labId;
   final String labName;
   final String patientId;
+  final bool skipNotification; // إضافة معامل لتخطي الإشعار
   const LabSelectTestsScreen({
     super.key,
     required this.labId,
     required this.labName,
     required this.patientId,
+    this.skipNotification = false,
   });
 
   @override
@@ -152,10 +154,6 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
       final newSelectedIds = _selectedIds.difference(_existingTestIds);
       final selectedDocs = docs.where((d) => newSelectedIds.contains(d.id));
 
-      // Aggregate for notification
-      final List<String> testNames = [];
-      num totalPrice = 0;
-
       for (final d in selectedDocs) {
         final data = d.data();
         final reqDocRef = reqCol.doc();
@@ -166,49 +164,56 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
           'container_id': data['container_id'] ?? data['containerId'],
           'createdAt': FieldValue.serverTimestamp(),
         });
-
-        final name = data['name']?.toString() ?? '';
-        final priceDyn = data['price'];
-        final priceNum =
-            (priceDyn is num) ? priceDyn : (num.tryParse('$priceDyn') ?? 0);
-        if (name.isNotEmpty) testNames.add(name);
-        totalPrice += priceNum;
       }
 
       if (newSelectedIds.isNotEmpty) {
         await batch.commit();
 
-        // Send notification (simple approach)
-        try {
-          // Fetch patient name
-          final pSnap =
-              await FirebaseFirestore.instance
-                  .collection('labToLap')
-                  .doc('global')
-                  .collection('patients')
-                  .doc(widget.patientId)
-                  .get();
-          final patientName = pSnap.data()?['name']?.toString() ?? 'مريض';
+        // Send notification only if not skipping
+        if (!widget.skipNotification) {
+          try {
+            // Fetch patient name
+            final pSnap = await FirebaseFirestore.instance
+                .collection('labToLap')
+                .doc('global')
+                .collection('patients')
+                .doc(widget.patientId)
+                .get();
+            final patientName = pSnap.data()?['name']?.toString() ?? 'مريض';
 
-          final String lab = (widget.labName).trim();
-          final String title =
-              lab.startsWith('معمل')
-                  ? 'مريض جديد في $lab'
-                  : 'مريض جديد في معمل $lab';
-          final String body =
-              'اسم المريض: $patientName\nالفحوصات: ${testNames.join(', ')}\nالمبلغ: ${totalPrice.toStringAsFixed(0)}';
+            // Aggregate test names and total price for notification
+            final List<String> testNames = [];
+            num totalPrice = 0;
+            
+            for (final d in selectedDocs) {
+              final data = d.data();
+              final name = data['name']?.toString() ?? '';
+              final priceDyn = data['price'];
+              final priceNum = (priceDyn is num) ? priceDyn : (num.tryParse('$priceDyn') ?? 0);
+              if (name.isNotEmpty) testNames.add(name);
+              totalPrice += priceNum;
+            }
 
-          await FirebaseFirestore.instance.collection('push_requests').add({
-            'topic': 'lab_order',
-            'title': title,
-            'body': body,
-            'labId': widget.labId,
-            'labName': widget.labName,
-            'createdAt': FieldValue.serverTimestamp(),
-          });
-        } catch (_) {
-          // ignore notification enqueue errors
+            final String lab = (widget.labName).trim();
+            final String title = lab.startsWith('معمل')
+                ? 'مريض جديد في $lab'
+                : 'مريض جديد في معمل $lab';
+            final String body =
+                'اسم المريض: $patientName\nالفحوصات: ${testNames.join(', ')}\nالمبلغ: ${totalPrice.toStringAsFixed(0)}';
+
+            await FirebaseFirestore.instance.collection('push_requests').add({
+              'topic': 'lab_order',
+              'title': title,
+              'body': body,
+              'labId': widget.labId,
+              'labName': widget.labName,
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+          } catch (_) {
+            // ignore notification enqueue errors
+          }
         }
+
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -461,6 +466,17 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
                                           isExisting ? Colors.grey[600] : null,
                                     ),
                                   ),
+                                  onTap: !isUnavailable
+                                      ? () {
+                                          setState(() {
+                                            if (_selectedIds.contains(d.id)) {
+                                              _selectedIds.remove(d.id);
+                                            } else {
+                                              _selectedIds.add(d.id);
+                                            }
+                                          });
+                                        }
+                                      : null,
                                   subtitle: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:lab_to_lab_admin/screens/lab_dashboard_screen.dart';
+import 'package:lab_to_lab_admin/screens/patients_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lab_to_lab_admin/screens/register_lab_screen.dart';
 import 'package:lab_to_lab_admin/screens/control_panal_screen.dart';
@@ -78,6 +79,7 @@ class _LoginScreenState extends State<LoginScreen> {
         final data = doc.data();
         final String labId = data['labId']?.toString() ?? '';
         final String labName = data['labName']?.toString() ?? 'المعمل';
+        final String userType = data['userType']?.toString() ?? 'labUser';
 
         // Update login timestamps
         await FirebaseFirestore.instance
@@ -96,16 +98,27 @@ class _LoginScreenState extends State<LoginScreen> {
           'userName',
           data['userName']?.toString() ?? inputUser,
         );
+        await prefs.setString('userType', userType);
         if (labId.isNotEmpty) await prefs.setString('lab_id', labId);
         await prefs.setString('labName', labName);
 
         if (!mounted) return;
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (_) => LabDashboardScreen(labId: labId, labName: labName),
-          ),
-          (route) => false,
-        );
+        // Route based on userType
+        if (userType == 'userDelivery') {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (_) => const PatientsScreen(),
+            ),
+            (route) => false,
+          );
+        } else {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (_) => LabDashboardScreen(labId: labId, labName: labName),
+            ),
+            (route) => false,
+          );
+        }
         return;
       }
 
