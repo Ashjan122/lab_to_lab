@@ -17,7 +17,7 @@ class LabSettingsScreen extends StatelessWidget {
     required IconData icon,
     required String title,
     required VoidCallback onTap,
-    Color color = const Color.fromARGB(255, 90, 138, 201),
+    Color color = const Color(0xFF673AB7),
   }) {
     final BorderRadius cardRadius = BorderRadius.circular(12);
 
@@ -79,7 +79,7 @@ class LabSettingsScreen extends StatelessWidget {
               fontWeight: FontWeight.bold,
             ),
           ),
-          backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+          backgroundColor: const Color(0xFF673AB7),
           centerTitle: true,
         ),
         body: Container(
@@ -89,8 +89,8 @@ class LabSettingsScreen extends StatelessWidget {
               end: Alignment.bottomCenter,
               colors: [
                 Colors.grey.shade200,
-                const Color.fromARGB(255, 90, 138, 201).withOpacity(0.2),
-                const Color.fromARGB(255, 90, 138, 201).withOpacity(0.35),
+                const Color(0xFF673AB7).withOpacity(0.2),
+                const Color(0xFF673AB7).withOpacity(0.35),
               ],
             ),
           ),

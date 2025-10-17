@@ -52,7 +52,7 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
 
     if (orderReceived) {
       progress = 0.3; // 30%
-      progressColor = Colors.blue;
+      progressColor = Colors.green;
     }
 
     if (sampledDelivered) {
@@ -62,7 +62,7 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
 
     if (hasPdf) {
       progress = 1.0; // 100%
-      progressColor = Colors.green;
+      progressColor = Colors.blue;
     }
 
     return Column(
@@ -150,7 +150,7 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+          backgroundColor: const Color(0xFF673AB7),
           centerTitle: true,
           leading: IconButton(
             tooltip: 'اختيار التاريخ',
@@ -320,7 +320,7 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   border: Border.all(
-                                    color: Color.fromARGB(255, 90, 138, 201),
+                                    color: Color(0xFF673AB7),
                                     width: 2,
                                   ),
                                   borderRadius: BorderRadius.circular(8),
@@ -330,7 +330,7 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
                                   style: const TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
-                                    color: Color(0xFF1976D2),
+                                    color: Color(0xFF673AB7),
                                   ),
                                   textAlign: TextAlign.center,
                                 ),

@@ -19,7 +19,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _password = TextEditingController();
   bool _submitting = false;
   bool _obscure = true;
-  static const Color _primary = Color.fromARGB(255, 90, 138, 201);
+  static const Color _primary = Color(0xFF673AB7);
 
   @override
   void dispose() {

@@ -62,7 +62,7 @@ class _LabUsersScreenState extends State<LabUsersScreen> {
                       children: const [
                         Icon(
                           Icons.person_add,
-                          color: Color.fromARGB(255, 90, 138, 201),
+                          color: Color(0xFF673AB7),
                         ),
                         SizedBox(width: 8),
                         Text(
@@ -133,12 +133,7 @@ class _LabUsersScreenState extends State<LabUsersScreen> {
                                   if (mounted) Navigator.pop(context);
                                 },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color.fromARGB(
-                            255,
-                            90,
-                            138,
-                            201,
-                          ),
+                          backgroundColor: const Color(0xFF673AB7),
                           foregroundColor: Colors.white,
                         ),
                         child:
@@ -351,7 +346,7 @@ class _LabUsersScreenState extends State<LabUsersScreen> {
                       children: const [
                         Icon(
                           Icons.edit,
-                          color: Color.fromARGB(255, 90, 138, 201),
+                          color: Color(0xFF673AB7),
                         ),
                         SizedBox(width: 8),
                         Text(
@@ -428,12 +423,7 @@ class _LabUsersScreenState extends State<LabUsersScreen> {
                                   await _editUser(userId);
                                 },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color.fromARGB(
-                            255,
-                            90,
-                            138,
-                            201,
-                          ),
+                          backgroundColor: const Color(0xFF673AB7),
                           foregroundColor: Colors.white,
                         ),
                         child:
@@ -474,7 +464,7 @@ class _LabUsersScreenState extends State<LabUsersScreen> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+          backgroundColor: const Color(0xFF673AB7),
           centerTitle: true,
           actions: [
             IconButton(
@@ -516,7 +506,7 @@ class _LabUsersScreenState extends State<LabUsersScreen> {
                             isEnabled ? Icons.person : Icons.person_off,
                             color:
                                 isEnabled
-                                    ? const Color.fromARGB(255, 90, 138, 201)
+                                    ? const Color(0xFF673AB7)
                                     : Colors.grey,
                           ),
                           title: Text(
@@ -552,7 +542,7 @@ class _LabUsersScreenState extends State<LabUsersScreen> {
                                         Icon(
                                           Icons.edit,
                                           size: 18,
-                                          color: Color(0xFF1976D2),
+                                          color: Color(0xFF673AB7),
                                         ),
                                         SizedBox(width: 8),
                                         Text('تعديل'),

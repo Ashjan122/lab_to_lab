@@ -1,5 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:lab_to_lab_admin/screens/chat_screen.dart';
+import 'dart:collection';
 
 class SupportNumbersScreen extends StatefulWidget {
   const SupportNumbersScreen({super.key});
@@ -168,6 +171,8 @@ class _SupportNumbersScreenState extends State<SupportNumbersScreen> {
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: TextDirection.rtl,
+      child: DefaultTabController(
+        length: 2,
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: Colors.white,
@@ -175,15 +180,15 @@ class _SupportNumbersScreenState extends State<SupportNumbersScreen> {
           leading: IconButton(
             icon: const Icon(
               Icons.arrow_back,
-              color: Color.fromARGB(255, 90, 138, 201),
+              color: Color(0xFF673AB7),
             ),
             onPressed: () => Navigator.of(context).pop(),
           ),
           title: const Text(
-            'أرقام الدعم الفني',
+              'الدعم الفني',
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              color: Color.fromARGB(255, 90, 138, 201),
+              color: Color(0xFF673AB7),
               fontSize: 24,
             ),
           ),
@@ -194,12 +199,47 @@ class _SupportNumbersScreenState extends State<SupportNumbersScreen> {
               onPressed: _saving ? null : _promptAddNumber,
               icon: const Icon(
                 Icons.add,
-                color: Color.fromARGB(255, 90, 138, 201),
+                color: Color(0xFF673AB7),
               ),
             ),
           ],
+            bottom: const TabBar(
+              indicatorColor: Color(0xFF673AB7),
+              labelColor: Color(0xFF673AB7),
+              unselectedLabelColor: Colors.grey,
+              tabs: [
+                
+                Tab(text: 'الدردشة'),
+                Tab(text: 'أرقام الدعم'),
+              ],
+            ),
+          ),
+          body: TabBarView(
+            children: [
+              const _ControlChatLabsTab(),
+              _SupportNumbersList(
+                saving: _saving,
+                onEdit: _editNumber,
+                onDelete: _deleteNumber,
+              ),
+              
+            ],
+          ),
         ),
-        body: SafeArea(
+      ),
+    );
+  }
+}
+
+class _SupportNumbersList extends StatelessWidget {
+  final bool saving;
+  final Future<void> Function(List<dynamic>, int) onEdit;
+  final Future<void> Function(List<dynamic>, int) onDelete;
+  const _SupportNumbersList({required this.saving, required this.onEdit, required this.onDelete});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -207,8 +247,7 @@ class _SupportNumbersScreenState extends State<SupportNumbersScreen> {
                 const SizedBox(height: 8),
                 Expanded(
                   child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                    stream:
-                        FirebaseFirestore.instance
+                stream: FirebaseFirestore.instance
                             .collection('support')
                             .doc('labNumbers')
                             .snapshots(),
@@ -220,8 +259,7 @@ class _SupportNumbersScreenState extends State<SupportNumbersScreen> {
                         return const Center(child: CircularProgressIndicator());
                       }
                       final data = snapshot.data!.data() ?? {};
-                      final List<dynamic> numbers =
-                          (data['numbers'] as List<dynamic>? ?? []);
+                  final List<dynamic> numbers = (data['numbers'] as List<dynamic>? ?? []);
                       if (numbers.isEmpty) {
                         return Center(
                           child: Column(
@@ -256,7 +294,7 @@ class _SupportNumbersScreenState extends State<SupportNumbersScreen> {
                                     '${index + 1} -',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
-                                      color: Color.fromARGB(255, 90, 138, 201),
+                                      color: Color(0xFF673AB7),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
@@ -268,17 +306,15 @@ class _SupportNumbersScreenState extends State<SupportNumbersScreen> {
                                 children: [
                                   IconButton(
                                     tooltip: 'تعديل',
-                                    onPressed:
-                                        () => _editNumber(numbers, index),
+                                onPressed: () => onEdit(numbers, index),
                                     icon: const Icon(
                                       Icons.edit,
-                                      color: Color.fromARGB(255, 90, 138, 201),
+                                      color: Color(0xFF673AB7),
                                     ),
                                   ),
                                   IconButton(
                                     tooltip: 'حذف',
-                                    onPressed:
-                                        () => _deleteNumber(numbers, index),
+                                onPressed: () => onDelete(numbers, index),
                                     icon: const Icon(
                                       Icons.delete,
                                       color: Colors.red,
@@ -296,8 +332,105 @@ class _SupportNumbersScreenState extends State<SupportNumbersScreen> {
               ],
             ),
           ),
-        ),
-      ),
+    );
+  }
+}
+
+class _ControlChatLabsTab extends StatelessWidget {
+  const _ControlChatLabsTab();
+
+  Future<Map<String, String>> _getControlUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('control_user_id') ?? '';
+    final userName = prefs.getString('userName') ?? 'الكنترول';
+    return {'id': userId, 'name': userName};
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Map<String, String>>(
+      future: _getControlUser(),
+      builder: (context, userSnap) {
+        if (!userSnap.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final currentId = userSnap.data!['id'] ?? '';
+        final currentName = userSnap.data!['name'] ?? 'الكنترول';
+
+        // اعرض فقط المعامل التي أرسلت رسائل إلى هذا المستخدم الكنترول
+        return StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('messages')
+              .where('receiverId', isEqualTo: currentId)
+              .orderBy('timestamp', descending: true)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Center(child: Text('حدث خطأ: ${snapshot.error}'));
+            }
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final msgs = snapshot.data!.docs;
+            // تجميع معرفات المعامل التي أرسلت رسائل (senderId)
+            final LinkedHashSet<String> labIds = LinkedHashSet<String>();
+            for (final doc in msgs) {
+              final data = doc.data() as Map<String, dynamic>;
+              final senderId = data['senderId']?.toString() ?? '';
+              if (senderId.isNotEmpty) labIds.add(senderId);
+            }
+            final ids = labIds.toList();
+            if (ids.isEmpty) {
+              return const Center(child: Text('لا توجد محادثات مع أي معمل بعد.'));
+            }
+            return ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: ids.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final labId = ids[index];
+                return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                  future: FirebaseFirestore.instance
+                      .collection('labToLap')
+                      .doc(labId)
+                      .get(),
+                  builder: (context, labSnap) {
+                    if (!labSnap.hasData) {
+                      return const SizedBox.shrink();
+                    }
+                    final snapData = labSnap.data;
+                    if (snapData == null || !snapData.exists) {
+                      return const SizedBox.shrink();
+                    }
+                    final labData = snapData.data();
+                    final labName = labData?['name']?.toString() ?? 'معمل';
+                    return Card(
+                      child: ListTile(
+                       
+                        title: Text(labName),
+                        trailing: const Icon(Icons.chat),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ChatScreen(
+                                labId: currentId,
+                                labName: currentName,
+                                receiverId: labId,
+                                receiverName: labName,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 }

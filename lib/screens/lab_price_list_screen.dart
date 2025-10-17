@@ -101,7 +101,7 @@ class _LabPriceListScreenState extends State<LabPriceListScreen> {
                     children: [
                       const Icon(
                         Icons.edit,
-                        color: Color.fromARGB(255, 90, 138, 201),
+                        color: Color(0xFF673AB7),
                       ),
                       const SizedBox(width: 8),
                       const Text(
@@ -191,7 +191,7 @@ class _LabPriceListScreenState extends State<LabPriceListScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+            backgroundColor: const Color(0xFF673AB7),
             centerTitle: true,
 
             // Removed add button - no longer adding new tests

@@ -132,13 +132,14 @@ class _LabDashboardScreenState extends State<LabDashboardScreen> {
             title: Text(
               widget.labName.contains('معمل')
                   ? widget.labName
-                  : 'مختبر ${widget.labName}',
+                  : '${widget.labName}',
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
+                fontSize: 20
               ),
             ),
-            backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+            backgroundColor: const Color(0xFF673AB7),
             centerTitle: true,
             leading: FutureBuilder<bool>(
               future: _shouldShowBackToControl(),
@@ -186,8 +187,8 @@ class _LabDashboardScreenState extends State<LabDashboardScreen> {
                 end: Alignment.bottomCenter,
                 colors: [
                   Colors.grey.shade200,
-                  const Color.fromARGB(255, 90, 138, 201).withOpacity(0.2),
-                  const Color.fromARGB(255, 90, 138, 201).withOpacity(0.35),
+                  const Color(0xFF673AB7).withOpacity(0.2),
+                  const Color(0xFF673AB7).withOpacity(0.35),
                 ],
               ),
             ),
@@ -297,7 +298,8 @@ class _LabDashboardScreenState extends State<LabDashboardScreen> {
                                   context,
                                   MaterialPageRoute(
                                     builder:
-                                        (context) => LabSupportNumbersScreen(),
+                                        (context) => LabSupportNumbersScreen(labId: widget.labId,
+      labName: widget.labName,),
                                   ),
                                 );
                               },
@@ -328,7 +330,7 @@ class _LabDashboardScreenState extends State<LabDashboardScreen> {
                         if (!isApproved) ...[
                           const SizedBox(height: 8),
                           const Text(
-                            'قائمة الاسعار ستضاف بعد اعتماد التعاقد من المعمل المركزي',
+                            'انت الآن في قائمة الإنتظار حتى تتم الموافقة ',
                             style: TextStyle(
                               color: Colors.red,
                               fontWeight: FontWeight.bold,

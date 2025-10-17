@@ -58,7 +58,7 @@ class _LabPatientResultDetailScreenState
           'إرشادات الفحص',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: Color.fromARGB(255, 90, 138, 201),
+            color: Color(0xFF673AB7),
           ),
           textAlign: TextAlign.right,
         ),
@@ -76,7 +76,7 @@ class _LabPatientResultDetailScreenState
             child: const Text(
               'حسناً',
               style: TextStyle(
-                color: Color.fromARGB(255, 90, 138, 201),
+                color: Color(0xFF673AB7),
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -249,7 +249,7 @@ class _LabPatientResultDetailScreenState
                 fontWeight: FontWeight.bold,
               ),
             ),
-          backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+          backgroundColor: const Color(0xFF673AB7),
           centerTitle: true,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -302,8 +302,8 @@ class _LabPatientResultDetailScreenState
               end: Alignment.bottomCenter,
               colors: [
                 Colors.grey.shade200,
-                const Color.fromARGB(255, 90, 138, 201).withOpacity(0.2),
-                const Color.fromARGB(255, 90, 138, 201).withOpacity(0.35),
+                const Color(0xFF673AB7).withOpacity(0.2),
+                const Color(0xFF673AB7).withOpacity(0.35),
               ],
             ),
           ),
@@ -346,7 +346,7 @@ class _LabPatientResultDetailScreenState
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                           side: const BorderSide(
-                            color: Color.fromARGB(255, 90, 138, 201),
+                            color: Color(0xFF673AB7),
                             width: 1.5,
                           ),
                     ),
@@ -377,12 +377,7 @@ class _LabPatientResultDetailScreenState
                                   style: const TextStyle(
                                     fontSize: 24,
                                     fontWeight: FontWeight.bold,
-                                        color: Color.fromARGB(
-                                          255,
-                                          90,
-                                          138,
-                                          201,
-                                        ),
+                                        color: Color(0xFF673AB7),
                                   ),
                       ),
                     ],
@@ -563,7 +558,7 @@ class _LabPatientResultDetailScreenState
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                                 side: const BorderSide(
-                                  color: Color.fromARGB(255, 90, 138, 201),
+                                  color: Color(0xFF673AB7),
                                   width: 1.2,
                                 ),
                           ),
@@ -851,12 +846,7 @@ class _LabPatientResultDetailScreenState
                                 side: BorderSide(
                                       color:
                                           pdfUrl.isNotEmpty
-                                              ? const Color.fromARGB(
-                                                255,
-                                                90,
-                                                138,
-                                                201,
-                                              )
+                                              ? const Color(0xFF673AB7)
                                               : Colors.grey[400]!,
                                   width: 2,
                                 ),
@@ -1120,7 +1110,7 @@ class _PdfViewerScreen extends StatelessWidget {
                     labelStyle: const TextStyle(color: Colors.black),
                     border: const OutlineInputBorder(
                         borderSide: BorderSide(
-                          color: Color.fromARGB(255, 90, 138, 201),
+                          color: Color(0xFF673AB7),
                         ),
                     ),
                   ),
@@ -1139,7 +1129,7 @@ class _PdfViewerScreen extends StatelessWidget {
               ),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+                  backgroundColor: const Color(0xFF673AB7),
                 ),
                   onPressed:
                       isLoading
@@ -1213,7 +1203,7 @@ class _PdfViewerScreen extends StatelessWidget {
             'عرض النتيجة PDF',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
-          backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+          backgroundColor: const Color(0xFF673AB7),
           centerTitle: true,
           actions: [
             IconButton(

@@ -9,7 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lab_to_lab_admin/screens/control_panal_screen.dart';
 // ignore_for_file: unused_field, unused_element
 
-const Color kLabPrimary = Color.fromARGB(255, 90, 138, 201);
+const Color kLabPrimary = Color(0xFF673AB7);
 
 class LabToLab extends StatefulWidget {
   const LabToLab({super.key});
@@ -291,7 +291,7 @@ class _LabToLabState extends State<LabToLab> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-          backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+          backgroundColor: const Color(0xFF673AB7),
           centerTitle: true,
           leading: FutureBuilder<bool>(
             future: _shouldShowBackToControl(),
@@ -400,118 +400,95 @@ class _LabToLabState extends State<LabToLab> {
                       final available = data['available'] as bool? ?? false;
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
+                        child: ExpansionTile(
+                          leading: Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              border: Border.all(color: kLabPrimary, width: 2),
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '${index + 1}',
+                                style: const TextStyle(
+                                  color: kLabPrimary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ),
+                          title: GestureDetector(
                           onTap: () async {
-                              final prefs =
-                                  await SharedPreferences.getInstance();
+                            final prefs = await SharedPreferences.getInstance();
                             await prefs.setString('lab_id', d.id);
                             await prefs.setString('labName', name);
                             await prefs.setBool('fromControlPanel', true);
-                            // ensure logged-in session persists to dashboard after restart
                             await prefs.setBool('isLoggedIn', true);
+                              if (context.mounted) {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                  builder:
-                                      (context) => LabDashboardScreen(
+                                builder: (context) => LabDashboardScreen(
                                   labId: d.id,
                                   labName: name,
                                 ),
                               ),
                             );
-                          },
-                            leading: const Icon(
-                              Icons.science,
-                              color: kLabPrimary,
-                            ),
-                            title: Text(
+                              }
+                            },
+                            child: Text(
                               name,
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 20,
                               ),
                             ),
-                          subtitle: Column(
+                          ),
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                              child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('العنوان: $address'),
                               Text('هاتف: $phone'),
                               Text('واتساب: $whats'),
+                                  const SizedBox(height: 6),
                               Row(
                                 children: [
-                                    Icon(
-                                      available
-                                          ? Icons.check_circle
-                                          : Icons.cancel,
-                                      color:
-                                          available ? Colors.green : Colors.red,
-                                      size: 16,
-                                    ),
-                                  const SizedBox(width: 4),
-                                    Text(
-                                      available ? 'مفعل' : 'غير مفعل',
-                                      style: TextStyle(
-                                        color:
-                                            available
-                                                ? Colors.green
-                                                : Colors.red,
-                                        fontWeight: FontWeight.bold,
+                                      Icon(
+                                        available ? Icons.check_circle : Icons.cancel,
+                                        color: available ? Colors.green : Colors.red,
+                                        size: 16,
                                       ),
-                                    ),
+                                  const SizedBox(width: 4),
+                                      Text(
+                                        available ? 'مفعل' : 'غير مفعل',
+                                        style: TextStyle(
+                                          color: available ? Colors.green : Colors.red,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                   const SizedBox(width: 16),
-                                    const Icon(
-                                      Icons.sort,
-                                      size: 16,
-                                      color: kLabPrimary,
-                                    ),
+                                  const Icon(Icons.sort, size: 16, color: kLabPrimary),
                                   const SizedBox(width: 4),
-                                    Text(
-                                      'ترتيب: ${data['order'] ?? 999}',
-                                      style: const TextStyle(
-                                        color: kLabPrimary,
-                                        fontWeight: FontWeight.bold,
+                                      Text(
+                                        'ترتيب: ${data['order'] ?? 999}',
+                                        style: const TextStyle(
+                                          color: kLabPrimary,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
-                                    ),
+                                  const Spacer(),
                                 ],
                               ),
                             ],
                           ),
-                          trailing: PopupMenuButton<String>(
-                            icon: const Icon(Icons.more_vert),
-                            onSelected: (value) {
-                              switch (value) {
-                                case 'toggle':
-                                  _toggleAvailability(d.id, available);
-                                  break;
-                              }
-                            },
-                              itemBuilder:
-                                  (context) => [
-                              PopupMenuItem<String>(
-                                value: 'toggle',
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            available
-                                                ? Icons.block
-                                                : Icons.check_circle,
-                                            color:
-                                                available
-                                                    ? Colors.orange
-                                                    : Colors.green,
-                                            size: 20,
-                                          ),
-                                  const SizedBox(width: 8),
-                                          Text(
-                                            available
-                                                ? 'إلغاء التفعيل'
-                                                : 'تفعيل',
-                                          ),
-                                        ],
-                                      ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       );
                     },

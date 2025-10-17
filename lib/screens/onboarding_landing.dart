@@ -17,8 +17,8 @@ class OnboardingLandingScreen extends StatelessWidget {
               end: Alignment.bottomCenter,
               colors: [
                 Colors.grey.shade200,
-                const Color.fromARGB(255, 90, 138, 201).withOpacity(0.2),
-                const Color.fromARGB(255, 90, 138, 201).withOpacity(0.35),
+                const Color(0xFF673AB7).withOpacity(0.2),
+                const Color(0xFF673AB7).withOpacity(0.35),
               ],
             ),
           ),
@@ -72,12 +72,7 @@ class OnboardingLandingScreen extends StatelessWidget {
                                 ),
                               ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color.fromARGB(
-                              255,
-                              90,
-                              138,
-                              201,
-                            ),
+                            backgroundColor: const Color(0xFF673AB7),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),

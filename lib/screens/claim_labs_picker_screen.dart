@@ -13,7 +13,7 @@ class ClaimLabsPickerScreen extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('اختيار معمل للمطالبة', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+          backgroundColor: const Color(0xFF673AB7),
           centerTitle: true,
         ),
         body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -37,7 +37,7 @@ class ClaimLabsPickerScreen extends StatelessWidget {
                 final address = data['address']?.toString() ?? '';
                 return Card(
                   child: ListTile(
-                    leading: const Icon(Icons.science, color: Color.fromARGB(255, 90, 138, 201)),
+                    leading: const Icon(Icons.science, color: Color(0xFF673AB7)),
                     title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: address.isEmpty ? null : Text(address),
                     onTap: () {

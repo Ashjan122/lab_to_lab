@@ -5,8 +5,11 @@ import 'package:lab_to_lab_admin/screens/lab_select_tests_screen.dart';
 class LabNewSampleScreen extends StatefulWidget {
   final String labId;
   final String labName;
-  const LabNewSampleScreen({super.key, required this.labId, required this.labName});
-
+  const LabNewSampleScreen({
+    super.key,
+    required this.labId,
+    required this.labName,
+  });
 
   @override
   State<LabNewSampleScreen> createState() => _LabNewSampleScreenState();
@@ -25,6 +28,7 @@ class _LabNewSampleScreenState extends State<LabNewSampleScreen> {
     _phoneController.dispose();
     super.dispose();
   }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
@@ -35,7 +39,8 @@ class _LabNewSampleScreenState extends State<LabNewSampleScreen> {
           .collection('patients');
 
       // get next sequential id starting from 1
-      final lastSnap = await patientsCol.orderBy('id', descending: true).limit(1).get();
+      final lastSnap =
+          await patientsCol.orderBy('id', descending: true).limit(1).get();
       int nextId = 1;
       if (lastSnap.docs.isNotEmpty) {
         final dyn = lastSnap.docs.first.data()['id'];
@@ -58,11 +63,12 @@ class _LabNewSampleScreenState extends State<LabNewSampleScreen> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => LabSelectTestsScreen(
-            labId: widget.labId,
-            labName: widget.labName,
-            patientId: docRef.id,
-          ),
+          builder:
+              (context) => LabSelectTestsScreen(
+                labId: widget.labId,
+                labName: widget.labName,
+                patientId: docRef.id,
+              ),
         ),
       );
     } catch (e) {
@@ -82,8 +88,11 @@ class _LabNewSampleScreenState extends State<LabNewSampleScreen> {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('عينة جديدة', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+          title: const Text(
+            'عينة جديدة',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: const Color(0xFF673AB7),
           centerTitle: true,
         ),
         body: Padding(
@@ -93,7 +102,10 @@ class _LabNewSampleScreenState extends State<LabNewSampleScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('اسم المريض', style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  'اسم المريض',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _fullNameController,
@@ -104,21 +116,25 @@ class _LabNewSampleScreenState extends State<LabNewSampleScreen> {
                   ),
                   textInputAction: TextInputAction.next,
                   onFieldSubmitted: (_) {
-                  FocusScope.of(context).requestFocus(_phoneFocus); // ينتقل للحقل التالي
-                    },
+                    FocusScope.of(
+                      context,
+                    ).requestFocus(_phoneFocus); // ينتقل للحقل التالي
+                  },
                   validator: (v) {
-  if (v == null || v.trim().isEmpty) {
-    return 'يرجى إدخال الاسم الثلاثي';
-  }
-  if (v.trim().split(' ').length < 3) {
-    return 'يرجى إدخال الاسم الثلاثي';
-  }
-  return null;
-},
-
+                    if (v == null || v.trim().isEmpty) {
+                      return 'يرجى إدخال الاسم الثلاثي';
+                    }
+                    if (v.trim().split(' ').length < 3) {
+                      return 'يرجى إدخال الاسم الثلاثي';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
-                Text('رقم الهاتف', style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  'رقم الهاتف',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _phoneController,
@@ -131,18 +147,17 @@ class _LabNewSampleScreenState extends State<LabNewSampleScreen> {
                   keyboardType: TextInputType.phone,
                   textInputAction: TextInputAction.done,
                   onFieldSubmitted: (_) {
-                     _save(); // ينفذ الحفظ عند الضغط على "تم"
+                    _save(); // ينفذ الحفظ عند الضغط على "تم"
                   },
                   validator: (v) {
-  if (v == null || v.trim().isEmpty) {
-    return 'يرجى إدخال رقم الهاتف';
-  }
-  if (v.trim().length < 8) {
-    return 'يرجى إدخال رقم هاتف صحيح';
-  }
-  return null;
-},
-
+                    if (v == null || v.trim().isEmpty) {
+                      return 'يرجى إدخال رقم الهاتف';
+                    }
+                    if (v.trim().length < 8) {
+                      return 'يرجى إدخال رقم هاتف صحيح';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
                 SizedBox(
@@ -150,13 +165,23 @@ class _LabNewSampleScreenState extends State<LabNewSampleScreen> {
                   child: ElevatedButton(
                     onPressed: _saving ? null : _save,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+                      backgroundColor: const Color(0xFF673AB7),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
-                    child: _saving
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)))
-                        : const Text('حفظ'),
+                    child:
+                        _saving
+                            ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            )
+                            : const Text('حفظ'),
                   ),
                 ),
               ],
@@ -166,4 +191,4 @@ class _LabNewSampleScreenState extends State<LabNewSampleScreen> {
       ),
     );
   }
-  }
+}

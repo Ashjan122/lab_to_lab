@@ -32,7 +32,7 @@ class LabPatientInfoScreen extends StatelessWidget {
             'معلومات المريض',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
-          backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+          backgroundColor: const Color(0xFF673AB7),
           centerTitle: true,
         ),
         body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -126,7 +126,7 @@ class LabPatientInfoScreen extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                     color:
                         isPhone && onTap != null
-                            ? const Color.fromARGB(255, 90, 138, 201)
+                            ? const Color(0xFF673AB7)
                             : Colors.black87,
                     decoration:
                         isPhone && onTap != null

@@ -314,7 +314,7 @@ class _LabInfoScreenState extends State<LabInfoScreen>
               fontWeight: FontWeight.bold,
             ),
           ),
-          backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+          backgroundColor: const Color(0xFF673AB7),
           centerTitle: true,
           leading:
               _fromControlPanel
@@ -390,7 +390,7 @@ class _LabInfoScreenState extends State<LabInfoScreen>
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(60),
                       border: Border.all(
-                        color: const Color(0xFF1976D2),
+                        color: const Color(0xFF673AB7),
                         width: 3,
                       ),
                     ),
@@ -420,7 +420,7 @@ class _LabInfoScreenState extends State<LabInfoScreen>
                       color: Colors.grey[200],
                       borderRadius: BorderRadius.circular(60),
                       border: Border.all(
-                        color: const Color(0xFF1976D2),
+                        color: const Color(0xFF673AB7),
                         width: 3,
                       ),
                     ),
@@ -489,7 +489,7 @@ class _LabInfoScreenState extends State<LabInfoScreen>
                 height: 120,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(60),
-                  border: Border.all(color: const Color(0xFF1976D2), width: 3),
+                  border: Border.all(color: const Color(0xFF673AB7), width: 3),
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(57),
@@ -669,7 +669,7 @@ class _LabInfoScreenState extends State<LabInfoScreen>
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1976D2),
+                    color: Color(0xFF673AB7),
                   ),
                 ),
                 const SizedBox(height: 2),

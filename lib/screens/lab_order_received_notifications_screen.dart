@@ -127,7 +127,7 @@ class _LabOrderReceivedNotificationsScreenState
             'الإشعارات',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
-          backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+          backgroundColor: const Color(0xFF673AB7),
           centerTitle: true,
         ),
         body: SafeArea(

@@ -66,7 +66,7 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
               'إرشادات الفحص',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: Color.fromARGB(255, 90, 138, 201),
+                color: Color(0xFF673AB7),
               ),
               textAlign: TextAlign.right,
             ),
@@ -84,7 +84,7 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
                 child: const Text(
                   'حسناً',
                   style: TextStyle(
-                    color: Color.fromARGB(255, 90, 138, 201),
+                    color: Color(0xFF673AB7),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -201,14 +201,16 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
             final String body =
                 'اسم المريض: $patientName\nالفحوصات: ${testNames.join(', ')}\nالمبلغ: ${totalPrice.toStringAsFixed(0)}';
 
-            await FirebaseFirestore.instance.collection('push_requests').add({
-              'topic': 'lab_order',
-              'title': title,
-              'body': body,
-              'labId': widget.labId,
-              'labName': widget.labName,
-              'createdAt': FieldValue.serverTimestamp(),
-            });
+          await FirebaseFirestore.instance.collection('push_requests').add({
+            'topic': 'lab_order',
+            'title': title,
+            'body': body,
+            'labId': widget.labId,
+            'labName': widget.labName,
+            'patientDocId': widget.patientId,
+            'action': 'open_order_request',
+            'createdAt': FieldValue.serverTimestamp(),
+          });
           } catch (_) {
             // ignore notification enqueue errors
           }
@@ -274,7 +276,7 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
               fontWeight: FontWeight.bold,
             ),
           ),
-          backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+          backgroundColor: const Color(0xFF673AB7),
           centerTitle: true,
           actions: [
             Padding(
@@ -529,7 +531,7 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
                     onPressed: _saving ? null : performSave,
 
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+                      backgroundColor: Color(0xFF673AB7),
                       foregroundColor: Colors.white,
                     ),
                     child:

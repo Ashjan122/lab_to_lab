@@ -52,10 +52,13 @@ class UserStatsScreen extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+            backgroundColor: const Color(0xFF673AB7),
             centerTitle: true,
             bottom: const TabBar(
-              tabs: [Tab(text: 'سجلوا اليوم'), Tab(text: 'متصلون الآن')],
+              tabs: [Tab(text: 'سجلوا اليوم'), Tab(text: 'متصلون الآن'),],
+              indicatorColor: Colors.white,
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.black,
             ),
           ),
           body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(

@@ -55,6 +55,7 @@ dependencies:
   path_provider: ^2.1.5
   lordicon: ^1.0.3
   lottie: ^2.7.0
+  audioplayers: ^6.5.1
 
 dev_dependencies:
   flutter_test:
@@ -83,6 +84,8 @@ flutter:
     - assets/images/logo.png
     - assets/containars/
     - assets/lordicons/
+    - assets/sounds/
+    - assets/images/image.png
     
   fonts:
     - family: Tajawal

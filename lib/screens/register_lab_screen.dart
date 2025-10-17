@@ -33,8 +33,8 @@ class _RegisterLabScreenState extends State<RegisterLabScreen> {
   bool _submitting = false;
   bool _obscure = true;
   bool _agreedToTerms = false;
-
-  static const Color _primary = Color.fromARGB(255, 90, 138, 201);
+  
+  static const Color _primary = Color(0xFF673AB7);
 
   @override
   void dispose() {
@@ -80,10 +80,10 @@ class _RegisterLabScreenState extends State<RegisterLabScreen> {
       // Prevent duplicate lab name
       final nameDup =
           await FirebaseFirestore.instance
-              .collection('labToLap')
-              .where('name', isEqualTo: labName)
-              .limit(1)
-              .get();
+          .collection('labToLap')
+          .where('name', isEqualTo: labName)
+          .limit(1)
+          .get();
       if (nameDup.docs.isNotEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -99,10 +99,10 @@ class _RegisterLabScreenState extends State<RegisterLabScreen> {
       // Prevent duplicate username
       final userDup =
           await FirebaseFirestore.instance
-              .collection('labToLap')
-              .where('ownerUserName', isEqualTo: ownerName)
-              .limit(1)
-              .get();
+          .collection('labToLap')
+          .where('ownerUserName', isEqualTo: ownerName)
+          .limit(1)
+          .get();
       if (userDup.docs.isNotEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -117,10 +117,10 @@ class _RegisterLabScreenState extends State<RegisterLabScreen> {
       // determine next order
       final snap =
           await FirebaseFirestore.instance
-              .collection('labToLap')
-              .orderBy('order', descending: true)
-              .limit(1)
-              .get();
+          .collection('labToLap')
+          .orderBy('order', descending: true)
+          .limit(1)
+          .get();
       int nextOrder = 1;
       if (snap.docs.isNotEmpty) {
         final dynamic highest = snap.docs.first.data()['order'];
@@ -238,82 +238,82 @@ class _RegisterLabScreenState extends State<RegisterLabScreen> {
 
   Future<bool> _showTermsDialog() async {
     return await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('الشروط والأحكام', textAlign: TextAlign.center),
-          content: SingleChildScrollView(
-            child: Column(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Text('الشروط والأحكام', textAlign: TextAlign.center),
+        content: SingleChildScrollView(
+          child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
-              children: const [
+            children: const [
                 Text('مرحباً بكم في تطبيق جودة', textAlign: TextAlign.right),
-                SizedBox(height: 10),
-                Text(
+              SizedBox(height: 10),
+              Text(
                   'يسعدنا تعاونكم معنا في تقديم خدمات الفحوصات المخبرية بدقة ووفق المعايير المعتمدة من وزارة الصحة السودانية، وذلك من خلال مختبر الرومي للتحاليل الطبية كمقدم للخدمة، ومختبركم كطالبٍ للخدمة.',
                   textAlign: TextAlign.right,
-                ),
-                SizedBox(height: 10),
+              ),
+              SizedBox(height: 10),
                 Text(': طبيعة التطبيق - ', textAlign: TextAlign.right),
                 Text(
                   'تطبيق جودة يعمل كوسيط إلكتروني بين مقدم الخدمة وطالبها.',
                   textAlign: TextAlign.right,
                 ),
-                SizedBox(height: 8),
+              SizedBox(height: 8),
                 Text(': خصوصية البيانات -', textAlign: TextAlign.right),
                 Text(
                   'نلتزم في جودة بالحفاظ على سرية وخصوصية البيانات ضمن أعلى معايير الأمان.',
                   textAlign: TextAlign.right,
                 ),
-                SizedBox(height: 8),
+              SizedBox(height: 8),
                 Text(': التزامات مقدم الخدمة -', textAlign: TextAlign.right),
                 Text(
                   'يجب على مقدم الخدمة الالتزام التام بمعايير وزارة الصحة، وأي إخلال بها يترتب عليه فسخ التعاقد من طرفنا.',
                   textAlign: TextAlign.right,
                 ),
-                SizedBox(height: 8),
+              SizedBox(height: 8),
                 Text(': التزامات طالب الخدمة -', textAlign: TextAlign.right),
                 Text(
                   'يتعين على طالب الخدمة الالتزام بمعايير أخذ العينة من المريض وفق تعليمات وزارة الصحة، وعدم تأخيرها أو التعامل معها بطريقة غير صحيحة، لما لذلك من تأثير مباشر على سلامة الفحص ودقته.',
                   textAlign: TextAlign.right,
                 ),
-                SizedBox(height: 8),
+              SizedBox(height: 8),
                 Text(': حدود المسؤولية -', textAlign: TextAlign.right),
                 Text(
                   'تنحصر مسؤوليتنا في إجراء الفحص المعملي وفق الأصول العلمية، وإرسال النتيجة عبر الواتساب أو البريد الإلكتروني فقط.\nأما ظروف جمع العينة ونقلها فهي خارج نطاق مسؤوليتنا القانونية، إذ قد تؤثر على النتيجة دون أي تقصير من جانب المختبر.',
                   textAlign: TextAlign.right,
                 ),
-                SizedBox(height: 8),
+              SizedBox(height: 8),
                 Text(': تفعيل الحساب -', textAlign: TextAlign.right),
                 Text(
                   'في حال عدم تفعيل التطبيق لمدة شهر واحد، سيتم إلغاء اشتراككم تلقائياً.\nلإعادة التفعيل لاحقاً، يلزم سداد رسوم اشتراك قدرها 60 دولاراً أمريكياً.',
                   textAlign: TextAlign.right,
                 ),
-              ],
-            ),
+            ],
           ),
-          actionsAlignment: MainAxisAlignment.center,
-          actions: [
-            TextButton(
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
               child: const Text(
                 'لا أوافق ❌',
                 style: TextStyle(color: Colors.red),
               ),
-              onPressed: () {
+            onPressed: () {
                 Navigator.of(context).pop(false); // يرجع false
-              },
-            ),
-            TextButton(
-              child: const Text('أوافق ✅'),
-              onPressed: () {
+            },
+          ),
+          TextButton(
+  child: const Text('أوافق ✅'),
+  onPressed: () {
                 Navigator.of(context).pop(true); // يرجع true
-              },
-            ),
-          ],
-        );
-      },
+  },
+),
+        ],
+      );
+    },
     ).then((value) => value ?? false);
-  }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -515,48 +515,48 @@ class _RegisterLabScreenState extends State<RegisterLabScreen> {
                                         ? 'كلمتا المرور غير متطابقتين'
                                         : null,
                           ),
-                          const SizedBox(height: 18),
+                        const SizedBox(height: 18),
 
                           ElevatedButton(
                             onPressed:
                                 _submitting ? null : _handleSubmitWithTerms,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _primary,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
+  style: ElevatedButton.styleFrom(
+    backgroundColor: _primary,
+    foregroundColor: Colors.white,
+    padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                            ),
+  ),
                             child:
                                 _submitting
-                                    ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
+      ? const SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
                                         valueColor:
                                             AlwaysStoppedAnimation<Color>(
                                               Colors.white,
                                             ),
-                                      ),
-                                    )
-                                    : const Text('إنشاء'),
-                          ),
+          ),
+        )
+      : const Text('إنشاء'),
+),
 
-                          const SizedBox(height: 12),
-                          Center(
-                            child: TextButton(
-                              onPressed: () {
-                                Navigator.of(context).push(
+                        const SizedBox(height: 12),
+                        Center(
+                          child: TextButton(
+                            onPressed: () {
+                              Navigator.of(context).push(
                                   MaterialPageRoute(
                                     builder: (_) => const LoginScreen(),
                                   ),
-                                );
-                              },
-                              child: const Text('لديك تعاقد؟ تسجيل الدخول'),
-                            ),
+                              );
+                            },
+                            child: const Text('لديك تعاقد؟ تسجيل الدخول'),
                           ),
+                        ),
                         ],
                       ),
                     ),

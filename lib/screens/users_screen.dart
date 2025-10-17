@@ -50,8 +50,8 @@ class _UsersScreenState extends State<UsersScreen> {
             child: SizedBox(
               width: 380,
               child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
+          mainAxisSize: MainAxisSize.min,
+          children: [
                   TextFormField(
                     controller: _userName,
                     decoration: const InputDecoration(
@@ -64,7 +64,7 @@ class _UsersScreenState extends State<UsersScreen> {
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _phone,
-                    keyboardType: TextInputType.phone,
+              keyboardType: TextInputType.phone,
                     decoration: const InputDecoration(
                       labelText: 'رقم الهاتف',
                       border: OutlineInputBorder(),
@@ -75,7 +75,7 @@ class _UsersScreenState extends State<UsersScreen> {
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _password,
-                    obscureText: true,
+                obscureText: true,
                     decoration: const InputDecoration(
                       labelText: 'كلمة المرور',
                       border: OutlineInputBorder(),
@@ -86,13 +86,13 @@ class _UsersScreenState extends State<UsersScreen> {
                 ],
               ),
             ),
-          ),
-          actions: [
-            TextButton(
+        ),
+        actions: [
+          TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('إلغاء'),
-            ),
-            ElevatedButton(
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
               onPressed: _submitting
                   ? null
                   : () async {
@@ -108,16 +108,16 @@ class _UsersScreenState extends State<UsersScreen> {
                         };
                         if (isEdit) {
                           await FirebaseFirestore.instance.collection('users').doc(_editingUserId).update(payload);
-                        } else {
+                } else {
                           await FirebaseFirestore.instance.collection('users').add(payload);
                         }
                         if (mounted) Navigator.of(context).pop();
-                      } catch (e) {
+              } catch (e) {
                         if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
-                          );
-                        }
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
+                );
+              }
                       } finally {
                         if (mounted) setState(() => _submitting = false);
                       }
@@ -136,13 +136,13 @@ class _UsersScreenState extends State<UsersScreen> {
       textDirection: TextDirection.rtl,
       child: DefaultTabController(
         length: 2,
-        child: Scaffold(
+      child: Scaffold(
         appBar: AppBar(
           title: const Text(
             'المستخدمين',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
-          backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+          backgroundColor: const Color(0xFF673AB7),
           centerTitle: true,
           actions: [
             Builder(
@@ -167,8 +167,8 @@ class _UsersScreenState extends State<UsersScreen> {
         body: Column(
           children: [
             const TabBar(
-              indicatorColor: Color.fromARGB(255, 90, 138, 201),
-              labelColor: Color.fromARGB(255, 90, 138, 201),
+              indicatorColor: Color(0xFF673AB7),
+              labelColor: Color(0xFF673AB7),
               unselectedLabelColor: Colors.black,
               tabs: [
                 Tab(text: 'مستخدمي المعامل'),
@@ -207,60 +207,60 @@ class _UsersList extends StatelessWidget {
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: stream,
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Center(child: Text('خطأ: ${snapshot.error}'));
-        }
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final docs = snapshot.data?.docs ?? [];
-        if (docs.isEmpty) {
-          return const Center(child: Text('لا يوجد مستخدمين'));
-        }
-        return ListView.separated(
-          itemCount: docs.length,
-          padding: const EdgeInsets.all(16),
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
-          itemBuilder: (context, index) {
-            final doc = docs[index];
-            final userData = doc.data();
-            final userName = userData['userName']?.toString() ?? '';
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Center(child: Text('خطأ: ${snapshot.error}'));
+            }
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final docs = snapshot.data?.docs ?? [];
+            if (docs.isEmpty) {
+              return const Center(child: Text('لا يوجد مستخدمين'));
+            }
+            return ListView.separated(
+              itemCount: docs.length,
+              padding: const EdgeInsets.all(16),
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final doc = docs[index];
+                final userData = doc.data();
+                final userName = userData['userName']?.toString() ?? '';
             final labName = userData['labName']?.toString() ?? '';
-            final phone = userData['userPhone']?.toString() ?? '';
+                final phone = userData['userPhone']?.toString() ?? '';
 
-            return Card(
-              elevation: 2,
-              child: ListTile(
-                leading: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(
-                      color: const Color.fromARGB(255, 90, 138, 201),
-                      width: 2,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Center(
-                    child: Text(
-                      '${index + 1}',
-                      style: const TextStyle(
-                        color: Color.fromARGB(255, 90, 138, 201),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
+                return Card(
+                  elevation: 2,
+                  child: ListTile(
+                    leading: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(
+                      color: const Color(0xFF673AB7),
+                          width: 2,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '${index + 1}',
+                          style: const TextStyle(
+                        color: Color(0xFF673AB7),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-                title: Text(
-                  userName,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
+                    title: Text(
+                      userName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -288,12 +288,12 @@ class _UsersList extends StatelessWidget {
                         tooltip: 'تعديل',
                         icon: const Icon(Icons.edit, color: Colors.blue),
                         onPressed: () => onEdit!(doc),
-                      ),
-              ),
+                    ),
+                  ),
+                );
+              },
             );
           },
-        );
-      },
     );
   }
 }

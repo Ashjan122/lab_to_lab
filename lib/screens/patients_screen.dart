@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lab_to_lab_admin/screens/login_screen.dart';
-
+ 
 import 'package:lab_to_lab_admin/screens/order_request_screen.dart';
 
 class PatientsScreen extends StatefulWidget {
@@ -16,6 +16,7 @@ class _PatientsScreenState extends State<PatientsScreen> {
   final TextEditingController _searchController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
   String _searchQuery = '';
+  int _patientsCount = 0;
 
   @override
   void dispose() {
@@ -24,16 +25,16 @@ class _PatientsScreenState extends State<PatientsScreen> {
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> getPatientsStream() {
-    final col = FirebaseFirestore.instance
-        .collection('labToLap')
-        .doc('global')
-        .collection('patients');
+  final col = FirebaseFirestore.instance
+      .collection('labToLap')
+      .doc('global')
+      .collection('patients');
 
-    if (_searchQuery.isNotEmpty) {
-      // لو في بحث: رجّع كل المرضى بدون فلترة بالتاريخ
-      return col.orderBy('createdAt', descending: true).snapshots();
-    } else {
-      // لو مافي بحث: فلتر بالتاريخ
+  if (_searchQuery.isNotEmpty) {
+    // لو في بحث: رجّع كل المرضى بدون فلترة بالتاريخ
+    return col.orderBy('createdAt', descending: true).snapshots();
+  } else {
+    // لو مافي بحث: فلتر بالتاريخ
       final startOfDay = DateTime(
         _selectedDate.year,
         _selectedDate.month,
@@ -48,27 +49,102 @@ class _PatientsScreenState extends State<PatientsScreen> {
         59,
       );
 
-      return col
+    return col
           .where(
             'createdAt',
             isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay),
           )
-          .where('createdAt', isLessThanOrEqualTo: Timestamp.fromDate(endOfDay))
-          .orderBy('createdAt', descending: true)
-          .snapshots();
-    }
+        .where('createdAt', isLessThanOrEqualTo: Timestamp.fromDate(endOfDay))
+        .orderBy('createdAt', descending: true)
+        .snapshots();
   }
+}
 
   Future<String> _getLabName(String labId) async {
     try {
       final doc =
           await FirebaseFirestore.instance
-              .collection('labToLap')
-              .doc(labId)
-              .get();
+          .collection('labToLap')
+          .doc(labId)
+          .get();
       return doc.data()?['name']?.toString() ?? 'غير محدد';
     } catch (e) {
       return 'غير محدد';
+    }
+  }
+
+  Widget _buildProgressBar(Map<String, dynamic> data) {
+    final orderReceived = data['order_receieved'] == true;
+    final sampledDelivered = data['sample_delivered'] == true;
+    final pdfUrl = data['pdf_url']?.toString();
+    final hasPdf = pdfUrl != null && pdfUrl.isNotEmpty;
+
+    double progress = 0.0;
+    Color progressColor = Colors.grey;
+
+    if (orderReceived) {
+      progress = 0.3; // 30%
+      progressColor = Colors.green;
+    }
+
+    if (sampledDelivered) {
+      progress = 0.6; // 60%
+      progressColor = Colors.orange;
+    }
+
+    if (hasPdf) {
+      progress = 1.0; // 100%
+      progressColor = Colors.blue;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              _getProgressText(orderReceived, sampledDelivered, hasPdf),
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: progressColor,
+              ),
+            ),
+            Text(
+              '${(progress * 100).toInt()}%',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: progressColor,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        LinearProgressIndicator(
+          value: progress,
+          backgroundColor: Colors.grey[300],
+          valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+          minHeight: 4,
+        ),
+      ],
+    );
+  }
+
+  String _getProgressText(
+    bool orderReceived,
+    bool sampledDelivered,
+    bool hasPdf,
+  ) {
+    if (hasPdf) {
+      return 'اكتملت النتيجة';
+    } else if (sampledDelivered) {
+      return 'تم توصيل العينات';
+    } else if (orderReceived) {
+      return 'تم استلام الطلب';
+    } else {
+      return ' في انتظار المندوب';
     }
   }
 
@@ -85,7 +161,7 @@ class _PatientsScreenState extends State<PatientsScreen> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Color.fromARGB(255, 90, 138, 201),
+              primary: Color(0xFF673AB7),
               onPrimary: Colors.white,
               surface: Colors.white,
               onSurface: Colors.black,
@@ -103,96 +179,96 @@ class _PatientsScreenState extends State<PatientsScreen> {
   }
 
   void _showStatusDialog(BuildContext context, Map<String, dynamic> data) {
-    final bool received = data['order_receieved'] == true;
-    final String receivedBy = data['order_receieved_by_name'] ?? '';
-    final Timestamp? receivedAt = data['order_receieved_at'];
+  final bool received = data['order_receieved'] == true;
+  final String receivedBy = data['order_receieved_by_name'] ?? '';
+  final Timestamp? receivedAt = data['order_receieved_at'];
 
-    final bool delivered = data['sample_delivered'] == true;
-    final String? deliveredAtStr = data['delivered_at'];
-    DateTime? deliveredAt;
-    if (deliveredAtStr != null && deliveredAtStr.isNotEmpty) {
-      deliveredAt = DateTime.tryParse(deliveredAtStr);
-    }
+  final bool delivered = data['sample_delivered'] == true;
+  final String? deliveredAtStr = data['delivered_at'];
+  DateTime? deliveredAt;
+  if (deliveredAtStr != null && deliveredAtStr.isNotEmpty) {
+    deliveredAt = DateTime.tryParse(deliveredAtStr);
+  }
 
-    final String? pdfUrl = data['pdf_url'];
-    final bool resultCompleted = pdfUrl != null && pdfUrl.isNotEmpty;
-    final Timestamp? resultUpdatedAt = data['result_updated_at'];
+  final String? pdfUrl = data['pdf_url'];
+  final bool resultCompleted = pdfUrl != null && pdfUrl.isNotEmpty;
+  final Timestamp? resultUpdatedAt = data['result_updated_at'];
 
-    showDialog(
-      context: context,
+  showDialog(
+    context: context,
       builder:
           (_) => AlertDialog(
             title: const Text('تفاصيل حالة الطلب', textAlign: TextAlign.center),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (received)
-                  _buildStatusRow(
-                    title: 'تم الاستلام من قبل $receivedBy',
-                    time: _formatTimestamp(receivedAt),
-                  ),
-                if (delivered && deliveredAt != null)
-                  _buildStatusRow(
-                    title: 'تم توصيل العينة',
-                    time: _formatDateTime(deliveredAt),
-                  ),
-                if (resultCompleted && resultUpdatedAt != null)
-                  _buildStatusRow(
-                    title: 'اكتملت النتيجة',
-                    time: _formatTimestamp(resultUpdatedAt),
-                  ),
-                if (!received && !delivered && !resultCompleted)
-                  const Text('لا توجد معلومات عن حالة الطلب.'),
-              ],
-            ),
-            actions: [
-              TextButton(
-                child: const Text('إغلاق'),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
-          ),
-    );
-  }
-
-  Widget _buildStatusRow({required String title, required String time}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(time, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              title,
-              textAlign: TextAlign.right,
-              style: const TextStyle(fontSize: 14),
+          if (received)
+            _buildStatusRow(
+              title: 'تم الاستلام من قبل $receivedBy',
+              time: _formatTimestamp(receivedAt),
             ),
-          ),
-          const SizedBox(width: 8),
-          const Icon(Icons.check_circle, color: Colors.green),
+          if (delivered && deliveredAt != null)
+            _buildStatusRow(
+              title: 'تم توصيل العينة',
+              time: _formatDateTime(deliveredAt),
+            ),
+          if (resultCompleted && resultUpdatedAt != null)
+            _buildStatusRow(
+              title: 'اكتملت النتيجة',
+              time: _formatTimestamp(resultUpdatedAt),
+            ),
+          if (!received && !delivered && !resultCompleted)
+            const Text('لا توجد معلومات عن حالة الطلب.'),
         ],
       ),
-    );
-  }
+      actions: [
+        TextButton(
+          child: const Text('إغلاق'),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ],
+    ),
+  );
+}
 
-  // لتحويل Timestamp إلى نص
-  String _formatTimestamp(Timestamp? timestamp) {
-    if (timestamp == null) return '';
-    final date = timestamp.toDate();
-    return '${_twoDigits(date.day)}/${_twoDigits(date.month)}/${date.year} - ${_twoDigits(date.hour)}:${_twoDigits(date.minute)}';
-  }
+Widget _buildStatusRow({required String title, required String time}) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 12.0),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+          Text(time, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            title,
+              textAlign: TextAlign.right,
+            style: const TextStyle(fontSize: 14),
+          ),
+        ),
+        const SizedBox(width: 8),
+        const Icon(Icons.check_circle, color: Colors.green),
+      ],
+    ),
+  );
+}
 
-  // لتحويل DateTime إلى نص
-  String _formatDateTime(DateTime? dateTime) {
-    if (dateTime == null) return '';
-    return '${_twoDigits(dateTime.day)}/${_twoDigits(dateTime.month)}/${dateTime.year} - ${_twoDigits(dateTime.hour)}:${_twoDigits(dateTime.minute)}';
-  }
+// لتحويل Timestamp إلى نص
+String _formatTimestamp(Timestamp? timestamp) {
+  if (timestamp == null) return '';
+  final date = timestamp.toDate();
+  return '${_twoDigits(date.day)}/${_twoDigits(date.month)}/${date.year} - ${_twoDigits(date.hour)}:${_twoDigits(date.minute)}';
+}
 
-  // دالة مساعدة لتنسيق الأرقام: 1 => 01
-  String _twoDigits(int n) => n.toString().padLeft(2, '0');
+// لتحويل DateTime إلى نص
+String _formatDateTime(DateTime? dateTime) {
+  if (dateTime == null) return '';
+  return '${_twoDigits(dateTime.day)}/${_twoDigits(dateTime.month)}/${dateTime.year} - ${_twoDigits(dateTime.hour)}:${_twoDigits(dateTime.minute)}';
+}
+
+// دالة مساعدة لتنسيق الأرقام: 1 => 01
+String _twoDigits(int n) => n.toString().padLeft(2, '0');
 
   Future<bool> _isDeliveryUser() async {
     try {
@@ -212,10 +288,9 @@ class _PatientsScreenState extends State<PatientsScreen> {
       (route) => false,
     );
   }
-
+  
   @override
   Widget build(BuildContext context) {
-
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
@@ -224,14 +299,14 @@ class _PatientsScreenState extends State<PatientsScreen> {
             'المرضى',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
-          backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+          backgroundColor: const Color(0xFF673AB7),
           centerTitle: true,
           leading: IconButton(
-            icon: const Icon(Icons.calendar_today, color: Colors.white),
-            onPressed: _selectDate,
-            tooltip: 'اختيار التاريخ',
-          ),
-          actions: [
+              icon: const Icon(Icons.calendar_today, color: Colors.white),
+              onPressed: _selectDate,
+              tooltip: 'اختيار التاريخ',
+            ),
+            actions: [
             FutureBuilder<bool>(
               future: _isDeliveryUser(),
               builder: (context, snapshot) {
@@ -244,14 +319,14 @@ class _PatientsScreenState extends State<PatientsScreen> {
                   );
                 }
                 return IconButton(
-                  icon: const Icon(Icons.arrow_forward, color: Colors.white),
-                  onPressed: () {
+                     icon: const Icon(Icons.arrow_forward, color: Colors.white),
+                     onPressed: () {
                     Navigator.of(context).pop();
                   },
                 );
-              },
-            ),
-          ],
+                      },
+                 ),
+            ],
         ),
         body: Column(
           children: [
@@ -280,19 +355,44 @@ class _PatientsScreenState extends State<PatientsScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+      Row(
                 children: [
                   const Icon(Icons.calendar_today, color: Colors.grey),
                   const SizedBox(width: 8),
                   Text(
                     'التاريخ: ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey,
-                    ),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.grey,
+            ),
+          ),
+        ],
+      ),
+      StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: getPatientsStream(),
+        builder: (context, snapshot) {
+          final docs = snapshot.data?.docs ?? [];
+
+          final filteredCount = docs.where((doc) {
+            final name = doc.data()['name']?.toString().toLowerCase() ?? '';
+            return name.contains(_searchQuery);
+          }).length;
+
+          return Text(
+            'عدد المرضى: $filteredCount',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.grey,
+            ),
+          );
+        },
                   ),
                 ],
               ),
             ),
+
             const SizedBox(height: 8),
             // Patients list
             Expanded(
@@ -302,22 +402,22 @@ class _PatientsScreenState extends State<PatientsScreen> {
                   if (snapshot.hasError) {
                     return Center(child: Text('خطأ: ${snapshot.error}'));
                   }
-
+                  
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
-
+                  
                   final docs = snapshot.data?.docs ?? [];
-
+                  
                   // Filter by search query
                   final filteredDocs =
                       docs.where((doc) {
-                        final data = doc.data();
+                    final data = doc.data();
                         final patientName =
                             data['name']?.toString().toLowerCase() ?? '';
-                        return patientName.contains(_searchQuery);
-                      }).toList();
-
+                    return patientName.contains(_searchQuery);
+                  }).toList();
+                  
                   if (filteredDocs.isEmpty) {
                     return Center(
                       child: Text(
@@ -340,125 +440,232 @@ class _PatientsScreenState extends State<PatientsScreen> {
                       final labId = data['labId']?.toString() ?? '';
                       final patientDocId = doc.id;
                       final bool received = (data['order_receieved'] == true);
-                      final String status = data['status']?.toString() ?? 'pending';
+                      final String status =
+                          data['status']?.toString() ?? 'pending';
                       final bool isCancelled = status == 'cancelled';
 
-                      return Card(
-                        elevation: 2,
-                        color: isCancelled ? Colors.red.withOpacity(0.1) : Colors.white,
-                        child: FutureBuilder<String>(
-                          future: _getLabName(labId),
-                          builder: (context, labSnapshot) {
-                            final labName =
-                                labSnapshot.data ?? 'جاري التحميل...';
+                      return FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                        future:
+                            FirebaseFirestore.instance
+                                .collection('labToLap')
+                                .doc('global')
+                                .collection('patients')
+                                .doc(patientDocId)
+                                .collection('lab_request')
+                                .get(),
+                        builder: (context, testsSnap) {
+                          final testsDocs = testsSnap.data?.docs ?? const [];
+                          final int testsCount = testsDocs.length;
+                          num totalAmount = 0;
+                          for (final t in testsDocs) {
+                            final p = t.data()['price'];
+                            if (p is num) {
+                              totalAmount += p;
+                            } else {
+                              final n = num.tryParse('${p ?? ''}');
+                              if (n != null) totalAmount += n;
+                            }
+                          }
 
-                            return ListTile(
-                              leading: IntrinsicWidth(
-                                child: Container(
-                                  constraints: const BoxConstraints(
-                                    minWidth: 0,
-                                    minHeight: 28,
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: isCancelled
-                                        ? Colors.red.withOpacity(0.2)
-                                        : received
-                                            ? Colors.green
-                                            : Colors.white,
-                                    border: Border.all(
-                                      color: isCancelled
-                                          ? Colors.red
-                                          : received
-                                              ? Colors.green
-                                              : const Color.fromARGB(
-                                                255,
-                                                90,
-                                                138,
-                                                201,
-                                              ),
-                                      width: 2,
-                                    ),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      patientId,
-                                      style: TextStyle(
-                                        color: isCancelled
-                                            ? Colors.red
-                                            : received
-                                                ? Colors.white
-                                                : const Color.fromARGB(
-                                                  255,
-                                                  90,
-                                                  138,
-                                                  201,
-                                                ),
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              title: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      patientName,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                        color: Colors.black,
-                                      ),
-                                    ),
-                                  ),
-                                  if (isCancelled)
-                                    Text(
-                                      '(ملغي)',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              subtitle: Text(
-                                labName,
-                                style: const TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              onTap:
-                                  labSnapshot.hasData
-                                      ? () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder:
-                                                (context) => OrderRequestScreen(
-                                                  labId:
-                                                      labId.isNotEmpty
-                                                          ? labId
-                                                          : 'global',
-                                                  labName: labName,
-                                                  patientDocId: patientDocId,
-                                                ),
+                          return Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Card(
+                        elevation: 2,
+                                child: FutureBuilder<String>(
+  future: _getLabName(labId),
+  builder: (context, labSnapshot) {
+                                    final labName =
+                                        labSnapshot.data ?? 'جاري التحميل...';
+
+    return ListTile(
+      leading: IntrinsicWidth(
+        child: Container(
+                                          constraints: const BoxConstraints(
+                                            minWidth: 0,
+                                            minHeight: 28,
                                           ),
-                                        );
-                                      }
-                                      : null, // امنع التنقل إذا labName لم يتم تحميله بعد
-                              onLongPress: () {
-                                _showStatusDialog(context, data);
-                              },
-                            );
-                          },
-                        ),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                          ),
+          decoration: BoxDecoration(
+                                            color:
+                                                isCancelled
+                                                    ? Colors.red.withOpacity(
+                                                      0.2,
+                                                    )
+                                                    : received
+                                                    ? Colors.green
+                                                    : Colors.white,
+            border: Border.all(
+                                              color:
+                                                  isCancelled
+                                                      ? Colors.red
+                                                      : received
+                                                      ? Colors.green
+                                                      : const Color(0xFF673AB7),
+              width: 2,
+            ),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+          ),
+          child: Center(
+            child: Text(
+              patientId,
+              style: TextStyle(
+                                                color:
+                                                    isCancelled
+                                                        ? Colors.red
+                                                        : received
+                                                        ? Colors.white
+                                                        : const Color(
+                                                          0xFF673AB7,
+                                                        ),
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ),
+      ),
+                                      title: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+        patientName,
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
+                                                color: Colors.black,
+                                              ),
+                                            ),
+                                          ),
+                                          if (isCancelled)
+                                            Text(
+                                              '(ملغي)',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14,
+                                                color: Colors.grey[600],
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      subtitle: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+        labName,
+        style: const TextStyle(
+          color: Colors.grey,
+          fontSize: 14,
+        ),
+      ),
+                                          _buildProgressBar(data),
+                                        ],
+                                      ),
+                                      trailing:
+                                          testsSnap.connectionState ==
+                                                  ConnectionState.waiting
+                                              ? const SizedBox(
+                                                height: 20,
+                                                width: 20,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                    ),
+                                              )
+                                              : Column(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.end,
+                                                children: [
+                                                  const Text(
+                                                    'المبلغ',
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      color: Colors.grey,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    totalAmount.toStringAsFixed(
+                                                      0,
+                                                    ),
+                                                    style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: 10,
+                                                      color: Colors.black,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                      onTap:
+                                          labSnapshot.hasData
+          ? () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                                                    builder:
+                                                        (
+                                                          context,
+                                                        ) => OrderRequestScreen(
+                                                          labId:
+                                                              labId.isNotEmpty
+                                                                  ? labId
+                                                                  : 'global',
+                    labName: labName,
+                                                          patientDocId:
+                                                              patientDocId,
+                  ),
+                ),
+              );
+            }
+          : null, // امنع التنقل إذا labName لم يتم تحميله بعد
+      onLongPress: () {
+        _showStatusDialog(context, data);
+      },
+    );
+  },
+                                ),
+                              ),
+                              // Badge for tests count (top-left)
+                              if (testsSnap.connectionState !=
+                                   ConnectionState.waiting)
+                                Positioned(
+                                  top: 4,
+                                  left: 4,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF673AB7),
+                                      borderRadius: BorderRadius.circular(12),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.1),
+                                          blurRadius: 4,
+                                        ),
+                                      ],
+                                    ),
+                                    child: Text(
+                                      testsCount.toString(),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          );
+                        },
                       );
                     },
                   );

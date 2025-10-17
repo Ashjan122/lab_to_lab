@@ -10,6 +10,7 @@ import 'package:lab_to_lab_admin/screens/control_panal_screen.dart';
 import 'package:lab_to_lab_admin/screens/lab_to_lab.dart';
 import 'package:lab_to_lab_admin/screens/lab_results_patients_screen.dart';
 import 'package:lab_to_lab_admin/screens/patients_screen.dart';
+import 'package:lab_to_lab_admin/screens/order_request_screen.dart';
 import 'firebase_options.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -17,7 +18,8 @@ final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey = GlobalKey<Sca
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
 const AndroidNotificationChannel _defaultChannel = AndroidNotificationChannel(
-  'high_importance_channel',
+  // Changed ID to force-create channel with custom sound
+  'high_importance_channel_v2',
   'إشعارات مهمة',
   description: 'قناة لإشعارات ذات أولوية عالية',
   importance: Importance.max,
@@ -84,13 +86,38 @@ Future<void> _initMessaging() async {
   // Create channel on Android
   await _localNotifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.createNotificationChannel(_defaultChannel);
 
+  // Subscribe control users to chat topic
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    if ((prefs.getString('userType') ?? '') == 'controlUser') {
+      await FirebaseMessaging.instance.subscribeToTopic('control_chat');
+      print('✅ Subscribed to control_chat topic');
+    }
+  } catch (e) {
+    print('⚠️ Failed to subscribe to topic: $e');
+  }
+
   // Foreground messages
   FirebaseMessaging.onMessage.listen((RemoteMessage message) {
     final title = message.notification?.title ?? 'إشعار';
     final body = message.notification?.body ?? '';
     print('🔔 Received foreground message: $title - $body');
     print('📊 Message data: ${message.data}');
-    
+    // Build a URL-style payload query from message.data for tap handling
+    String? payload;
+    if (message.data.isNotEmpty) {
+      try {
+        final entries = message.data.entries
+            .where((e) => e.key.isNotEmpty && e.value != null)
+            .map((e) =>
+                '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value.toString())}')
+            .toList();
+        payload = entries.join('&');
+      } catch (e) {
+        print('❌ Failed to serialize payload: $e');
+      }
+    }
+
     _localNotifications.show(
       message.hashCode,
       title,
@@ -112,7 +139,7 @@ Future<void> _initMessaging() async {
           ),
         ),
       ),
-      payload: message.data.isNotEmpty ? message.data.toString() : null,
+      payload: payload,
     );
   });
 
@@ -153,6 +180,10 @@ void _onNotificationTapped(NotificationResponse response) {
 // Handle navigation based on notification data
 void _handleNotificationNavigation(Map<String, dynamic> data) {
   final String? topic = data['topic'];
+  final String? action = data['action'];
+  final String? patientDocId = data['patientDocId'];
+  final String? chatMessage = data['message'];
+  final String? senderLabName = data['labName'];
   final String? labId = data['labId'];
   final String? labName = data['labName'];
   
@@ -164,6 +195,27 @@ void _handleNotificationNavigation(Map<String, dynamic> data) {
   }
   
   // Navigate based on topic
+  // Prefer explicit action when provided
+  if (action == 'open_order_request' && patientDocId != null) {
+    // افتح صفحة الطلب الخاصة بالمريض المحدد
+    print('📱 Action open_order_request -> navigating to OrderRequestScreen for patient: $patientDocId');
+    _navigateToScreen('/order_request', {
+      'patientDocId': patientDocId,
+      'labId': labId ?? '',
+      'labName': labName ?? '',
+    });
+    return;
+  } else if (action == 'open_patients') {
+    print('📱 Action open_patients -> navigating to patients screen');
+    _navigateToScreen('/patients');
+    return;
+  } else if (action == 'open_control_panel') {
+    // فتح لوحة التحكم، يمكن لاحقاً التوجيه لتبويب الدردشة
+    print('📱 Action open_control_panel -> navigating to control panel');
+    _navigateToScreen('/control_panel');
+    return;
+  }
+
   switch (topic) {
     case 'new_patient':
     case 'lab_order':
@@ -188,6 +240,10 @@ void _handleNotificationNavigation(Map<String, dynamic> data) {
       // Navigate to lab to lab screen
       print('📱 Navigating to lab to lab screen');
       _navigateToScreen('/control_panel/labs');
+      break;
+    case 'control_chat':
+      print('📱 Navigating to control panel (chat)');
+      _navigateToScreen('/control_panel');
       break;
     default:
       print('❌ Unknown topic: $topic');
@@ -262,6 +318,14 @@ class MyApp extends StatelessWidget {
             '/control_panel': (_) => const ControlPanalScreen(),
             '/control_panel/labs': (_) => const LabToLab(),
             '/patients': (_) => const PatientsScreen(),
+            '/order_request': (context) {
+              final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+              return OrderRequestScreen(
+                labId: (args?['labId'] as String?) ?? 'global',
+                labName: (args?['labName'] as String?) ?? 'المعمل',
+                patientDocId: (args?['patientDocId'] as String?) ?? '',
+              );
+            },
             '/lab_results_patients': (context) {
               final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
               return LabResultsPatientsScreen(

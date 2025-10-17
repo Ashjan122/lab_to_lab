@@ -175,7 +175,7 @@ class _ClaimScreenState extends State<ClaimScreen> {
                         Theme(
                           data: Theme.of(context).copyWith(
                             colorScheme: Theme.of(context).colorScheme.copyWith(
-                              primary: const Color.fromARGB(255, 90, 138, 201),
+                              primary: const Color(0xFF673AB7),
                               onPrimary: Colors.white,
                             ),
                           ),
@@ -251,12 +251,7 @@ class _ClaimScreenState extends State<ClaimScreen> {
                     ),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color.fromARGB(
-                          255,
-                          90,
-                          138,
-                          201,
-                        ),
+                        backgroundColor: const Color(0xFF673AB7),
                         foregroundColor: Colors.white,
                       ),
                       onPressed: () {
@@ -309,7 +304,7 @@ class _ClaimScreenState extends State<ClaimScreen> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+          backgroundColor: const Color(0xFF673AB7),
           centerTitle: true,
           leading:
               _showDetails
@@ -365,7 +360,7 @@ class _ClaimScreenState extends State<ClaimScreen> {
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color.fromARGB(255, 90, 138, 201),
+                  color: Color(0xFF673AB7),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -392,7 +387,7 @@ class _ClaimScreenState extends State<ClaimScreen> {
                     Container(
                       width: 200,
                       height: 2,
-                      color: const Color.fromARGB(255, 90, 138, 201),
+                      color: const Color(0xFF673AB7),
                     ),
                   ],
                 ),
@@ -420,7 +415,7 @@ class _ClaimScreenState extends State<ClaimScreen> {
                   });
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color.fromARGB(255, 90, 138, 201),
+                  backgroundColor: Color(0xFF673AB7),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
