@@ -130,7 +130,21 @@ class _LabOrderReceivedNotificationsScreenState
           backgroundColor: const Color(0xFF673AB7),
           centerTitle: true,
         ),
-        body: SafeArea(
+        body:Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.grey.shade200,
+                  const Color(0xFF673AB7).withOpacity(0.2),
+                  const Color(0xFF673AB7).withOpacity(0.35),
+                ],
+              ),
+            ),
+            width: double.infinity,
+            height: double.infinity,
+            child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -200,7 +214,7 @@ class _LabOrderReceivedNotificationsScreenState
             ),
           ),
         ),
-      ),
+      ),),
     );
   }
 }

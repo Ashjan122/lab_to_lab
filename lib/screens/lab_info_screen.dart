@@ -358,7 +358,21 @@ class _LabInfoScreenState extends State<LabInfoScreen>
                     ),
                   ],
         ),
-        body:
+        body:Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.grey.shade200,
+                  const Color(0xFF673AB7).withOpacity(0.2),
+                  const Color(0xFF673AB7).withOpacity(0.35),
+                ],
+              ),
+            ),
+            width: double.infinity,
+            height: double.infinity,
+            child:
             _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _labData == null
@@ -366,7 +380,7 @@ class _LabInfoScreenState extends State<LabInfoScreen>
                 : _isEditing
                 ? _buildEditView()
                 : _buildViewMode(),
-      ),
+      ),),
     );
   }
 
@@ -457,7 +471,7 @@ class _LabInfoScreenState extends State<LabInfoScreen>
             child: ListView.separated(
               physics: const BouncingScrollPhysics(),
               itemCount: _getInfoItems().length,
-              separatorBuilder: (_, __) => const Divider(height: 8),
+              separatorBuilder: (_, __) => const Divider(height: 8, color: Colors.black,),
               itemBuilder: (context, i) {
                 final item = _getInfoItems()[i];
                 return _buildInfoRow(
@@ -644,7 +658,24 @@ class _LabInfoScreenState extends State<LabInfoScreen>
         'onTap': null,
         'isClickable': false,
       });
+      
     }
+     // Contract Type (NEW)
+  if (_labData!['contractType'] != null) {
+    String type = _labData!['contractType'];
+    String contractText = type == 'prepaid'
+        ? 'Prepaid '
+        : type == 'postpaid'
+            ? 'Postpaid'
+            : type; // fallback if value is unknown
+            items.add({
+      'icon': Icons.assignment, // choose icon that suits
+      'title': 'نوع التعاقد',
+      'content': contractText,
+      'onTap': null,
+      'isClickable': false,
+    });
+  }
 
     return items;
   }

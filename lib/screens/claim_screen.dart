@@ -326,10 +326,24 @@ class _ClaimScreenState extends State<ClaimScreen> {
             ),
           ],
         ),
-        body: SafeArea(
+        body:Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.grey.shade200,
+                  const Color(0xFF673AB7).withOpacity(0.2),
+                  const Color(0xFF673AB7).withOpacity(0.35),
+                ],
+              ),
+            ),
+            width: double.infinity,
+            height: double.infinity,
+            child: SafeArea(
           child: _showDetails ? _buildPatientsList() : _buildSummaryView(),
         ),
-      ),
+      ),),
     );
   }
 

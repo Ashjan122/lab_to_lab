@@ -354,6 +354,98 @@ Future<void> _pickAndUploadProfileImage() async {
       },
     );
   }
+  void _showEditProfileDialog() {
+  final TextEditingController nameController = TextEditingController(text: _userName ?? '');
+  final TextEditingController passwordController = TextEditingController();
+
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text('الملف الشخصي'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // حقل الاسم
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: 'اسم المستخدم'),
+              ),
+              const SizedBox(height: 10),
+
+              // حقل تغيير كلمة المرور
+              TextField(
+                controller: passwordController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'تغيير كلمة المرور',
+                  hintText: 'اتركه فارغ إذا لا تريد التغيير',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newName = nameController.text.trim();
+              final newPassword = passwordController.text.trim();
+
+              if (_controlUserId == null) return;
+
+              final updates = <String, dynamic>{};
+
+              if (newName.isNotEmpty) {
+                updates['userName'] = newName;
+              }
+
+              if (newPassword.isNotEmpty) {
+                updates['userPassword'] = newPassword;
+              }
+
+              if (updates.isNotEmpty) {
+                try {
+                  await FirebaseFirestore.instance
+                      .collection('controlUsers')
+                      .doc(_controlUserId)
+                      .update(updates);
+
+                  final prefs = await SharedPreferences.getInstance();
+                  if (newName.isNotEmpty) {
+                    await prefs.setString('userName', newName);
+                  }
+
+                  setState(() {
+                    if (newName.isNotEmpty) _userName = newName;
+                  });
+
+                  Navigator.of(context).pop();
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('تم حفظ التعديلات بنجاح')),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('فشل في التحديث: $e')),
+                  );
+                }
+              } else {
+                Navigator.of(context).pop(); // لم يتم تغيير شيء
+              }
+            },
+            child: const Text('حفظ'),
+          ),
+        ],
+      );
+    },
+  );
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -397,54 +489,97 @@ Future<void> _pickAndUploadProfileImage() async {
         ],
       ),
       drawer: Drawer(
-        child: SafeArea(
+  child: SafeArea(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // ✅ رأس الدروار بصورة واسم المستخدم
+        Container(
+          color: const Color(0xFF673AB7),
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               GestureDetector(
                 onTap: _pickAndUploadProfileImage,
-                child: UserAccountsDrawerHeader(
-                  decoration: const BoxDecoration(color: Color.fromARGB(255, 240, 238, 238)),
-                  accountName: Text(
-                    (_userName ?? 'المستخدم'),
-                    style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-                  ),
-                  accountEmail: const Text('', style: TextStyle(color: Colors.white70)),
-                  currentAccountPicture: CircleAvatar(
-                    backgroundColor: Colors.white,
-                    backgroundImage: (_profileImageUrl != null && _profileImageUrl!.isNotEmpty)
-                        ? NetworkImage(_profileImageUrl!)
-                        : null,
-                    child: (_profileImageUrl == null || _profileImageUrl!.isEmpty)
-                        ? const Icon(Icons.person, color: Color(0xFF673AB7), size: 28)
-                        : null,
-                  ),
+                child: CircleAvatar(
+                  radius: 45, // حجم أكبر
+                  backgroundColor: Colors.white,
+                  backgroundImage: (_profileImageUrl != null && _profileImageUrl!.isNotEmpty)
+                      ? NetworkImage(_profileImageUrl!)
+                      : null,
+                  child: (_profileImageUrl == null || _profileImageUrl!.isEmpty)
+                      ? const Icon(Icons.person, color: Color(0xFF673AB7), size: 40)
+                      : null,
                 ),
               ),
-              
-              const Spacer(),
-              ListTile(
-                leading: const Icon(Icons.logout, color: Colors.red),
-                title: const Text('تسجيل الخروج', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-                onTap: () async {
-                  final prefs = await SharedPreferences.getInstance();
-                  await prefs.setBool('isLoggedIn', false);
-                  await prefs.remove('userType');
-                  await prefs.remove('lab_id');
-                  await prefs.remove('labName');
-                  await prefs.remove('fromControlPanel');
-                  if (context.mounted) {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
-                      (route) => false,
-                    );
-                  }
-                },
+              const SizedBox(height: 12),
+              Text(
+                _userName ?? 'المستخدم',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
             ],
           ),
         ),
-      ),
+        // ✅ زر الملف الشخصي
+ListTile(
+  leading: const Icon(Icons.person, color: Color(0xFF673AB7)),
+  title: const Text('الملف الشخصي'),
+  onTap: () {
+    Navigator.pop(context); // يغلق الدروار
+    _showEditProfileDialog(); // يظهر الديالوق
+  },
+),
+
+
+        // 🟪 باقي العناصر هنا (لو فيه أي عناصر إضافية قبل تسجيل الخروج)
+
+        const Spacer(),
+
+        // ✅ زر تسجيل الخروج داخل إطار
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12),
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.red, width: 2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text(
+                'تسجيل الخروج',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              onTap: () async {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setBool('isLoggedIn', false);
+                await prefs.remove('userType');
+                await prefs.remove('lab_id');
+                await prefs.remove('labName');
+                await prefs.remove('fromControlPanel');
+                if (context.mounted) {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    (route) => false,
+                  );
+                }
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 24), // هامش سفلي بسيط
+      ],
+    ),
+  ),
+),
+
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(

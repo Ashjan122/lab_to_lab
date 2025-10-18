@@ -204,7 +204,7 @@ class _ControlSamplesScreenState extends State<ControlSamplesScreen> {
                                                               patientName,
                                                               textAlign: TextAlign.right,
                                                               style: const TextStyle(
-                                                                fontWeight: FontWeight.bold,
+                                                                fontWeight: FontWeight.w500,
                                                                 fontSize: 16,
                                                               ),
                                                             ),

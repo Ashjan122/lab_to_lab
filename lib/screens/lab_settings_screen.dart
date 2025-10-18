@@ -146,20 +146,7 @@ class LabSettingsScreen extends StatelessWidget {
                     );
                   },
                 ),
-                _buildCardSettings(
-                  icon: Icons.notifications,
-                  title: 'الإشعارات ',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder:
-                            (context) =>
-                                const LabOrderReceivedNotificationsScreen(),
-                      ),
-                    );
-                  },
-                ),
+               
                 _buildCardSettings(
                   icon: Icons.location_on,
                   title: "الموقع",

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:lab_to_lab_admin/screens/lab_select_tests_screen.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+import 'package:lab_to_lab_admin/screens/Success_request_screen.dart';
 import 'package:http/http.dart' as http;
 // removed containers_screen import; containers shown inline
 
@@ -11,11 +12,13 @@ class LabPatientResultDetailScreen extends StatefulWidget {
    final String labId;
   final String labName;
   final String patientDocId;
+  final bool fromSelection;
   const LabPatientResultDetailScreen({
     super.key,
     required this.labId,
     required this.labName,
     required this.patientDocId,
+    this.fromSelection = false,
   });
 
   @override
@@ -822,43 +825,65 @@ class _LabPatientResultDetailScreenState
                         const SizedBox(height: 8),
                         SizedBox(
                           width: double.infinity,
-                          child: ElevatedButton(
-                                onPressed:
-                                    pdfUrl.isNotEmpty
-                                        ? () {
-                              _openPdf(context, pdfUrl, data);
-                                        }
-                                        : null,
+                          child: widget.fromSelection
+                              ? ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => SuccessRequestScreen(
+                                          labId: widget.labId,
+                                          labName: widget.labName,
+                                          patientDocId: widget.patientDocId,
+                                        ),
+                                      ),
+                                    );
+                                  },
                             style: ElevatedButton.styleFrom(
-                                  backgroundColor:
-                                      pdfUrl.isNotEmpty
-                                          ? Colors.white
-                                          : Colors.grey[300],
-                                  foregroundColor:
-                                      pdfUrl.isNotEmpty
-                                          ? Colors.black
-                                          : Colors.grey[600],
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 14,
-                                  ),
+                                    backgroundColor: Colors.white,
+                                    foregroundColor: Colors.black,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
                                 side: BorderSide(
-                                      color:
-                                          pdfUrl.isNotEmpty
-                                              ? const Color(0xFF673AB7)
-                                              : Colors.grey[400]!,
+                                        color: Color(0xFF673AB7),
+                                      )
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'متابعة',
+                                    style: TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                )
+                              : ElevatedButton(
+                                  onPressed: pdfUrl.isNotEmpty
+                                      ? () {
+                                          _openPdf(context, pdfUrl, data);
+                                        }
+                                      : null,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor:
+                                        pdfUrl.isNotEmpty ? Colors.white : Colors.grey[300],
+                                    foregroundColor:
+                                        pdfUrl.isNotEmpty ? Colors.black : Colors.grey[600],
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 14,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      side: BorderSide(
+                                        color: pdfUrl.isNotEmpty
+                                            ? const Color(0xFF673AB7)
+                                            : Colors.grey[400]!,
                                   width: 2,
                                 ),
                               ),
                             ),
                             child: Text(
-                                  pdfUrl.isNotEmpty
-                                      ? 'عرض النتيجة PDF'
-                                      : 'لا يوجد نتيجة حاليا',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                              pdfUrl.isNotEmpty ? 'عرض النتيجة PDF' : 'لا يوجد نتيجة حاليا',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
                             ),
                           ),
                         ),
@@ -965,12 +990,12 @@ class _PdfViewerScreen extends StatelessWidget {
     try {
       // Send the PDF file itself using UltraMsg document API
       final uri = Uri.parse(
-        'https://api.ultramsg.com/instance140877/messages/document',
+        'https://api.ultramsg.com/instance145504/messages/document',
       );
       final request = http.Request('POST', uri);
       request.headers['Content-Type'] = 'application/x-www-form-urlencoded';
       request.bodyFields = {
-        'token': 'df2r46jz82otkegg',
+        'token': 'mh3flw9ka6wm8dkw',
         'to': toChatId, // e.g. 249XXXXXXXXX@c.us
         'document': pdfUrl, // direct URL to the PDF
         'filename': 'lab_result.pdf',

@@ -290,11 +290,16 @@ class MyApp extends StatelessWidget {
         final prefs = snap.data!;
         final bool isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
         final bool hasContract = prefs.getBool('hasContract') ?? false;
+        final String? userType = prefs.getString('userType');
         final String? labId = prefs.getString('lab_id');
         final String? labName = prefs.getString('labName');
 
         Widget home;
-        if (isLoggedIn && labId != null && labName != null) {
+        if (isLoggedIn && userType == 'controlUser') {
+          // كنترول - يذهب مباشرة للوحة التحكم
+          home = const ControlPanalScreen();
+        } else if (isLoggedIn && labId != null && labName != null) {
+          // معمل - يذهب للوحة المعمل
           home = LabDashboardScreen(labId: labId, labName: labName);
         } else if (hasContract) {
           home = const LoginScreen();

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:lab_to_lab_admin/screens/lab_patient_result_detail_screen.dart';
+import 'package:http/http.dart' as http;
 
 class LabSelectTestsScreen extends StatefulWidget {
   final String labId;
@@ -172,14 +173,16 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
         // Send notification only if not skipping
         if (!widget.skipNotification) {
           try {
-            // Fetch patient name
+            // Fetch patient name and data
             final pSnap = await FirebaseFirestore.instance
                 .collection('labToLap')
                 .doc('global')
                 .collection('patients')
                 .doc(widget.patientId)
                 .get();
-            final patientName = pSnap.data()?['name']?.toString() ?? 'مريض';
+            final patientData = pSnap.data() ?? {};
+            final patientName = patientData['name']?.toString() ?? 'مريض';
+            final patientCode = patientData['id']?.toString() ?? widget.patientId;
 
             // Aggregate test names and total price for notification
             final List<String> testNames = [];
@@ -192,6 +195,50 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
               final priceNum = (priceDyn is num) ? priceDyn : (num.tryParse('$priceDyn') ?? 0);
               if (name.isNotEmpty) testNames.add(name);
               totalPrice += priceNum;
+            }
+
+            // Get lab WhatsApp number and bank account
+            final labSnap = await FirebaseFirestore.instance
+                .collection('labToLap')
+                .doc(widget.labId)
+                .get();
+            final labData = labSnap.data() ?? {};
+            String whatsappNumber = labData['whatsApp']?.toString() ?? '';
+            
+            print('Raw lab data: $labData');
+            print('WhatsApp field value: ${labData['whatsApp']}');
+            
+            // If no WhatsApp number, set a default one for testing
+            if (whatsappNumber.isEmpty) {
+              whatsappNumber = '249912345678'; // رقم افتراضي للاختبار
+              print('No WhatsApp number found, using default: $whatsappNumber');
+            }
+            
+            // Get or set default bank account
+            String bankAccount = labData['bankAccount']?.toString() ?? '123456';
+            if (!labSnap.exists || labData['bankAccount'] == null) {
+              // Set default bank account if not exists
+              await FirebaseFirestore.instance
+                  .collection('labToLap')
+                  .doc(widget.labId)
+                  .set({
+                'bankAccount': '123456',
+              }, SetOptions(merge: true));
+            }
+
+            // Send WhatsApp message
+            print('WhatsApp number found: $whatsappNumber');
+            if (whatsappNumber.isNotEmpty) {
+              print('Attempting to send WhatsApp message...');
+              await _sendWhatsAppMessage(
+                whatsappNumber,
+                patientName,
+                patientCode,
+                totalPrice.toStringAsFixed(0),
+                bankAccount,
+              );
+            } else {
+              print('No WhatsApp number found for lab: ${widget.labId}');
             }
 
             final String lab = (widget.labName).trim();
@@ -216,13 +263,6 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
           }
         }
 
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('تمت إضافة ${newSelectedIds.length} فحص جديد'),
-            backgroundColor: Colors.green,
-          ),
-        );
       } else {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -242,6 +282,7 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
                 labId: widget.labId,
                 labName: widget.labName,
                 patientDocId: widget.patientId,
+                fromSelection: true,
               ),
         ),
       );
@@ -256,6 +297,60 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
     }
   }
 
+  Future<void> _sendWhatsAppMessage(
+    String whatsappNumber,
+    String patientName,
+    String patientCode,
+    String totalPrice,
+    String bankAccount,
+  ) async {
+    try {
+      final message = '''لقد تم انشاء طلبك
+رقم الطلب: $patientCode
+المبلغ: $totalPrice جنيه
+
+يرجى الدفع نقدا لدى المندوب او ارسال المبلغ بنكك على الحساب التالي: $bankAccount
+مع كتابة رقم الطلب في التعليق''';
+
+      // تنظيف وتنسيق رقم الواتساب - إزالة الصفر من البداية
+      String cleanNumber = whatsappNumber.replaceAll(RegExp(r'[^\d]'), '');
+      if (cleanNumber.startsWith('0')) {
+        cleanNumber = cleanNumber.substring(1); // إزالة الصفر من البداية
+      }
+      if (cleanNumber.startsWith('249')) {
+        cleanNumber = cleanNumber.substring(3);
+      }
+      final chatId = '249$cleanNumber@c.us';
+
+      final uri = Uri.parse('https://api.ultramsg.com/instance145504/messages/chat');
+      final request = http.Request('POST', uri);
+      request.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+      request.bodyFields = {
+        'token': 'mh3flw9ka6wm8dkw',
+        'to': chatId,
+        'body': message,
+      };
+
+      print('Sending WhatsApp message to: $chatId');
+      print('Message: $message');
+
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      
+      print('WhatsApp API Response Status: ${response.statusCode}');
+      print('WhatsApp API Response Body: $responseBody');
+      
+      if (response.statusCode == 200) {
+        print('WhatsApp message sent successfully');
+      } else {
+        print('Failed to send WhatsApp message: ${response.statusCode}');
+        print('Response: $responseBody');
+      }
+    } catch (e) {
+      print('Error sending WhatsApp message: $e');
+    }
+  }
+
   Future<void> performSave() async {
     if (_saving) return; // يمنع الضغط المكرر
     final snap = await _priceCol.get();
@@ -266,7 +361,7 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
   @override
   Widget build(BuildContext context) {
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection: TextDirection.ltr,
       child: Scaffold(
         appBar: AppBar(
           title: Text(

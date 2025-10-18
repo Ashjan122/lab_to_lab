@@ -95,7 +95,21 @@ class _LabNewSampleScreenState extends State<LabNewSampleScreen> {
           backgroundColor: const Color(0xFF673AB7),
           centerTitle: true,
         ),
-        body: Padding(
+        body:Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.grey.shade200,
+                  const Color(0xFF673AB7).withOpacity(0.2),
+                  const Color(0xFF673AB7).withOpacity(0.35),
+                ],
+              ),
+            ),
+            width: double.infinity,
+            height: double.infinity,
+            child:  Padding(
           padding: const EdgeInsets.all(16.0),
           child: Form(
             key: _formKey,
@@ -113,6 +127,8 @@ class _LabNewSampleScreenState extends State<LabNewSampleScreen> {
                   decoration: const InputDecoration(
                     labelText: 'الاسم الثلاثي',
                     border: OutlineInputBorder(),
+                    filled: true,
+                    fillColor: Colors.white,
                   ),
                   textInputAction: TextInputAction.next,
                   onFieldSubmitted: (_) {
@@ -143,6 +159,8 @@ class _LabNewSampleScreenState extends State<LabNewSampleScreen> {
                   decoration: const InputDecoration(
                     labelText: 'رقم الهاتف',
                     border: OutlineInputBorder(),
+                    filled: true,
+                    fillColor: Colors.white,
                   ),
                   keyboardType: TextInputType.phone,
                   textInputAction: TextInputAction.done,
@@ -188,7 +206,7 @@ class _LabNewSampleScreenState extends State<LabNewSampleScreen> {
             ),
           ),
         ),
-      ),
+      )),
     );
   }
 }

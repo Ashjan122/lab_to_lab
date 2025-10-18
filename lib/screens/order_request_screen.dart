@@ -492,7 +492,7 @@ Future<Map<String, double>?> _fetchLabLocation() async {
           title: Text(
               widget.labName.contains('معمل')
                   ? widget.labName
-                  : 'مختبر ${widget.labName}',
+                  : '${widget.labName}',
             style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,

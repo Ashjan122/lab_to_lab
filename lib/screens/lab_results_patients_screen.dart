@@ -179,7 +179,21 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
             ),
           ],
         ),
-        body: Column(
+        body:Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.grey.shade200,
+                  const Color(0xFF673AB7).withOpacity(0.2),
+                  const Color(0xFF673AB7).withOpacity(0.35),
+                ],
+              ),
+            ),
+            width: double.infinity,
+            height: double.infinity,
+            child: Column(
           children: [
             // Search bar
             Padding(
@@ -297,7 +311,9 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
                       final name = data['name']?.toString() ?? '';
                       final dayNumber =
                           perDayTotal - i; // رقم اليوم يبدأ من 1 لكل يوم
+                      final bool isCancelled = (data['status']?.toString() ?? '') == 'cancelled';
                       return Card(
+                        
                         child: ListTileTheme(
                           data: const ListTileThemeData(
                             horizontalTitleGap: 8,
@@ -318,9 +334,9 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
                                 ),
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
+                                  
                                   border: Border.all(
-                                    color: Color(0xFF673AB7),
+                                    color: isCancelled ? Colors.red : const Color(0xFF673AB7),
                                     width: 2,
                                   ),
                                   borderRadius: BorderRadius.circular(8),
@@ -337,17 +353,40 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
                               ),
                             ),
 
-                            title: Text(
-                              name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                            title: isCancelled
+                                ? Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          name,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.black,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        '(ملغي)',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : Text(
+                                    name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const SizedBox(height: 8),
-                                _buildProgressBar(data),
+                                if (!isCancelled) _buildProgressBar(data),
                               ],
                             ),
                             /*trailing: Container(
@@ -385,7 +424,7 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
             ),
           ],
         ),
-      ),
+      ),),
     );
   }
 }

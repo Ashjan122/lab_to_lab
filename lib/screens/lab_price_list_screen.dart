@@ -181,7 +181,7 @@ class _LabPriceListScreenState extends State<LabPriceListScreen> {
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: SafeArea(
+      
         child: Scaffold(
           appBar: AppBar(
             title: Text(
@@ -196,7 +196,21 @@ class _LabPriceListScreenState extends State<LabPriceListScreen> {
 
             // Removed add button - no longer adding new tests
           ),
-          body: Column(
+          body:SafeArea(child:  Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.grey.shade200,
+                  const Color(0xFF673AB7).withOpacity(0.2),
+                  const Color(0xFF673AB7).withOpacity(0.35),
+                ],
+              ),
+            ),
+            width: double.infinity,
+            height: double.infinity,
+            child: Column(
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -399,9 +413,9 @@ class _LabPriceListScreenState extends State<LabPriceListScreen> {
                 ),
               ),
             ],
-          ),
+          ),),
         ),
-      ),
+        ),
     );
   }
 }

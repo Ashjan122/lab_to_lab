@@ -5,6 +5,7 @@ import 'package:lab_to_lab_admin/screens/claim_screen.dart';
 // import 'package:lab_to_lab_admin/screens/lab_info_screen.dart';
 // import 'package:lab_to_lab_admin/screens/lab_location_screen.dart';
 import 'package:lab_to_lab_admin/screens/lab_new_sample_screen.dart';
+import 'package:lab_to_lab_admin/screens/lab_order_received_notifications_screen.dart';
 // import 'package:lab_to_lab_admin/screens/lab_price_list_screen.dart';
 import 'package:lab_to_lab_admin/screens/lab_results_patients_screen.dart';
 import 'package:lab_to_lab_admin/screens/lab_settings_screen.dart';
@@ -14,6 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lab_to_lab_admin/screens/login_screen.dart';
 import 'package:lab_to_lab_admin/screens/lab_to_lab.dart';
 import 'package:lab_to_lab_admin/screens/update_checker.dart';
+import 'package:lab_to_lab_admin/screens/lab_info_screen.dart';
 import 'package:lottie/lottie.dart';
 
 // import 'package:lab_to_lab_admin/screens/lab_order_received_notifications_screen.dart';
@@ -33,10 +35,34 @@ class LabDashboardScreen extends StatefulWidget {
 
 class _LabDashboardScreenState extends State<LabDashboardScreen> {
   bool _hasCheckedUpdate = false;
+  String? _labImageUrl;
+  String? _labName;
 
   @override
   void initState() {
     super.initState();
+    _loadLabData();
+  }
+
+  Future<void> _loadLabData() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('labToLap')
+          .doc(widget.labId)
+          .get();
+      
+      if (doc.exists) {
+        final data = doc.data()!;
+        setState(() {
+          _labName = data['name']?.toString() ?? widget.labName;
+          _labImageUrl = data['imageUrl']?.toString();
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _labName = widget.labName;
+      });
+    }
   }
 
   @override
@@ -130,9 +156,7 @@ class _LabDashboardScreenState extends State<LabDashboardScreen> {
         child: Scaffold(
           appBar: AppBar(
             title: Text(
-              widget.labName.contains('معمل')
-                  ? widget.labName
-                  : '${widget.labName}',
+              _labName ?? widget.labName,
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
@@ -141,45 +165,166 @@ class _LabDashboardScreenState extends State<LabDashboardScreen> {
             ),
             backgroundColor: const Color(0xFF673AB7),
             centerTitle: true,
-            leading: FutureBuilder<bool>(
-              future: _shouldShowBackToControl(),
-              builder: (context, snapshot) {
-                final show = snapshot.data == true;
-                if (!show) return const SizedBox.shrink();
-                return IconButton(
-                  tooltip: 'الرجوع للكنترول',
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => _navigateBackToControl(context),
-                );
-              },
+            leading: Builder(
+              builder: (ctx) => GestureDetector(
+                onTap: () => Scaffold.of(ctx).openDrawer(),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                  child: CircleAvatar(
+                    backgroundColor: Colors.white.withOpacity(0.25),
+                    backgroundImage: (_labImageUrl != null && _labImageUrl!.isNotEmpty)
+                        ? NetworkImage(_labImageUrl!)
+                        : null,
+                    child: (_labImageUrl == null || _labImageUrl!.isEmpty)
+                        ? const Icon(Icons.business, color: Colors.white)
+                        : null,
+                  ),
+                ),
+              ),
             ),
             actions: [
               IconButton(
-                tooltip: 'تسجيل الخروج',
-                icon: const Icon(Icons.logout, color: Colors.white),
-                onPressed: () async {
-                  final prefs = await SharedPreferences.getInstance();
+    tooltip: 'الاشعارات',
+    icon: const Icon(Icons.notifications, color: Colors.white),
+    onPressed: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => LabOrderReceivedNotificationsScreen(),
+        ),
+      );
+    },
+  ),
+              FutureBuilder<bool>(
+                future: _shouldShowBackToControl(),
+                builder: (context, snapshot) {
+                  final show = snapshot.data == true;
+                  if (!show) return const SizedBox.shrink();
+                  return IconButton(
+                    tooltip: 'الرجوع للكنترول',
+                    icon: const Icon(Icons.arrow_forward, color: Colors.white),
+                    onPressed: () => _navigateBackToControl(context),
+                  );
+                },
+              ),
+              
+            ],
+            
+          ),
+          drawer: Drawer(
+  child: SafeArea(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          color: const Color(0xFF673AB7),
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+          child: Column(
+            children: [
+              CircleAvatar(
+                radius: 45, // أكبر قليلاً من الحجم الافتراضي
+                backgroundColor: Colors.white,
+                backgroundImage: (_labImageUrl != null && _labImageUrl!.isNotEmpty)
+                    ? NetworkImage(_labImageUrl!)
+                    : null,
+                child: (_labImageUrl == null || _labImageUrl!.isEmpty)
+                    ? const Icon(Icons.business, color: Color(0xFF673AB7), size: 40)
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _labName ?? widget.labName,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // بيانات المعمل
+        ListTile(
+          leading: const Icon(Icons.info, color: Color(0xFF673AB7)),
+          title: const Text('بيانات المعمل'),
+          onTap: () {
+            Navigator.pop(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => LabInfoScreen(
+                  labId: widget.labId,
+                  labName: widget.labName,
+                ),
+              ),
+            );
+          },
+        ),
+
+        const Spacer(),
+
+
+        // تسجيل الخروج مع إطار
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12),
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.red, width: 2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text(
+                'تسجيل الخروج',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              onTap: () async {
+                final prefs = await SharedPreferences.getInstance();
+                final fromControlPanel = prefs.getBool('fromControlPanel') ?? false;
+                
+                // إذا كان الدخول من الكنترول، لا نحذف بيانات الكنترول
+                if (fromControlPanel) {
                   await prefs.remove('lab_id');
                   await prefs.remove('labName');
-                  // تسجيل خروج كامل حتى لو كان الدخول من الكنترول
+                  await prefs.remove('fromControlPanel');
+                  if (context.mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const LabToLab()),
+                      (route) => false,
+                    );
+                  }
+                } else {
+                  // إذا كان دخول مباشر للمعمل، احذف كل شيء
+                  await prefs.remove('lab_id');
+                  await prefs.remove('labName');
                   await prefs.setBool('isLoggedIn', false);
-                  // يبقى hasContract = true ليعود لشاشة تسجيل الدخول
                   await prefs.remove('userType');
                   await prefs.remove('centerId');
                   await prefs.remove('centerName');
                   await prefs.remove('fromControlPanel');
                   if (context.mounted) {
                     Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(
-                        builder: (context) => const LoginScreen(),
-                      ),
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
                       (route) => false,
                     );
                   }
-                },
-              ),
-            ],
+                }
+              },
+            ),
           ),
+        ),
+        const SizedBox(height: 24),
+
+      ],
+    ),
+  ),
+),
+
           body: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(

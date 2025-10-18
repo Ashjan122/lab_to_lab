@@ -106,15 +106,14 @@ class _LoginScreenState extends State<LoginScreen> {
         // Route based on userType
         if (userType == 'userDelivery') {
           Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(
-              builder: (_) => const PatientsScreen(),
-            ),
+            MaterialPageRoute(builder: (_) => const PatientsScreen()),
             (route) => false,
           );
         } else {
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(
-              builder: (_) => LabDashboardScreen(labId: labId, labName: labName),
+              builder:
+                  (_) => LabDashboardScreen(labId: labId, labName: labName),
             ),
             (route) => false,
           );
@@ -134,7 +133,10 @@ class _LoginScreenState extends State<LoginScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('بيانات غير صحيحة'),
+              content: Directionality(
+                textDirection: TextDirection.rtl,
+                child: Text('بيانات غير صحيحة'),
+              ),
               backgroundColor: Colors.red,
             ),
           );
@@ -159,7 +161,13 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Directionality(
+              textDirection: TextDirection.rtl,
+              child: Text('خطأ: $e'),
+            ),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {

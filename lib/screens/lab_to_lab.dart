@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:lab_to_lab_admin/screens/lab_info_screen.dart';
 import 'dart:io';
 import 'package:path/path.dart' as path;
 import 'package:lab_to_lab_admin/screens/lab_dashboard_screen.dart';
@@ -41,6 +42,7 @@ class _LabToLabState extends State<LabToLab> {
   File? _selectedImageFile;
   bool _isUploadingImage = false;
   final ImagePicker _picker = ImagePicker();
+  String _selectedContractType = 'prepaid'; // القيم: prepaid أو postpaid
 
   @override
   void dispose() {
@@ -148,15 +150,16 @@ class _LabToLabState extends State<LabToLab> {
           .collection('labToLap')
           .doc(_editingLabId)
           .update({
-        'name': _nameController.text.trim(),
-        'address': _addressController.text.trim(),
-        'phone': _phoneController.text.trim(),
-        'whatsApp': _whatsAppController.text.trim(),
-        'password': _passwordController.text.trim(),
-        'order': newOrder,
+            'name': _nameController.text.trim(),
+            'address': _addressController.text.trim(),
+            'phone': _phoneController.text.trim(),
+            'whatsApp': _whatsAppController.text.trim(),
+            'password': _passwordController.text.trim(),
+            'order': newOrder,
             'imageUrl':
                 _selectedImageUrl.isNotEmpty ? _selectedImageUrl : currentImage,
-      });
+            'contractType': _selectedContractType,
+          });
       _clearForm();
       if (mounted) {
         setState(() {
@@ -265,10 +268,10 @@ class _LabToLabState extends State<LabToLab> {
     return list;
   }
 
-   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
   String _searchQuery = '';
-  
+
   @override
   Widget build(BuildContext context) {
     return Directionality(
@@ -291,51 +294,51 @@ class _LabToLabState extends State<LabToLab> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-          backgroundColor: const Color(0xFF673AB7),
-          centerTitle: true,
-          leading: FutureBuilder<bool>(
-            future: _shouldShowBackToControl(),
-            builder: (context, snapshot) {
-              final show = snapshot.data == true;
-              if (!show) return const SizedBox.shrink();
-              return IconButton(
-                tooltip: 'الرجوع للكنترول',
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () {
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (_) => ControlPanalScreen()),
-                    (route) => false,
-                  );
-                },
-              );
-            },
+            backgroundColor: const Color(0xFF673AB7),
+            centerTitle: true,
+            leading: FutureBuilder<bool>(
+              future: _shouldShowBackToControl(),
+              builder: (context, snapshot) {
+                final show = snapshot.data == true;
+                if (!show) return const SizedBox.shrink();
+                return IconButton(
+                  tooltip: 'الرجوع للكنترول',
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  onPressed: () {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => ControlPanalScreen()),
+                      (route) => false,
+                    );
+                  },
+                );
+              },
+            ),
+            actions: const [],
           ),
-          actions: const [],
-        ),
-        resizeToAvoidBottomInset: true,
-        body: Column(
-          children: [
-            // Search bar by lab name
-            Padding(
-                    padding: const EdgeInsets.all(16.0),
-              child: TextField(
-                controller: _searchController,
-                onChanged: (value) {
-                                      setState(() {
-                    _searchQuery = value.trim().toLowerCase();
-                  });
-                },
-                decoration: InputDecoration(
-                  hintText: 'البحث باسم المعمل...',
-                  prefixIcon: const Icon(Icons.search),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  filled: true,
-                  fillColor: Colors.grey[100],
-                      ),
+          resizeToAvoidBottomInset: true,
+          body: Column(
+            children: [
+              // Search bar by lab name
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value.trim().toLowerCase();
+                    });
+                  },
+                  decoration: InputDecoration(
+                    hintText: 'البحث باسم المعمل...',
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
                     ),
+                    filled: true,
+                    fillColor: Colors.grey[100],
                   ),
+                ),
+              ),
 
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
@@ -343,161 +346,312 @@ class _LabToLabState extends State<LabToLab> {
                       FirebaseFirestore.instance
                           .collection('labToLap')
                           .snapshots(),
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return Center(child: Text('خطأ: ${snapshot.error}'));
-                  }
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  final docs = _sortAndFilter(snapshot.data?.docs ?? []);
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      return Center(child: Text('خطأ: ${snapshot.error}'));
+                    }
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final docs = _sortAndFilter(snapshot.data?.docs ?? []);
                     final filtered =
                         docs.where((d) {
-                    try {
-                      final data = d.data() as Map<String, dynamic>;
+                          try {
+                            final data = d.data() as Map<String, dynamic>;
                             final name =
                                 (data['name']?.toString() ?? '').toLowerCase();
-                      if (_searchQuery.isEmpty) return true;
-                      return name.contains(_searchQuery);
-                    } catch (_) {
-                      return true;
-                    }
-                  }).toList();
-                  if (filtered.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
+                            if (_searchQuery.isEmpty) return true;
+                            return name.contains(_searchQuery);
+                          } catch (_) {
+                            return true;
+                          }
+                        }).toList();
+                    if (filtered.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
                             const Icon(
                               Icons.science,
                               size: 64,
                               color: Colors.grey,
                             ),
-                          const SizedBox(height: 12),
-                          Text(
+                            const SizedBox(height: 12),
+                            Text(
                               _searchQuery.isEmpty
                                   ? 'لا توجد معامل مضافة بعد'
                                   : 'لا توجد نتائج للبحث',
-                            style: const TextStyle(color: Colors.grey),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-                   return ListView.builder(
-                    itemCount: filtered.length,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                    itemBuilder: (context, index) {
-                      final d = filtered[index];
-                      final data = d.data() as Map<String, dynamic>;
-                      final name = data['name']?.toString() ?? '';
-                      final address = data['address']?.toString() ?? '';
-                      final phone = data['phone']?.toString() ?? '';
-                      final whats = data['whatsApp']?.toString() ?? '';
-                      final available = data['available'] as bool? ?? false;
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ExpansionTile(
-                          leading: Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              border: Border.all(color: kLabPrimary, width: 2),
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                            child: Center(
-                              child: Text(
-                                '${index + 1}',
-                                style: const TextStyle(
-                                  color: kLabPrimary,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                          ),
-                          title: GestureDetector(
-                          onTap: () async {
-                            final prefs = await SharedPreferences.getInstance();
-                            await prefs.setString('lab_id', d.id);
-                            await prefs.setString('labName', name);
-                            await prefs.setBool('fromControlPanel', true);
-                            await prefs.setBool('isLoggedIn', true);
-                              if (context.mounted) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => LabDashboardScreen(
-                                  labId: d.id,
-                                  labName: name,
-                                ),
-                              ),
-                            );
-                              }
-                            },
-                            child: Text(
-                              name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 20,
-                              ),
-                            ),
-                          ),
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                              child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('العنوان: $address'),
-                              Text('هاتف: $phone'),
-                              Text('واتساب: $whats'),
-                                  const SizedBox(height: 6),
-                              Row(
-                                children: [
-                                      Icon(
-                                        available ? Icons.check_circle : Icons.cancel,
-                                        color: available ? Colors.green : Colors.red,
-                                        size: 16,
-                                      ),
-                                  const SizedBox(width: 4),
-                                      Text(
-                                        available ? 'مفعل' : 'غير مفعل',
-                                        style: TextStyle(
-                                          color: available ? Colors.green : Colors.red,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                  const SizedBox(width: 16),
-                                  const Icon(Icons.sort, size: 16, color: kLabPrimary),
-                                  const SizedBox(width: 4),
-                                      Text(
-                                        'ترتيب: ${data['order'] ?? 999}',
-                                        style: const TextStyle(
-                                          color: kLabPrimary,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                  const Spacer(),
-                                ],
-                              ),
-                            ],
-                          ),
+                              style: const TextStyle(color: Colors.grey),
                             ),
                           ],
                         ),
                       );
-                    },
-                   );
-                 },
-               ),
-             ),
-          ],
-        ),
+                    }
+                    return ListView.builder(
+                      itemCount: filtered.length,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      itemBuilder: (context, index) {
+                        final d = filtered[index];
+                        final data = d.data() as Map<String, dynamic>;
+                        final name = data['name']?.toString() ?? '';
+                        final address = data['address']?.toString() ?? '';
+                        final phone = data['phone']?.toString() ?? '';
+                        final whats = data['whatsApp']?.toString() ?? '';
+                        final available = data['available'] as bool? ?? false;
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: ExpansionTile(
+                            leading: Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                border: Border.all(
+                                  color: kLabPrimary,
+                                  width: 2,
+                                ),
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '${index + 1}',
+                                  style: const TextStyle(
+                                    color: kLabPrimary,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            title: GestureDetector(
+                              onTap: () async {
+                                final prefs =
+                                    await SharedPreferences.getInstance();
+                                await prefs.setString('lab_id', d.id);
+                                await prefs.setString('labName', name);
+                                await prefs.setBool('fromControlPanel', true);
+                                await prefs.setBool('isLoggedIn', true);
+                                if (context.mounted) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder:
+                                          (context) => LabDashboardScreen(
+                                            labId: d.id,
+                                            labName: name,
+                                          ),
+                                    ),
+                                  );
+                                }
+                              },
+                              child: Text(
+                                name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 20,
+                                ),
+                              ),
+                            ),
+                            children: [
+                              StatefulBuilder(
+                                builder: (context, setInnerState) {
+                                  String contractType =
+                                      data['contractType']?.toString() ??
+                                      'prepaid';
+
+                                  return Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      16,
+                                      0,
+                                      16,
+                                      12,
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text('العنوان: $address'),
+                                        Text('هاتف: $phone'),
+                                        Text('واتساب: $whats'),
+
+                                        Row(
+                                          children: [
+                                            const Text('نوع التعاقد:'),
+                                            const SizedBox(width: 8),
+                                            Row(
+                                              children: [
+                                                Radio<String>(
+                                                  value: 'prepaid',
+                                                  groupValue: contractType,
+                                                  onChanged: (value) async {
+                                                    if (value != null) {
+                                                      setInnerState(() {
+                                                        contractType = value;
+                                                      });
+
+                                                      // ✅ حدث في قاعدة البيانات
+                                                      await FirebaseFirestore
+                                                          .instance
+                                                          .collection(
+                                                            'labToLap',
+                                                          )
+                                                          .doc(d.id)
+                                                          .update({
+                                                            'contractType':
+                                                                value,
+                                                          });
+
+                                                      if (context.mounted) {
+                                                        ScaffoldMessenger.of(
+                                                          context,
+                                                        ).showSnackBar(
+                                                          const SnackBar(
+                                                            content: Text(
+                                                              'تم تحديث نوع التعاقد',
+                                                            ),
+                                                            backgroundColor:
+                                                                Colors.green,
+                                                          ),
+                                                        );
+                                                      }
+                                                    }
+                                                  },
+                                                ),
+                                                const Text('Prepaid'),
+                                              ],
+                                            ),
+                                            Row(
+                                              children: [
+                                                Radio<String>(
+                                                  value: 'postpaid',
+                                                  groupValue: contractType,
+                                                  onChanged: (value) async {
+                                                    if (value != null) {
+                                                      setInnerState(() {
+                                                        contractType = value;
+                                                      });
+
+                                                      // ✅ حدث في قاعدة البيانات
+                                                      await FirebaseFirestore
+                                                          .instance
+                                                          .collection(
+                                                            'labToLap',
+                                                          )
+                                                          .doc(d.id)
+                                                          .update({
+                                                            'contractType':
+                                                                value,
+                                                          });
+
+                                                      if (context.mounted) {
+                                                        ScaffoldMessenger.of(
+                                                          context,
+                                                        ).showSnackBar(
+                                                          const SnackBar(
+                                                            content: Text(
+                                                              'تم تحديث نوع التعاقد',
+                                                            ),
+                                                            backgroundColor:
+                                                                Colors.green,
+                                                          ),
+                                                        );
+                                                      }
+                                                    }
+                                                  },
+                                                ),
+                                                const Text('Postpaid'),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Icon(
+                                                  available
+                                                      ? Icons.check_circle
+                                                      : Icons.cancel,
+                                                  color:
+                                                      available
+                                                          ? Colors.green
+                                                          : Colors.red,
+                                                  size: 16,
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  available
+                                                      ? 'مفعل'
+                                                      : 'غير مفعل',
+                                                  style: TextStyle(
+                                                    color:
+                                                        available
+                                                            ? Colors.green
+                                                            : Colors.red,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 16),
+                                                const Icon(
+                                                  Icons.sort,
+                                                  size: 16,
+                                                  color: kLabPrimary,
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  'ترتيب: ${data['order'] ?? 999}',
+                                                  style: const TextStyle(
+                                                    color: kLabPrimary,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+
+                                            // زر القلم
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.edit,
+                                                color: kLabPrimary,
+                                              ),
+                                              tooltip: 'تعريف المعمل',
+                                              onPressed: () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder:
+                                                        (context) =>
+                                                            LabInfoScreen(
+                                                              labId: d.id,
+                                                              labName: name,
+                                                            ),
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -140,29 +140,43 @@ class _LabSupportNumbersScreenState extends State<LabSupportNumbersScreen> {
         textDirection: TextDirection.rtl,
         child: Scaffold(
           appBar: AppBar(
-            backgroundColor: Colors.white,
+            backgroundColor: Color(0xFF673AB7),
             elevation: 0,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Color(0xFF673AB7)),
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
               onPressed: () => Navigator.of(context).pop(),
             ),
             title: const Text(
               'الدعم الفني',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF673AB7),
+                color: Colors.white,
                 fontSize: 24,
               ),
             ),
             centerTitle: true,
             bottom: const TabBar(
-              indicatorColor: Color(0xFF673AB7),
-              labelColor: Color(0xFF673AB7),
-              unselectedLabelColor: Colors.grey,
+              indicatorColor: Colors.white,
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.black,
               tabs: [Tab(text: 'الدردشة'), Tab(text: 'أرقام الدعم')],
             ),
           ),
-          body: TabBarView(
+          body:Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.grey.shade200,
+                  const Color(0xFF673AB7).withOpacity(0.2),
+                  const Color(0xFF673AB7).withOpacity(0.35),
+                ],
+              ),
+            ),
+            width: double.infinity,
+            height: double.infinity,
+            child: TabBarView(
             children: [
               ChatUsersTab(labId: widget.labId, labName: widget.labName),
               _buildSupportNumbersTab(),
@@ -170,7 +184,7 @@ class _LabSupportNumbersScreenState extends State<LabSupportNumbersScreen> {
             ],
           ),
         ),
-      ),
+      ),)
     );
   }
 }
