@@ -13,11 +13,44 @@ workflows:
         script: |
           cd ios
           rm -rf Pods Podfile.lock
-          pod repo update
           pod install
           cd ..
+      - name: Build iOS (no code sign)workflows:
+  ios-build:
+    name: Build iOS app
+    environment:
+      flutter: stable
+      xcode: latest
+    scripts:
+      - name: Full clean (Flutter, CocoaPods, Gradle)
+        script: |
+          flutter clean
+          flutter pub get
+
+          # حذف كاش pub
+          rm -rf ~/.pub-cache
+
+          # حذف كاش Gradle
+          rm -rf ~/.gradle
+
+          # حذف Pods
+          cd ios
+          rm -rf Pods
+          rm -rf Podfile.lock
+          rm -rf ~/Library/Caches/CocoaPods
+          rm -rf ~/Library/Developer/Xcode/DerivedData/*
+          pod deintegrate || true
+          pod install
+          cd ..
+
       - name: Build iOS (no code sign)
         script: |
-          flutter build ios --debug --no-codesign
+          flutter build ipa --release --no-codesign
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+
+        script: |
+          flutter build ipa --release --no-codesign
     artifacts:
       - build/ios/ipa/*.ipa
