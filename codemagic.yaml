@@ -16,14 +16,14 @@ workflows:
           # حذف كاش Gradle
           rm -rf ~/.gradle
 
-          # حذف Pods
+          # حذف Pods والملفات المؤقتة
           cd ios
           rm -rf Pods
           rm -rf Podfile.lock
-          rm -rf ~/Library/Caches/CocoaPods
-          rm -rf ~/Library/Developer/Xcode/DerivedData/*
           pod deintegrate || true
-          pod install
+
+          # تحديث repo وتثبيت pods
+          pod install --repo-update
           cd ..
 
       - name: Build iOS (no code sign)

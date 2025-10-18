@@ -9,7 +9,12 @@ project 'Runner', {
 }
 
 def flutter_install_all_ios_pods(flutter_application_path)
-  eval(File.read(File.join(flutter_application_path, '.flutter-plugins-dependencies')))
+  plugins_file = File.join(flutter_application_path, '.flutter-plugins-dependencies')
+  if File.exist?(plugins_file)
+    eval(File.read(plugins_file))
+  else
+    puts "Warning: .flutter-plugins-dependencies file not found at #{plugins_file}"
+  end
 end
 
 target 'Runner' do
