@@ -1,0 +1,23 @@
+workflows:
+  ios-build:
+    name: Build iOS app
+    environment:
+      flutter: stable
+      xcode: latest
+    scripts:
+      - name: Clean Flutter project
+        script: |
+          flutter clean
+          flutter pub get
+      - name: Reinstall CocoaPods
+        script: |
+          cd ios
+          rm -rf Pods Podfile.lock
+          pod repo update
+          pod install
+          cd ..
+      - name: Build iOS (no code sign)
+        script: |
+          flutter build ios --debug --no-codesign
+    artifacts:
+      - build/ios/ipa/*.ipa
