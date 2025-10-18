@@ -1,0 +1,21 @@
+platform :ios, '15.0'
+
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
+
+def flutter_installation
+  flutter_application_path = File.expand_path('..')
+  eval(File.read(File.join(flutter_application_path, '.flutter-plugins-dependencies')))
+end
+
+target 'Runner' do
+  use_frameworks!
+  use_modular_headers!
+
+  flutter_installation
+end
