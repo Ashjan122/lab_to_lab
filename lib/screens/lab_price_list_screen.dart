@@ -4,30 +4,32 @@ import 'package:flutter/material.dart';
 class LabPriceListScreen extends StatefulWidget {
   final String labId;
   final String labName;
+  final bool canEdit; // إذا true يسمح بالتعديل، افتراضياً false
   const LabPriceListScreen({
     super.key,
     required this.labId,
     required this.labName,
+    this.canEdit = false,
   });
 
   @override
   State<LabPriceListScreen> createState() => _LabPriceListScreenState();
 }
 
-class _LabPriceListScreenState extends State<LabPriceListScreen> {
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _priceController = TextEditingController();
+class _LabPriceListScreenState extends State<LabPriceListScreen> with TickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
-  bool _submitting = false;
-  String? _editingId;
   String _searchQuery = '';
+  final Map<String, AnimationController> _animationControllers = {};
+  final TextEditingController _priceEditController = TextEditingController();
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _priceController.dispose();
     _searchController.dispose();
+    _priceEditController.dispose();
+    // Dispose all animation controllers
+    for (final controller in _animationControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -37,145 +39,106 @@ class _LabPriceListScreenState extends State<LabPriceListScreen> {
       .doc(widget.labId)
       .collection('pricelist');
 
-  // Removed _startAdd method - no longer adding new tests
-
-  void _startEdit(String id, Map<String, dynamic> data) {
-    setState(() {
-      _editingId = id;
-    });
-    _nameController.text = data['name']?.toString() ?? '';
-    _priceController.text = (data['price']?.toString() ?? '');
-    _showFormSheet();
-  }
-
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _submitting = true);
-    try {
-      final num? priceNum = num.tryParse(_priceController.text.trim());
-      // Only update price, keep existing name
-      await _col.doc(_editingId).update({'price': priceNum});
-      if (!mounted) return;
-      Navigator.pop(context); // close sheet
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('تم تحديث السعر'),
-          backgroundColor: Colors.green,
-        ),
+  AnimationController _getAnimationController(String testId) {
+    if (!_animationControllers.containsKey(testId)) {
+      _animationControllers[testId] = AnimationController(
+        duration: const Duration(milliseconds: 1000),
+        vsync: this,
       );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _submitting = false);
+      // Start the animation immediately
+      _animationControllers[testId]!.repeat(reverse: true);
     }
+    return _animationControllers[testId]!;
+  }
+  Future<void> _editPriceDialog(String docId, String testName, num currentPrice) async {
+    _priceEditController.text = currentPrice.toString();
+    await showDialog(
+      context: context,
+      builder: (_) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: Text('تعديل السعر - $testName'),
+          content: TextField(
+            controller: _priceEditController,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'السعر',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final v = _priceEditController.text.trim();
+                final num? newPrice = num.tryParse(v);
+                if (newPrice == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('أدخل سعراً صحيحاً'), backgroundColor: Colors.red),
+                  );
+                  return;
+                }
+                try {
+                  await _col.doc(docId).update({'price': newPrice});
+                  if (mounted) Navigator.pop(context);
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF673AB7), foregroundColor: Colors.white),
+              child: const Text('حفظ'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
-  void _showFormSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: Padding(
-            padding: EdgeInsets.only(
-              left: 16,
-              right: 16,
-              top: 16,
-              bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-            ),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.edit,
-                        color: Color(0xFF673AB7),
-                      ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'تعديل السعر',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'اسم الفحص',
-                      border: OutlineInputBorder(),
-                    ),
-                    enabled: false, // Disable name editing
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _priceController,
-                    decoration: const InputDecoration(
-                      labelText: 'السعر',
-                      border: OutlineInputBorder(),
-                      hintText: 'مثال: 1500',
-                    ),
-                    keyboardType: TextInputType.number,
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) return 'أدخل السعر';
-                      return num.tryParse(v.trim()) == null
-                          ? 'أدخل رقماً صحيحاً'
-                          : null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _submitting ? null : _submit,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color.fromARGB(
-                          255,
-                          90,
-                          138,
-                          201,
-                        ),
-                        foregroundColor: Colors.white,
-                      ),
-                      child:
-                          _submitting
-                              ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white,
-                                  ),
-                                ),
-                              )
-                              : const Text('تحديث السعر'),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
+  void _showConditionDialog(BuildContext context, String condition) {
+  showDialog(
+    context: context,
+    builder: (context) => Directionality(
+      textDirection: TextDirection.rtl, // ⬅️ اجعل كل المحتوى من اليمين لليسار
+      child: AlertDialog(
+        title: const Text(
+          'إرشادات الفحص',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF673AB7),
+          ),
+        ),
+        content: Container(
+          constraints: const BoxConstraints(maxWidth: 300),
+          child: Text(
+            condition,
+            style: const TextStyle(fontSize: 16, height: 1.5),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(
+              'حسناً',
+              style: TextStyle(
+                color: Color(0xFF673AB7),
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),
-        );
-      },
-    );
-  }
+        ],
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    ),
+  );
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -248,7 +211,6 @@ class _LabPriceListScreenState extends State<LabPriceListScreen> {
                               (d.data()['name']?.toString() ?? '')
                                   .toLowerCase();
                           final price = d.data()['price'];
-
                           // شرط البحث
                           final matchesSearch =
                               _searchQuery.isEmpty ||
@@ -257,7 +219,11 @@ class _LabPriceListScreenState extends State<LabPriceListScreen> {
                           // استبعاد اللي السعر صفر أو null
                           final validPrice = price is num && price > 0;
 
-                          return matchesSearch && validPrice;
+                          // نظهر فقط الفحوصات التي hidden == false
+                          final hidden = d.data()['hidden'];
+                          final visible = hidden == false;
+
+                          return matchesSearch && validPrice && visible;
                         }).toList();
 
                     // Sort by numeric id ascending (like DB). Items without numeric id go last by doc id
@@ -321,6 +287,8 @@ class _LabPriceListScreenState extends State<LabPriceListScreen> {
                         final name = data['name']?.toString() ?? '';
                         final price = data['price'];
                         final isUnavailable = data['available'] == false;
+                        final conditions = data['conditions']?.toString().trim();
+                        final hasConditions = conditions != null && conditions.isNotEmpty;
 
                         return Column(
                           children: [
@@ -334,12 +302,55 @@ class _LabPriceListScreenState extends State<LabPriceListScreen> {
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text(
-                                      '${price.toString()} SDG',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.green,
-                                      ),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          '${price.toString()} ',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.black,
+                                          ),
+                                        ),
+                                       const SizedBox(width:5),
+                                        if (hasConditions)
+                                          GestureDetector(
+                                            onTap: () {
+                                              _showConditionDialog(
+                                                context,
+                                                conditions,
+                                              );
+                                            },
+                                            child: AnimatedBuilder(
+                                              animation: _getAnimationController(d.id),
+                                              builder: (context, child) {
+                                                return Transform.scale(
+                                                  scale: 1.0 + (_getAnimationController(d.id).value * 0.2),
+                                                  child: Container(
+                                                    width: 20,
+                                                    height: 20,
+                                                    margin: const EdgeInsets.only(left: 8),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.orange,
+                                                      shape: BoxShape.circle,
+                                                      boxShadow: [
+                                                        BoxShadow(
+                                                          color: Colors.orange.withOpacity(0.3),
+                                                          blurRadius: 4,
+                                                          spreadRadius: 1,
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    child: const Icon(
+                                                      Icons.info_outline,
+                                                      color: Colors.white,
+                                                      size: 14,
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                      ],
                                     ),
                                     Expanded(
                                       child: Text(
@@ -354,19 +365,44 @@ class _LabPriceListScreenState extends State<LabPriceListScreen> {
                                     ),
                                   ],
                                 ),
-                                subtitle:
-                                    isUnavailable
-                                        ? const Padding(
-                                          padding: EdgeInsets.only(top: 4),
-                                          child: Text(
-                                            'غير متاح',
-                                            style: TextStyle(
-                                              color: Colors.red,
-                                              fontSize: 12,
-                                            ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Timer information
+                                    if (data['timer'] != null && data['timer'] is num)
+                                      Text(
+                                        'الزمن المتوقع للفحص: ${data['timer']} ساعة',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.black54,
+                                        ),
+                                      ),
+                                    // Unavailable status
+                                    if (isUnavailable)
+                                      const Padding(
+                                        padding: EdgeInsets.only(top: 4),
+                                        child: Text(
+                                          'غير متاح',
+                                          style: TextStyle(
+                                            color: Colors.red,
+                                            fontSize: 12,
                                           ),
-                                        )
-                                        : null,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                trailing: widget.canEdit
+                                    ? IconButton(
+                                        tooltip: 'تعديل السعر',
+                                        icon: const Icon(Icons.edit, color: Color(0xFF673AB7)),
+                                        onPressed: isUnavailable
+                                            ? null
+                                            : () {
+                                                final num cur = (price is num) ? price : num.tryParse('$price') ?? 0;
+                                                _editPriceDialog(d.id, name, cur);
+                                              },
+                                      )
+                                    : null,
 
                                 /* subtitle: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
   future: FirebaseFirestore.instance

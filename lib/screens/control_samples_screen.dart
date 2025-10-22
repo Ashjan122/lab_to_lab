@@ -136,10 +136,10 @@ class _ControlSamplesScreenState extends State<ControlSamplesScreen> {
                                       crossAxisAlignment: CrossAxisAlignment.end,
                                       children: [
                                         Text(
-                                          'مرضى $labName',
+                                          'عينات $labName',
                                           style: const TextStyle(
                                             fontSize: 18,
-                                            fontWeight: FontWeight.bold,
+                                            fontWeight: FontWeight.w500,
                                           ),
                                         ),
                                         const SizedBox(height: 12),

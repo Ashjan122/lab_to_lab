@@ -93,6 +93,7 @@ flutter:
         - asset: assets/fonts/Tajawal-Regular.ttf
         - asset: assets/fonts/Tajawal-Medium.ttf
         - asset: assets/fonts/Tajawal-ExtraBold.ttf
+        - asset: assets/fonts/Cairo-Bold.ttf
         
 flutter_launcher_icons:
   android: true

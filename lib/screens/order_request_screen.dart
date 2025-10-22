@@ -348,6 +348,183 @@ Future<Map<String, dynamic>> _loadPatientAndTests() async {
     return phone;
   }
 
+  // إرسال ملف النتيجة PDF عبر واتساب (نفس منطق شاشة ملف النتيجة)
+  Future<void> _sendPdfToWhatsapp(
+    String toChatId,
+    String pdfUrl,
+  ) async {
+    try {
+      final uri = Uri.parse(
+        'https://api.ultramsg.com/instance145504/messages/document',
+      );
+      final request = http.Request('POST', uri);
+      request.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+      request.bodyFields = {
+        'token': 'mh3flw9ka6wm8dkw',
+        'to': toChatId,
+        'document': pdfUrl,
+        'filename': 'lab_result.pdf',
+        'caption': 'نتيجة التحليل PDF',
+      };
+
+      final response = await request.send();
+      if (response.statusCode == 200) {
+        await response.stream.bytesToString();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('تم إرسال النتيجة عبر واتساب')),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('فشل الإرسال (${response.reasonPhrase})'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ أثناء الإرسال: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showWhatsappDialogForResult(Map<String, dynamic> data) async {
+    final TextEditingController phoneController = TextEditingController();
+    String selectedRecipient = 'patient';
+    bool isSending = false;
+
+    Future<void> fillPhone() async {
+      if (selectedRecipient == 'lab') {
+        try {
+          final doc = await FirebaseFirestore.instance
+              .collection('labToLap')
+              .doc(widget.labId)
+              .get();
+          final labPhone = doc.data()?['whatsApp']?.toString() ?? '';
+          phoneController.text = labPhone;
+        } catch (_) {
+          phoneController.text = '';
+        }
+      } else {
+        final patientPhone = data['phone']?.toString() ?? '';
+        phoneController.text = patientPhone;
+      }
+    }
+
+    await fillPhone();
+
+    // إظهار نفس ديالوج إرسال النتيجة
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('إرسال النتيجة عبر واتساب'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Radio<String>(
+                        value: 'patient',
+                        groupValue: selectedRecipient,
+                        onChanged: (v) {
+                          setState(() {
+                            selectedRecipient = v!;
+                          });
+                          fillPhone();
+                        },
+                      ),
+                      const Text('للمريض'),
+                      const SizedBox(width: 16),
+                      Radio<String>(
+                        value: 'lab',
+                        groupValue: selectedRecipient,
+                        onChanged: (v) {
+                          setState(() {
+                            selectedRecipient = v!;
+                          });
+                          fillPhone();
+                        },
+                      ),
+                      const Text('لنفسي'),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      hintText: 'أدخل رقم واتساب',
+                      labelText: 'رقم الهاتف',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSending ? null : () => Navigator.pop(context),
+                  child: const Text('إلغاء'),
+                ),
+                ElevatedButton(
+                  onPressed: isSending
+                      ? null
+                      : () async {
+                          setState(() => isSending = true);
+                          final raw = phoneController.text;
+                          final formatted = _formatSudanPhone(raw);
+                          final pdfUrl = data['pdf_url']?.toString() ?? '';
+                          if (pdfUrl.isNotEmpty) {
+                            await _sendPdfToWhatsapp('$formatted@c.us', pdfUrl);
+                            if (mounted) Navigator.pop(context);
+                          } else {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('لا يوجد رابط PDF'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                          if (mounted) setState(() => isSending = false);
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF673AB7),
+                  ),
+                  child: isSending
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'إرسال النتيجة',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _receiveOrder(
     BuildContext context,
     String patientDocId,
@@ -505,29 +682,43 @@ Future<Map<String, double>?> _fetchLabLocation() async {
             onPressed: () => Navigator.of(context).pop(),
           ),
             actions: [
-              IconButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder:
-                          (context) => LabSelectTestsScreen(
-                            labId: widget.labId,
-                            labName: widget.labName,
-                            patientId: widget.patientDocId,
-                            skipNotification:
-                                true, // تخطي الإشعار عند الإضافة من صفحة الطلب
-                          ),
-                    ),
-                  ).then((_) {
-                    // تحديث البيانات عند العودة من صفحة إضافة الفحوصات
-                    setState(() {
-                      _patientFuture = _loadPatientAndTests();
-                    });
-                  });
+              // إخفاء زر إضافة فحص إذا كانت العينات موصلة
+              FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                future: FirebaseFirestore.instance
+                    .collection('labToLap')
+                    .doc('global')
+                    .collection('patients')
+                    .doc(widget.patientDocId)
+                    .get(),
+                builder: (context, snap) {
+                  final isDelivered = snap.hasData &&
+                      (snap.data!.data()?['sample_delivered'] == true);
+                  if (isDelivered) return const SizedBox.shrink();
+                  return IconButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) => LabSelectTestsScreen(
+                                labId: widget.labId,
+                                labName: widget.labName,
+                                patientId: widget.patientDocId,
+                                skipNotification:
+                                    true, // تخطي الإشعار عند الإضافة من صفحة الطلب
+                              ),
+                        ),
+                      ).then((_) {
+                        // تحديث البيانات عند العودة من صفحة إضافة الفحوصات
+                        setState(() {
+                          _patientFuture = _loadPatientAndTests();
+                        });
+                      });
+                    },
+                    icon: const Icon(Icons.add, color: Colors.white),
+                    tooltip: 'إضافة فحص جديد',
+                  );
                 },
-                icon: const Icon(Icons.add, color: Colors.white),
-                tooltip: 'إضافة فحص جديد',
               ),
             ],
         ),
@@ -1320,54 +1511,96 @@ const SizedBox(width: 12),
                                           ),
                                 ),
                                 const SizedBox(width: 8),
-                                // زر إلغاء الطلب
+                                // الزر الثاني: إذا النتيجة موجودة ⇒ إرسال النتيجة عبر واتساب
+                                // إذا لا توجد نتيجة ⇒ زر إلغاء الطلب
                                 Expanded(
-                                  child: ElevatedButton(
-                                    onPressed:
-                                        _isLoading || isCancelled
-                                            ? null
-                                            : () {
-                                              _cancelOrder(
-                                                context,
-                                                widget.patientDocId,
-                                                widget.labId,
-                                              );
-                                            },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor:
-                                          isCancelled
-                                              ? Colors.grey
-                                              : const Color.fromARGB(255, 143, 99, 219),
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 14,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                    ),
-                                    child:
-                                        _isLoading
+                                  child: pdfUrl.isNotEmpty
+                                      ? ElevatedButton.icon(
+                                          onPressed: _isLoading || isCancelled
+                                              ? null
+                                              : () {
+                                                  _showWhatsappDialogForResult(
+                                                    data,
+                                                  );
+                                                },
+                                          icon: const Icon(
+                                            FontAwesomeIcons.whatsapp,
+                                            size: 18,
+                                            color: Colors.white,
+                                          ),
+                                          label: const Text(
+                                            'إرسال النتيجة',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                const Color.fromARGB(
+                                                    255,
+                                                    143,
+                                                    99,
+                                                    219,
+                                                  ),
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 14,
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                          ),
+                                        )
+                                      : ElevatedButton(
+                                          onPressed:
+                                              _isLoading || isCancelled
+                                                  ? null
+                                                  : () {
+                                                      _cancelOrder(
+                                                        context,
+                                                        widget.patientDocId,
+                                                        widget.labId,
+                                                      );
+                                                    },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: isCancelled
+                                                ? Colors.grey
+                                                : const Color.fromARGB(
+                                                    255,
+                                                    143,
+                                                    99,
+                                                    219,
+                                                  ),
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 14,
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                            ),
+          child: _isLoading
               ? const SizedBox(
                   width: 22,
                   height: 22,
                   child: CircularProgressIndicator(
                     strokeWidth: 2.5,
-                                                valueColor:
-                                                    AlwaysStoppedAnimation<
-                                                      Color
-                                                    >(Colors.white),
-                                              ),
-                                            )
-                                            : Text(
-                                              isCancelled
-                                                  ? 'تم الإلغاء'
-                                                  : 'إلغاء الطلب',
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.white,
-                                              ),
-                                            ),
-                                  ),
+                                                    valueColor:
+                                                        AlwaysStoppedAnimation<
+                                                          Color
+                                                        >(Colors.white),
+                  ),
+                )
+              : const Text(
+                                                  'إلغاء الطلب',
+                                                  style: TextStyle(
+                                                    fontWeight:
+                                                        FontWeight.bold,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                        ),
                                 ),
                               ],
                         ),
@@ -1407,12 +1640,12 @@ class _PdfViewerScreen extends StatelessWidget {
     try {
       // Send the PDF file itself using UltraMsg document API
       final uri = Uri.parse(
-        'https://api.ultramsg.com/instance140877/messages/document',
+        'https://api.ultramsg.com/instance145504/messages/document',
       );
       final request = http.Request('POST', uri);
       request.headers['Content-Type'] = 'application/x-www-form-urlencoded';
       request.bodyFields = {
-        'token': 'df2r46jz82otkegg',
+        'token': 'mh3flw9ka6wm8dkw',
         'to': toChatId, // e.g. 249XXXXXXXXX@c.us
         'document': pdfUrl, // direct URL to the PDF
         'filename': 'lab_result.pdf',

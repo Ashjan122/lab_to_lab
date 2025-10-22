@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:lab_to_lab_admin/screens/lab_select_tests_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 
 class LabNewSampleScreen extends StatefulWidget {
   final String labId;
@@ -19,68 +21,107 @@ class _LabNewSampleScreenState extends State<LabNewSampleScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _barcodeController = TextEditingController();
   final FocusNode _nameFocus = FocusNode();
   final FocusNode _phoneFocus = FocusNode();
+  final FocusNode _barcodeFocus = FocusNode();
   bool _saving = false;
   @override
   void dispose() {
     _fullNameController.dispose();
     _phoneController.dispose();
+    _barcodeController.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _saving = true);
-    try {
-      final patientsCol = FirebaseFirestore.instance
-          .collection('labToLap')
-          .doc('global')
-          .collection('patients');
+  if (!_formKey.currentState!.validate()) return;
+  setState(() => _saving = true);
 
-      // get next sequential id starting from 1
-      final lastSnap =
-          await patientsCol.orderBy('id', descending: true).limit(1).get();
-      int nextId = 1;
-      if (lastSnap.docs.isNotEmpty) {
-        final dyn = lastSnap.docs.first.data()['id'];
-        final asInt = (dyn is int) ? dyn : int.tryParse('${dyn ?? ''}') ?? 0;
-        nextId = asInt + 1;
-      }
+  try {
+    final patientsCol = FirebaseFirestore.instance
+        .collection('labToLap')
+        .doc('global')
+        .collection('patients');
 
-      final docRef = patientsCol.doc(nextId.toString());
-      await docRef.set({
-        'id': nextId,
-        'name': _fullNameController.text.trim(),
-        'phone': _phoneController.text.trim(),
-        'labId': widget.labId,
-        'createdAt': FieldValue.serverTimestamp(),
-        'status': 'pending',
-      });
-      if (!mounted) return;
-      _fullNameController.clear();
-      _phoneController.clear();
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder:
-              (context) => LabSelectTestsScreen(
-                labId: widget.labId,
-                labName: widget.labName,
-                patientId: docRef.id,
-              ),
+    final docRef = await FirebaseFirestore.instance.runTransaction(
+      (transaction) async {
+        // Get the highest current ID by ordering descending
+        final snapshot = await patientsCol
+            .orderBy('id', descending: true)
+            .limit(1)
+            .get();
+
+        int nextId = 123; // default starting point
+
+        if (snapshot.docs.isNotEmpty) {
+          final lastId = snapshot.docs.first.data()['id'];
+          final parsed = (lastId is int)
+              ? lastId
+              : int.tryParse(lastId.toString()) ?? 122;
+
+          nextId = parsed + 1;
+        }
+
+        final newPatientRef = patientsCol.doc(nextId.toString());
+
+        // Get current user name
+        final prefs = await SharedPreferences.getInstance();
+        final currentUserName = prefs.getString('userName') ?? 'مستخدم';
+
+        transaction.set(newPatientRef, {
+          'id': nextId,
+          'name': _fullNameController.text.trim(),
+          'phone': _phoneController.text.trim(),
+          'barcode': _barcodeController.text.trim(),
+          'labId': widget.labId,
+          'createdAt': FieldValue.serverTimestamp(),
+          'status': 'pending',
+          'ordered_by_name': currentUserName,
+        });
+
+        return newPatientRef;
+      },
+    );
+
+    if (!mounted) return;
+
+    _fullNameController.clear();
+    _phoneController.clear();
+    _barcodeController.clear();
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LabSelectTestsScreen(
+          labId: widget.labId,
+          labName: widget.labName,
+          patientId: docRef.id,
         ),
+      ),
+    );
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
       );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _saving = false);
     }
+  } finally {
+    if (mounted) setState(() => _saving = false);
   }
+}
+
+  Future<void> _loadUserPhone() async {
+  final prefs = await SharedPreferences.getInstance();
+  final phone = prefs.getString('userPhone') ?? '';
+  _phoneController.text = phone;
+}
+@override
+void initState() {
+  super.initState();
+  _loadUserPhone(); // تحميل رقم الهاتف عند فتح الشاشة
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -95,118 +136,144 @@ class _LabNewSampleScreenState extends State<LabNewSampleScreen> {
           backgroundColor: const Color(0xFF673AB7),
           centerTitle: true,
         ),
-        body:Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.grey.shade200,
-                  const Color(0xFF673AB7).withOpacity(0.2),
-                  const Color(0xFF673AB7).withOpacity(0.35),
-                ],
-              ),
-            ),
-            width: double.infinity,
-            height: double.infinity,
-            child:  Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'اسم المريض',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _fullNameController,
-                  focusNode: _nameFocus,
-                  decoration: const InputDecoration(
-                    labelText: 'الاسم الثلاثي',
-                    border: OutlineInputBorder(),
-                    filled: true,
-                    fillColor: Colors.white,
-                  ),
-                  textInputAction: TextInputAction.next,
-                  onFieldSubmitted: (_) {
-                    FocusScope.of(
-                      context,
-                    ).requestFocus(_phoneFocus); // ينتقل للحقل التالي
-                  },
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) {
-                      return 'يرجى إدخال الاسم الثلاثي';
-                    }
-                    if (v.trim().split(' ').length < 3) {
-                      return 'يرجى إدخال الاسم الثلاثي';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'رقم الهاتف',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _phoneController,
-                  focusNode: _phoneFocus,
-                  textDirection: TextDirection.ltr,
-                  decoration: const InputDecoration(
-                    labelText: 'رقم الهاتف',
-                    border: OutlineInputBorder(),
-                    filled: true,
-                    fillColor: Colors.white,
-                  ),
-                  keyboardType: TextInputType.phone,
-                  textInputAction: TextInputAction.done,
-                  onFieldSubmitted: (_) {
-                    _save(); // ينفذ الحفظ عند الضغط على "تم"
-                  },
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) {
-                      return 'يرجى إدخال رقم الهاتف';
-                    }
-                    if (v.trim().length < 8) {
-                      return 'يرجى إدخال رقم هاتف صحيح';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _saving ? null : _save,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF673AB7),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    child:
-                        _saving
-                            ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
-                                ),
-                              ),
-                            )
-                            : const Text('حفظ'),
-                  ),
-                ),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.grey.shade200,
+                const Color(0xFF673AB7).withOpacity(0.2),
+                const Color(0xFF673AB7).withOpacity(0.35),
               ],
             ),
           ),
+          width: double.infinity,
+          height: double.infinity,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'اسم المريض',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _fullNameController,
+                    focusNode: _nameFocus,
+                    decoration: const InputDecoration(
+                      labelText: 'الاسم',
+                      border: OutlineInputBorder(),
+                      filled: true,
+                      fillColor: Colors.white,
+                    ),
+                    textInputAction: TextInputAction.next,
+                    onFieldSubmitted: (_) {
+                      FocusScope.of(
+                        context,
+                      ).requestFocus(_phoneFocus); // ينتقل للحقل التالي
+                    },
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
+                        return 'يرجى إدخال الاسم';
+                      }
+                      if (v.trim().split(' ').length < 2) {
+                        return 'يرجى إدخال اسمين على الاقل ';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'رقم الهاتف',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _phoneController,
+                    focusNode: _phoneFocus,
+                    textDirection: TextDirection.ltr,
+                    decoration: const InputDecoration(
+                      labelText: 'رقم الهاتف',
+                      border: OutlineInputBorder(),
+                      filled: true,
+                      fillColor: Colors.white,
+                    ),
+                    keyboardType: TextInputType.phone,
+                    textInputAction: TextInputAction.next,
+                    onFieldSubmitted: (_) {
+                      FocusScope.of(
+                        context,
+                      ).requestFocus(_barcodeFocus); // ينتقل للحقل التالي
+                    },
+                    validator: (v) {
+  if (v == null || v.trim().isEmpty) {
+    return null;
+  }
+                      if (v.trim().length < 8) {
+                        return 'يرجى إدخال رقم هاتف صحيح';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'الباركود',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _barcodeController,
+                    focusNode: _barcodeFocus,
+                    textDirection: TextDirection.ltr,
+                    decoration: const InputDecoration(
+                      labelText: 'رقم الباركود',
+                      border: OutlineInputBorder(),
+                      filled: true,
+                      fillColor: Colors.white,
+                    ),
+                    keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.done,
+                    onFieldSubmitted: (_) => _save(),
+                    validator: (v) => null,
+
+                  ),
+
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _saving ? null : _save,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF673AB7),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child:
+                          _saving
+                              ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                              : const Text('حفظ'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
-      )),
+      ),
     );
   }
 }

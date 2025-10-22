@@ -1,97 +1,71 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:dio/dio.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:open_filex/open_filex.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class UpdateChecker {
   static Future<void> checkForUpdate(BuildContext context) async {
-    try {
-      // التأكد من أن الـ context صالح
-      if (!context.mounted) {
-        print("Context is not mounted, skipping update check");
-        return;
-      }
-      // 1️⃣ جلب رقم الإصدار الحالي للتطبيق
-      PackageInfo packageInfo = await PackageInfo.fromPlatform();
-      int currentVersion = int.parse(packageInfo.buildNumber);
-      print("Current version: $currentVersion");
+    // ✅ حفظ المرجع المحلي لـ ScaffoldMessenger مبكرًا لتجنب مشاكل الـ context
+    final messenger = ScaffoldMessenger.maybeOf(context);
 
-      // 2️⃣ جلب بيانات التحديث من Firestore
-      DocumentSnapshot snapshot = await FirebaseFirestore.instance
+    try {
+      // 1. التحقق من أن الـ context لا يزال "mounted"
+      if (!context.mounted) return;
+
+      // 2. جلب بيانات النسخة الحالية من التطبيق
+      final packageInfo = await PackageInfo.fromPlatform();
+      final currentVersion = int.parse(packageInfo.buildNumber);
+
+      // 3. جلب بيانات التحديث من Firestore
+      final snapshot = await FirebaseFirestore.instance
           .collection('appConfig')
           .doc('version3')
           .get();
 
-      if (!snapshot.exists) {
-        print("Document 'version3' does not exist in appConfig collection");
-        return;
-      }
+      if (!snapshot.exists) return;
 
-      int latestVersion = snapshot['lastVersion'];
-      String updateUrl = snapshot['updatrUrl'];
-      print("Latest version: $latestVersion");
-      print("Update URL: $updateUrl");
+      final latestVersion = snapshot['lastVersion'];
+      final updateUrl = snapshot['updatrUrl'];
 
-      // 3️⃣ مقارنة رقم الإصدار
+      // 4. التحقق من وجود تحديث
       if (latestVersion > currentVersion) {
-        print("Update available! Showing dialog...");
-        // 4️⃣ عرض الديالوق الإجباري
-        if (context.mounted) {
-          showDialog(
-            context: context,
-            barrierDismissible: false, // ما يقدر يطلع من الديالوق
-            builder: (context) {
+        // ✅ عرض الديالوق (داخل شرط context.mounted)
+        if (!context.mounted) return;
+
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext dialogContext) {
             return AlertDialog(
-              title: const Text("تحديث جديد متاح"),
-              content: const Text("يجب تحديث التطبيق للاستمرار."),
+              title: const Text("تحديث جديد متاح", textAlign: TextAlign.end),
+              content: const Text("يجب تحديث التطبيق للاستمرار.", textAlign: TextAlign.end),
+              actionsAlignment: MainAxisAlignment.center,
               actions: [
                 ElevatedButton(
                   onPressed: () async {
-                    Navigator.of(context).pop(); // إغلاق الديالوق مؤقتاً
-                    await _downloadAndInstall(updateUrl, context);
+                    Navigator.of(dialogContext).pop(); // ✅ استخدم dialogContext بدل context هنا
+
+                    final uri = Uri.parse(updateUrl);
+try {
+  await launchUrl(uri, mode: LaunchMode.externalApplication);
+} catch (e) {
+  messenger?.showSnackBar(
+    SnackBar(content: Text("فشل في فتح الرابط: $e")),
+  );
+}
+
                   },
                   child: const Text("حدث الآن"),
                 ),
               ],
             );
           },
-          );
-        }
-      } else {
-        print("No update needed. Current: $currentVersion, Latest: $latestVersion");
+        );
       }
     } catch (e) {
-      print("Error checking update: $e");
-    }
-  }
-
-  // 🧩 تحميل وتثبيت التحديث
-  static Future<void> _downloadAndInstall(String url, BuildContext context) async {
-    try {
-      final tempDir = await getTemporaryDirectory();
-      final filePath = "${tempDir.path}/update.apk";
-      Dio dio = Dio();
-
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => const Center(child: CircularProgressIndicator()),
-      );
-
-      await dio.download(url, filePath);
-      Navigator.of(context).pop(); // إغلاق التحميل
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("تم تحميل التحديث، جارٍ التثبيت...")),
-      );
-
-      await OpenFilex.open(filePath); // تشغيل ملف الـ APK
-    } catch (e) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("حدث خطأ أثناء التحديث: $e")),
+      // ✅ استخدم messenger هنا أيضًا
+      messenger?.showSnackBar(
+        SnackBar(content: Text("خطأ أثناء التحقق من التحديث: $e")),
       );
     }
   }

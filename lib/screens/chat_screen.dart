@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ChatScreen extends StatefulWidget {
   final String labId;
@@ -24,6 +25,8 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final AudioPlayer _audioPlayer = AudioPlayer();
   Stream<QuerySnapshot<Map<String, dynamic>>>? _inboxSub;
+  String? _senderName;
+  String? _receiverName;
 
   // جلب المحادثة كاملة من Firestore مع ترتيب حسب الوقت
   Stream<QuerySnapshot<Map<String, dynamic>>> get _chatStream {
@@ -46,6 +49,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    _loadUserNames();
     // وسم الرسائل الواردة كمقروءة لتصفير البادج
     _inboxSub = FirebaseFirestore.instance
         .collection('messages')
@@ -62,6 +66,43 @@ class _ChatScreenState extends State<ChatScreen> {
         await batch.commit();
       } catch (_) {}
     });
+  }
+
+  Future<void> _loadUserNames() async {
+    try {
+      // جلب اسم المرسل - تحقق من نوع المستخدم
+      final prefs = await SharedPreferences.getInstance();
+      final userType = prefs.getString('userType');
+      
+      if (userType == 'controlUser') {
+        // إذا كان كنترول، استخدم اسم الكنترول
+        _senderName = prefs.getString('userName') ?? 'الكنترول';
+      } else {
+        // إذا كان معمل، استخدم اسم المستخدم الحالي
+        _senderName = prefs.getString('userName') ?? widget.labName;
+      }
+
+      // جلب اسم المستقبل
+      final receiverDoc = await FirebaseFirestore.instance
+          .collection('labToLap')
+          .doc(widget.receiverId)
+          .get();
+      if (receiverDoc.exists) {
+        _receiverName = receiverDoc.data()?['name']?.toString() ?? widget.receiverName;
+      } else {
+        _receiverName = widget.receiverName;
+      }
+
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      _senderName = widget.labName;
+      _receiverName = widget.receiverName;
+      if (mounted) {
+        setState(() {});
+      }
+    }
   }
 
   Future<void> _sendMessage() async {
@@ -103,9 +144,38 @@ class _ChatScreenState extends State<ChatScreen> {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(
-            widget.receiverName,
-            style: const TextStyle(color: Colors.white),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _receiverName ?? widget.receiverName,
+                style: const TextStyle(color: Colors.white),
+              ),
+              const SizedBox(width: 8),
+              StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                stream: FirebaseFirestore.instance
+                    .collection('controlUsers')
+                    .doc(widget.receiverId)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData && snapshot.data!.exists) {
+                    final data = snapshot.data!.data()!;
+                    final isOnline = data['isOnline'] == true;
+                    if (isOnline) {
+                      return Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: Colors.green,
+                          shape: BoxShape.circle,
+                        ),
+                      );
+                    }
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
+            ],
           ),
           backgroundColor: const Color(0xFF673AB7),
           centerTitle: true,
@@ -154,17 +224,37 @@ class _ChatScreenState extends State<ChatScreen> {
                         child: Container(
                           margin: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 6),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: isMe ? Colors.deepPurple : Colors.grey[300],
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            message,
-                            style: TextStyle(
-                              color: isMe ? Colors.white : Colors.black,
-                              fontSize: 16,
-                            ),
+                          child: Column(
+                            crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                            children: [
+                              // اسم المستخدم
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                child: Text(
+                                  isMe ? (_senderName ?? widget.labName) : (_receiverName ?? widget.receiverName),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                              // الرسالة
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: isMe ? Colors.deepPurple : Colors.grey[300],
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  message,
+                                  style: TextStyle(
+                                    color: isMe ? Colors.white : Colors.black,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       );

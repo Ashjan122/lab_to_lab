@@ -15,6 +15,9 @@ class _ControlNotificationsScreenState
     extends State<ControlNotificationsScreen> {
   bool isSubscribed = false;
   bool isNewLabSubscribed = false;
+  bool isLoadingLab = true;
+  bool isLoadingNewLab = true;
+
   @override
   void initState() {
     super.initState();
@@ -24,28 +27,38 @@ class _ControlNotificationsScreenState
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
     final controlUserId = prefs.getString('control_user_id');
+
     if (controlUserId == null) {
-      // fallback to local if not control user
+      // fallback to local
       final local = prefs.getBool('lab_order_subscribed');
       final localNewLab = prefs.getBool('new_lab_subscribed');
       if (local != null) {
-        setState(() => isSubscribed = local);
+        isSubscribed = local;
       }
       if (localNewLab != null) {
-        setState(() => isNewLabSubscribed = localNewLab);
+        isNewLabSubscribed = localNewLab;
       }
+      setState(() {
+        isLoadingLab = false;
+        isLoadingNewLab = false;
+      });
       return;
     }
+
     final doc =
         await FirebaseFirestore.instance
             .collection('controlUsers')
             .doc(controlUserId)
             .get();
+
     final status = doc.data()?['lab_order_subscribed'] == true;
     final newLabStatus = doc.data()?['new_lab_subscribed'] == true;
+
     setState(() {
       isSubscribed = status;
       isNewLabSubscribed = newLabStatus;
+      isLoadingLab = false;
+      isLoadingNewLab = false;
     });
   }
 
@@ -148,55 +161,65 @@ class _ControlNotificationsScreenState
                       ),
                     ],
                   ),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            isSubscribed
-                                ? Icons.check_circle
-                                : Icons.notifications_off,
-                            color: isSubscribed ? Colors.green : Colors.orange,
-                            size: 32,
+                  child:
+                      isLoadingLab
+                          ? const Center(child: CircularProgressIndicator())
+                          : Column(
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    isSubscribed
+                                        ? Icons.check_circle
+                                        : Icons.notifications_off,
+                                    color:
+                                        isSubscribed
+                                            ? Colors.green
+                                            : Colors.orange,
+                                    size: 32,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      isSubscribed
+                                          ? 'أنت مشترك في تلقي إشعارات تسجيل مريض جديد'
+                                          : 'أنت غير مشترك في تلقي إشعارات تسجيل مريض جديد',
+                                      style: const TextStyle(fontSize: 16),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 20),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed: toggleSubscription,
+                                  child: Text(
+                                    isSubscribed ? 'إلغاء الاشتراك' : 'اشتراك',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor:
+                                        isSubscribed
+                                            ? Colors.green
+                                            : Colors.orange,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 16,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              isSubscribed
-                                  ? 'أنت مشترك في تلقي إشعارات تسجيل مريض جديد'
-                                  : 'أنت غير مشترك في تلقي إشعارات تسجيل مريض جديد',
-                              style: const TextStyle(fontSize: 16),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      // ✅ زر الاشتراك / إلغاء الاشتراك داخل الكارد
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: toggleSubscription,
-                          child: Text(
-                            isSubscribed ? 'إلغاء الاشتراك' : 'اشتراك',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                isSubscribed ? Colors.green : Colors.orange,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
+
                 const SizedBox(height: 16),
                 // ✅ بطاقة عرض حالة الاشتراك للتعاقدات الجديدة
                 Container(
@@ -216,59 +239,65 @@ class _ControlNotificationsScreenState
                       ),
                     ],
                   ),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            isNewLabSubscribed
-                                ? Icons.check_circle
-                                : Icons.notifications_off,
-                            color:
-                                isNewLabSubscribed
-                                    ? Colors.green
-                                    : Colors.orange,
-                            size: 32,
+                  child:
+                      isLoadingNewLab
+                          ? const Center(child: CircularProgressIndicator())
+                          : Column(
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    isNewLabSubscribed
+                                        ? Icons.check_circle
+                                        : Icons.notifications_off,
+                                    color:
+                                        isNewLabSubscribed
+                                            ? Colors.green
+                                            : Colors.orange,
+                                    size: 32,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      isNewLabSubscribed
+                                          ? 'أنت مشترك في تلقي إشعارات إنشاء تعاقد جديد'
+                                          : 'أنت غير مشترك في تلقي إشعارات إنشاء تعاقد جديد',
+                                      style: const TextStyle(fontSize: 16),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 20),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed: toggleNewLabSubscription,
+                                  child: Text(
+                                    isNewLabSubscribed
+                                        ? 'إلغاء الاشتراك'
+                                        : 'اشتراك',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor:
+                                        isNewLabSubscribed
+                                            ? Colors.green
+                                            : Colors.orange,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 16,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              isNewLabSubscribed
-                                  ? 'أنت مشترك في تلقي إشعارات إنشاء تعاقد جديد'
-                                  : 'أنت غير مشترك في تلقي إشعارات إنشاء تعاقد جديد',
-                              style: const TextStyle(fontSize: 16),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      // ✅ زر الاشتراك / إلغاء الاشتراك داخل الكارد
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: toggleNewLabSubscription,
-                          child: Text(
-                            isNewLabSubscribed ? 'إلغاء الاشتراك' : 'اشتراك',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                isNewLabSubscribed
-                                    ? Colors.green
-                                    : Colors.orange,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
               ],
             ),

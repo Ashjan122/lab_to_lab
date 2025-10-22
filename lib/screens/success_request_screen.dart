@@ -112,7 +112,7 @@ class SuccessRequestScreen extends StatelessWidget {
                     children: [
                       Expanded(
                         child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
+                  style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
                             
                             padding: const EdgeInsets.symmetric(vertical: 14),
@@ -133,11 +133,11 @@ class SuccessRequestScreen extends StatelessWidget {
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(color: Color(0xFF673AB7), width: 2),
                             padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          onPressed: () {
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  onPressed: () {
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(

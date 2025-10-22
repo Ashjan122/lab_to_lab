@@ -16,7 +16,6 @@ class _PatientsScreenState extends State<PatientsScreen> {
   final TextEditingController _searchController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
   String _searchQuery = '';
-  int _patientsCount = 0;
 
   @override
   void dispose() {
@@ -194,6 +193,9 @@ class _PatientsScreenState extends State<PatientsScreen> {
     final bool resultCompleted = pdfUrl != null && pdfUrl.isNotEmpty;
     final Timestamp? resultUpdatedAt = data['result_updated_at'];
 
+    // اسم المستخدم الذي قام بالطلب من المعمل
+    final String orderedBy = data['ordered_by_name']?.toString() ?? '';
+
     showDialog(
       context: context,
       builder:
@@ -203,6 +205,11 @@ class _PatientsScreenState extends State<PatientsScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (orderedBy.isNotEmpty)
+                  _buildStatusRow(
+                    title: 'تم الطلب من قبل $orderedBy',
+                    time: '',
+                  ),
                 if (received)
                   _buildStatusRow(
                     title: 'تم الاستلام من قبل $receivedBy',
@@ -219,7 +226,13 @@ class _PatientsScreenState extends State<PatientsScreen> {
                     time: _formatTimestamp(resultUpdatedAt),
                   ),
                 if (!received && !delivered && !resultCompleted)
-                  const Text('لا توجد معلومات عن حالة الطلب.'),
+                  Align(
+    alignment: Alignment.centerRight,
+    child: const Text(
+      'لا توجد معلومات عن حالة الطلب',
+      textAlign: TextAlign.right,
+    ),
+  ),
               ],
             ),
             actions: [
@@ -341,7 +354,8 @@ class _PatientsScreenState extends State<PatientsScreen> {
                   });
                 },
                 decoration: InputDecoration(
-                  hintText: 'البحث باسم المريض...',
+                  hintText: 'البحث باسم المريض او الباركود...',
+
                   prefixIcon: const Icon(Icons.search),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -418,7 +432,10 @@ class _PatientsScreenState extends State<PatientsScreen> {
                         final data = doc.data();
                         final patientName =
                             data['name']?.toString().toLowerCase() ?? '';
-                        return patientName.contains(_searchQuery);
+                        final barcode =
+                            data['barcode']?.toString().toLowerCase() ?? '';
+                        return patientName.contains(_searchQuery) ||
+                            barcode.contains(_searchQuery);
                       }).toList();
 
                   if (filteredDocs.isEmpty) {
@@ -446,6 +463,7 @@ class _PatientsScreenState extends State<PatientsScreen> {
                       final String status =
                           data['status']?.toString() ?? 'pending';
                       final bool isCancelled = status == 'cancelled';
+                      final barcode = data['barcode']?.toString() ?? '';
 
                       return FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
                         future:
@@ -459,16 +477,6 @@ class _PatientsScreenState extends State<PatientsScreen> {
                         builder: (context, testsSnap) {
                           final testsDocs = testsSnap.data?.docs ?? const [];
                           final int testsCount = testsDocs.length;
-                          num totalAmount = 0;
-                          for (final t in testsDocs) {
-                            final p = t.data()['price'];
-                            if (p is num) {
-                              totalAmount += p;
-                            } else {
-                              final n = num.tryParse('${p ?? ''}');
-                              if (n != null) totalAmount += n;
-                            }
-                          }
 
                           return Stack(
                             clipBehavior: Clip.none,
@@ -523,38 +531,54 @@ class _PatientsScreenState extends State<PatientsScreen> {
                                           ),
                                         ),
                                       ),
-                                      title: Row(
+                                      title: Text(
+                                        patientName,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                      subtitle: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          Expanded(
-                                            child: Text(
-                                              patientName,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 16,
-                                                color: Colors.black,
-                                              ),
-                                            ),
-                                          ),
                                           if (isCancelled)
                                             Text(
                                               '(ملغي)',
                                               style: TextStyle(
                                                 fontWeight: FontWeight.bold,
-                                                fontSize: 14,
+                                                fontSize: 12,
                                                 color: Colors.grey[600],
                                               ),
                                             ),
+                                          if (!isCancelled) _buildProgressBar(data),
                                         ],
                                       ),
-                                      subtitle: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-
-                                        children: [
-                                          Text(labName, style: TextStyle(color: Colors.grey,),),
-                                          _buildProgressBar(data)],
-                                      ),
-                                     
+                                      trailing:
+                                          barcode.isNotEmpty
+                                              ? Column(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  const Icon(
+                                                    Icons.qr_code_2,
+                                                    size: 20,
+                                                    color: Colors.grey,
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    barcode,
+                                                    style: const TextStyle(
+                                                      fontSize: 12,
+                                                      color: Colors.black,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ],
+                                              )
+                                              : null,
                                       onTap:
                                           labSnapshot.hasData
                                               ? () {
@@ -584,20 +608,19 @@ class _PatientsScreenState extends State<PatientsScreen> {
                                   },
                                 ),
                               ),
-                              // Badge for tests count (top-left)
+                              // Badge for tests count (top-left) - only show if tests > 0
                               if (testsSnap.connectionState !=
-                                  ConnectionState.waiting)
+                                      ConnectionState.waiting &&
+                                  testsCount > 0)
                                 Positioned(
                                   top: 4,
                                   left: 4,
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
+                                    width: 24,
+                                    height: 24,
                                     decoration: BoxDecoration(
                                       color: const Color(0xFF673AB7),
-                                      borderRadius: BorderRadius.circular(12),
+                                      shape: BoxShape.circle,
                                       boxShadow: [
                                         BoxShadow(
                                           color: Colors.black.withOpacity(0.1),
@@ -605,12 +628,14 @@ class _PatientsScreenState extends State<PatientsScreen> {
                                         ),
                                       ],
                                     ),
-                                    child: Text(
-                                      testsCount.toString(),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
+                                    child: Center(
+                                      child: Text(
+                                        testsCount.toString(),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
                                       ),
                                     ),
                                   ),

@@ -498,14 +498,49 @@ class _ClaimScreenState extends State<ClaimScreen> {
             final d = docs[i];
             final data = d.data();
             final name = data['name']?.toString() ?? '';
-            final displayIndex = i + 1;
+            final patientCode = (data['id'] != null)
+                ? data['id'].toString()
+                : d.id;
+
+            // Format order date under each patient
+            String orderDate = '';
+            final createdRaw = data['createdAt'];
+            DateTime? created;
+            if (createdRaw is Timestamp) {
+              created = createdRaw.toDate();
+            } else if (createdRaw is int) {
+              created = DateTime.fromMillisecondsSinceEpoch(createdRaw);
+            } else if (createdRaw is String) {
+              final parsed = DateTime.tryParse(createdRaw);
+              if (parsed != null) created = parsed;
+            }
+            if (created != null) {
+              final dd = created.day.toString().padLeft(2, '0');
+              final mm = created.month.toString().padLeft(2, '0');
+              final yyyy = created.year.toString();
+              final hh = created.hour.toString().padLeft(2, '0');
+              final min = created.minute.toString().padLeft(2, '0');
+              orderDate = '$dd/$mm/$yyyy - $hh:$min';
+            }
 
             return Card(
               child: ListTile(
                 title: Text(
-                  '$displayIndex. $name',
+                  '$patientCode - $name',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
+                subtitle: orderDate.isNotEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.only(top: 4.0),
+                        child: Text(
+                          orderDate,
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 12,
+                          ),
+                        ),
+                      )
+                    : null,
                 trailing: FutureBuilder<int>(
                   future: _getTotalForPatient(d.id),
                   builder: (_, totalSnap) {

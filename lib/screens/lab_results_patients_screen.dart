@@ -179,252 +179,276 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
             ),
           ],
         ),
-        body:Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.grey.shade200,
-                  const Color(0xFF673AB7).withOpacity(0.2),
-                  const Color(0xFF673AB7).withOpacity(0.35),
-                ],
-              ),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.grey.shade200,
+                const Color(0xFF673AB7).withOpacity(0.2),
+                const Color(0xFF673AB7).withOpacity(0.35),
+              ],
             ),
-            width: double.infinity,
-            height: double.infinity,
-            child: Column(
-          children: [
-            // Search bar
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: TextField(
-                controller: _searchController,
-                onChanged: (value) {
-                  setState(() {
-                    _searchQuery = value.toLowerCase();
-                  });
-                },
-                decoration: InputDecoration(
-                  hintText: 'البحث باسم المريض...',
-                  prefixIcon: const Icon(Icons.search),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
+          ),
+          width: double.infinity,
+          height: double.infinity,
+          child: Column(
+            children: [
+              // Search bar
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value.toLowerCase();
+                    });
+                  },
+                  decoration: InputDecoration(
+                    hintText: 'البحث باسم المريض او الباركود...',
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[100],
                   ),
-                  filled: true,
-                  fillColor: Colors.grey[100],
                 ),
               ),
-            ),
-            // Date display
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Row(
-                children: [
-                  const Icon(Icons.calendar_today, color: Colors.grey),
-                  const SizedBox(width: 8),
-                  Text(
-                    'التاريخ: ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            // Patients list
-            Expanded(
-              child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                stream: col.where('labId', isEqualTo: widget.labId).snapshots(),
-                builder: (context, snap) {
-                  if (snap.hasError)
-                    return Center(child: Text('خطأ: ${snap.error}'));
-                  if (!snap.hasData)
-                    return const Center(child: CircularProgressIndicator());
-
-                  // فلترة حسب تاريخ اليوم المحدد
-                  final allDocs = snap.data!.docs;
-
-                  List<QueryDocumentSnapshot<Map<String, dynamic>>> filtered =
-                      [];
-
-                  if (_searchQuery.isNotEmpty) {
-                    // لو فيه بحث: تجاهل التاريخ وابحث في الكل
-                    filtered =
-                        allDocs.where((doc) {
-                          final data = doc.data();
-                          final patientName =
-                              data['name']?.toString().toLowerCase() ?? '';
-                          return patientName.contains(_searchQuery);
-                        }).toList();
-                  } else {
-                    // لو ما فيه بحث: فلتر على حسب التاريخ
-                    filtered =
-                        allDocs.where((doc) {
-                          final m = doc.data();
-                          final ts = m['createdAt'];
-                          final t = (ts is Timestamp) ? ts : null;
-                          return _isSameDay(t, _selectedDate);
-                        }).toList();
-                  }
-
-                  // ترتيب تنازلي حسب createdAt
-                  filtered.sort((a, b) {
-                    final aTs = a.data()['createdAt'];
-                    final bTs = b.data()['createdAt'];
-                    final aT = (aTs is Timestamp) ? aTs : null;
-                    final bT = (bTs is Timestamp) ? bTs : null;
-                    if (aT == null && bT == null) return 0;
-                    if (aT == null) return 1;
-                    if (bT == null) return -1;
-                    return bT.compareTo(aT);
-                  });
-
-                  if (filtered.isEmpty) {
-                    return Center(
-                      child: Text(
-                        _searchQuery.isNotEmpty
-                            ? 'لا توجد نتائج للبحث'
-                            : 'لا توجد عينات لليوم المحدد',
+              // Date display
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Row(
+                  children: [
+                    const Icon(Icons.calendar_today, color: Colors.grey),
+                    const SizedBox(width: 8),
+                    Text(
+                      'التاريخ: ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
                       ),
-                    );
-                  }
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Patients list
+              Expanded(
+                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream:
+                      col.where('labId', isEqualTo: widget.labId).snapshots(),
+                  builder: (context, snap) {
+                    if (snap.hasError)
+                      return Center(child: Text('خطأ: ${snap.error}'));
+                    if (!snap.hasData)
+                      return const Center(child: CircularProgressIndicator());
 
-                  final perDayTotal = filtered.length;
-                  return ListView.separated(
-                    itemCount: filtered.length,
-                    padding: const EdgeInsets.all(16),
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (context, i) {
-                      final d = filtered[i];
-                      final data = d.data();
-                      final rawId = data['id'];
-                      final patientCode =
-                          (rawId is int)
-                              ? rawId.toString()
-                              : (int.tryParse('$rawId') ?? 0) > 0
-                              ? '$rawId'
-                              : d.id; // fallback للـ docId
+                    // فلترة حسب تاريخ اليوم المحدد
+                    final allDocs = snap.data!.docs;
 
-                      final name = data['name']?.toString() ?? '';
-                      final dayNumber =
-                          perDayTotal - i; // رقم اليوم يبدأ من 1 لكل يوم
-                      final bool isCancelled = (data['status']?.toString() ?? '') == 'cancelled';
-                      return Card(
-                        
-                        child: ListTileTheme(
-                          data: const ListTileThemeData(
-                            horizontalTitleGap: 8,
-                            minLeadingWidth: 0,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 8),
-                          ),
-                          child: ListTile(
-                            minLeadingWidth: 0,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                            ),
-                            leading: SizedBox(
-                              width: 50,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 6,
-                                ),
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  
-                                  border: Border.all(
-                                    color: isCancelled ? Colors.red : const Color(0xFF673AB7),
-                                    width: 2,
-                                  ),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  patientCode,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF673AB7),
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            ),
+                    List<QueryDocumentSnapshot<Map<String, dynamic>>> filtered =
+                        [];
 
-                            title: isCancelled
-                                ? Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          name,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.black,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        '(ملغي)',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                    ],
-                                  )
-                                : Text(
-                                    name,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(height: 8),
-                                if (!isCancelled) _buildProgressBar(data),
-                              ],
-                            ),
-                            /*trailing: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: chipColor.withOpacity(0.12),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: chipColor, width: 1),
-                              ),
-                              child: Text(
-                                status == 'comlated' ? 'completed' : status,
-                                style: TextStyle(color: chipColor, fontWeight: FontWeight.bold, fontSize: 12),
-                              ),
-                            ),*/
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder:
-                                      (context) => LabPatientResultDetailScreen(
-                                        labId: widget.labId,
-                                        labName: widget.labName,
-                                        patientDocId: d.id,
-                                      ),
-                                ),
-                              );
-                            },
-                          ),
+                    if (_searchQuery.isNotEmpty) {
+  filtered = allDocs.where((doc) {
+    final data = doc.data();
+    final patientName = data['name']?.toString().toLowerCase() ?? '';
+    final barcode = data['barcode']?.toString().toLowerCase() ?? '';
+    return patientName.contains(_searchQuery) || barcode.contains(_searchQuery);
+  }).toList();
+} else {
+  filtered = allDocs.where((doc) {
+    final m = doc.data();
+    final ts = m['createdAt'];
+    final t = (ts is Timestamp) ? ts : null;
+    return _isSameDay(t, _selectedDate);
+  }).toList();
+}
+
+
+                    // ترتيب تنازلي حسب createdAt
+                    filtered.sort((a, b) {
+                      final aTs = a.data()['createdAt'];
+                      final bTs = b.data()['createdAt'];
+                      final aT = (aTs is Timestamp) ? aTs : null;
+                      final bT = (bTs is Timestamp) ? bTs : null;
+                      if (aT == null && bT == null) return 0;
+                      if (aT == null) return 1;
+                      if (bT == null) return -1;
+                      return bT.compareTo(aT);
+                    });
+
+                    if (filtered.isEmpty) {
+                      return Center(
+                        child: Text(
+                          _searchQuery.isNotEmpty
+                              ? 'لا توجد نتائج للبحث'
+                              : 'لا توجد عينات لليوم المحدد',
                         ),
                       );
-                    },
-                  );
-                },
+                    }
+
+                    final perDayTotal = filtered.length;
+                    return ListView.separated(
+                      itemCount: filtered.length,
+                      padding: const EdgeInsets.all(16),
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (context, i) {
+                        final d = filtered[i];
+                        final data = d.data();
+                        final rawId = data['id'];
+                        final patientCode =
+                            (rawId is int)
+                                ? rawId.toString()
+                                : (int.tryParse('$rawId') ?? 0) > 0
+                                ? '$rawId'
+                                : d.id; // fallback للـ docId
+
+                        final name = data['name']?.toString() ?? '';
+                        final dayNumber =
+                            perDayTotal - i; // رقم اليوم يبدأ من 1 لكل يوم
+                        final bool isCancelled =
+                            (data['status']?.toString() ?? '') == 'cancelled';
+                        return Card(
+                          child: ListTileTheme(
+                            data: const ListTileThemeData(
+                              horizontalTitleGap: 8,
+                              minLeadingWidth: 0,
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                            ),
+                            child: ListTile(
+                              minLeadingWidth: 0,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                              leading: SizedBox(
+                                width: 50,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    border: Border.all(
+                                      color:
+                                          isCancelled
+                                              ? Colors.red
+                                              : const Color(0xFF673AB7),
+                                      width: 2,
+                                    ),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    patientCode,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF673AB7),
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+
+                              title: Padding(
+  padding: const EdgeInsets.only(top: 8.0), // المسافة اللي تريدها من الأعلى
+  child:
+                                  isCancelled
+                                      ? Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              name,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.black,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            '(ملغي)',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                        ],
+                                      )
+                                      : Text(
+                                        name,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const SizedBox(height: 4),
+                                  if (!isCancelled) _buildProgressBar(data),
+                                ],
+                              ),
+                              trailing:
+                                  (data['barcode'] != null &&
+                                          data['barcode']
+                                              .toString()
+                                              .trim()
+                                              .isNotEmpty)
+                                      ? Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(
+                                            Icons.qr_code_2,
+                                            size: 20,
+                                            color: Colors.grey,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            data['barcode'].toString(),
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                              color:
+                                                  Colors
+                                                      .black, // لون الرقم أسود
+                                            ),
+                                          ),
+                                        ],
+                                      )
+                                      : null,
+
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder:
+                                        (context) =>
+                                            LabPatientResultDetailScreen(
+                                              labId: widget.labId,
+                                              labName: widget.labName,
+                                              patientDocId: d.id,
+                                            ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),),
+      ),
     );
   }
 }

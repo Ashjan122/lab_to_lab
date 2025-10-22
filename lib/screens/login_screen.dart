@@ -55,6 +55,8 @@ class _LoginScreenState extends State<LoginScreen> {
           'userName',
           controlDoc.data()['userName']?.toString() ?? inputUser,
         );
+        
+
         await prefs.remove('lab_id');
         await prefs.remove('labName');
         if (!mounted) return;
@@ -98,6 +100,7 @@ class _LoginScreenState extends State<LoginScreen> {
           'userName',
           data['userName']?.toString() ?? inputUser,
         );
+        await prefs.setString('userPhone', data['userPhone']?.toString() ?? '');
         await prefs.setString('userType', userType);
         if (labId.isNotEmpty) await prefs.setString('lab_id', labId);
         await prefs.setString('labName', labName);

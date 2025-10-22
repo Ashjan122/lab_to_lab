@@ -75,6 +75,11 @@ Future<void> _initMessaging() async {
     provisional: false,
     sound: true,
   );
+  await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+  alert: true,
+  badge: true,
+  sound: true,
+);
 
   // Initialize local notifications
   const AndroidInitializationSettings androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -264,15 +269,30 @@ void _navigateToScreen(String route, [Map<String, dynamic>? arguments]) {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+ 
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // ✅ تهيئة القناة الصوتية قبل استقبال الإشعارات
+  const AndroidInitializationSettings androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const InitializationSettings initSettings = InitializationSettings(android: androidInit);
+  await _localNotifications.initialize(initSettings);
+
+  // ✅ إنشاء القناة الصوتية مباشرة لضمان ظهور الصوت في كل الأجهزة
+  await _localNotifications
+      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(_defaultChannel);
+
+  // 🔔 تهيئة الإشعارات بعد القناة
   await _initMessaging();
-  // Don't await location permission to avoid blocking app startup
+
+  
   _initLocationPermission();
+
   runApp(const MyApp());
 }
-
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -311,8 +331,8 @@ class MyApp extends StatelessWidget {
           navigatorKey: rootNavigatorKey,
           theme: ThemeData(
             textTheme: TextTheme(
-              bodyMedium: TextStyle(fontFamily: 'Tajawal'),
-              titleLarge: TextStyle(fontFamily: 'Tajawal'),
+              bodyMedium: TextStyle(fontFamily: 'Tajawal', fontWeight: FontWeight.normal),
+              titleLarge: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
             )
 
           ),

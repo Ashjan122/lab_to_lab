@@ -55,22 +55,21 @@ class _LabPatientResultDetailScreenState
   void _showConditionDialog(BuildContext context, String condition) {
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
+    builder: (context) => Directionality(
+      textDirection: TextDirection.rtl, // ⬅️ اجعل كل المحتوى من اليمين لليسار
+      child: AlertDialog(
         title: const Text(
           'إرشادات الفحص',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: Color(0xFF673AB7),
           ),
-          textAlign: TextAlign.right,
         ),
         content: Container(
           constraints: const BoxConstraints(maxWidth: 300),
           child: Text(
             condition,
-                style: const TextStyle(fontSize: 16, height: 1.5),
-            textAlign: TextAlign.right,
+            style: const TextStyle(fontSize: 16, height: 1.5),
           ),
         ),
         actions: [
@@ -88,9 +87,11 @@ class _LabPatientResultDetailScreenState
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
+        ),
       ),
     );
   }
+
 
   Future<String?> _getTestCondition(String testId) async {
     try {
@@ -104,7 +105,7 @@ class _LabPatientResultDetailScreenState
       
       if (doc.exists) {
         final data = doc.data();
-        final condition = data?['condition']?.toString().trim();
+        final condition = data?['conditions']?.toString().trim();
         return condition != null && condition.isNotEmpty ? condition : null;
       }
       return null;
@@ -252,7 +253,7 @@ class _LabPatientResultDetailScreenState
                 fontWeight: FontWeight.bold,
               ),
             ),
-          backgroundColor: const Color(0xFF673AB7),
+            backgroundColor: const Color(0xFF673AB7),
           centerTitle: true,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -305,8 +306,8 @@ class _LabPatientResultDetailScreenState
               end: Alignment.bottomCenter,
               colors: [
                 Colors.grey.shade200,
-                const Color(0xFF673AB7).withOpacity(0.2),
-                const Color(0xFF673AB7).withOpacity(0.35),
+                  const Color(0xFF673AB7).withOpacity(0.2),
+                  const Color(0xFF673AB7).withOpacity(0.35),
               ],
             ),
           ),
@@ -330,6 +331,12 @@ class _LabPatientResultDetailScreenState
             final intId = data['id'] as int? ?? 0;
             final name = data['name'] as String? ?? '';
             final phone = data['phone'] as String? ?? '';
+                final barcode = data['barcode']?.toString() ?? '';
+                print('Full data: $data');
+                print('Barcode field: ${data['barcode']}');
+                print('Barcode type: ${data['barcode'].runtimeType}');
+                print('Barcode value: "$barcode"');
+                print('Barcode is empty: ${barcode.isEmpty}');
                 final tests =
                     (data['tests'] as List).cast<Map<String, dynamic>>();
             final total = _calcTotal(tests);
@@ -421,6 +428,30 @@ class _LabPatientResultDetailScreenState
                                     style: const TextStyle(
                                       fontSize: 14,
                                       color: Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                                    // Barcode
+                                    if (barcode.isNotEmpty) ...[
+                                      const SizedBox(height: 4),
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey[100],
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.grey[300]!,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          'الباركود: $barcode',
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.black87,
+                                            fontWeight: FontWeight.w500,
+                                          ),
                                     ),
                                   ),
                                 ],
@@ -823,67 +854,225 @@ class _LabPatientResultDetailScreenState
                               ),
                         ),
                         const SizedBox(height: 8),
-                        SizedBox(
-                          width: double.infinity,
-                          child: widget.fromSelection
-                              ? ElevatedButton(
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => SuccessRequestScreen(
-                                          labId: widget.labId,
-                                          labName: widget.labName,
-                                          patientDocId: widget.patientDocId,
+                            // أزرار تعديل وإلغاء الطلب
+                            if (!widget.fromSelection) ...[
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: ElevatedButton(
+                                      onPressed:
+                                          data['sample_delivered'] == true
+                                              ? null
+                                              : () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder:
+                                                        (
+                                                          _,
+                                                        ) => LabSelectTestsScreen(
+                                                          labId: widget.labId,
+                                                          labName:
+                                                              widget.labName,
+                                                          patientId:
+                                                              widget
+                                                                  .patientDocId,
+                                                          skipNotification:
+                                                              true,
+                                                        ),
+                                                  ),
+                                                );
+                                              },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            data['sample_delivered'] == true
+                                                ? Colors.grey[300]
+                                                : Color(0xFF673AB7),
+                                        foregroundColor:
+                                            data['sample_delivered'] == true
+                                                ? Colors.grey[600]
+                                                : Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                         ),
                                       ),
-                                    );
-                                  },
+                                      child: const Text(
+                                        'تعديل الطلب',
+                                        style: TextStyle(),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: ElevatedButton(
+                                      onPressed:
+                                          data['sample_delivered'] == true
+                                              ? null
+                                              : () async {
+                                                try {
+                                                  await FirebaseFirestore
+                                                      .instance
+                                                      .collection('labToLap')
+                                                      .doc('global')
+                                                      .collection('patients')
+                                                      .doc(widget.patientDocId)
+                                                      .update({
+                                                        'status': 'cancelled',
+                                                        'cancelled_at':
+                                                            FieldValue.serverTimestamp(),
+                                                        'cancelled_by':
+                                                            'المعمل',
+                                                      });
+
+                                                  if (context.mounted) {
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      const SnackBar(
+                                                        content: Text(
+                                                          'تم إلغاء الطلب',
+                                                        ),
+                                                        backgroundColor:
+                                                            Colors.red,
+                                                      ),
+                                                    );
+                                                    Navigator.pop(context);
+                                                  }
+                                                } catch (e) {
+                                                  if (context.mounted) {
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      SnackBar(
+                                                        content: Text(
+                                                          'فشل إلغاء الطلب: $e',
+                                                        ),
+                                                        backgroundColor:
+                                                            Colors.red,
+                                                      ),
+                                                    );
+                                                  }
+                                                }
+                                              },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            data['sample_delivered'] == true
+                                                ? Colors.grey[300]
+                                                : Color(0xFF673AB7),
+                                        foregroundColor:
+                                            data['sample_delivered'] == true
+                                                ? Colors.grey[600]
+                                                : Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        'إلغاء الطلب',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                            ],
+                        SizedBox(
+                          width: double.infinity,
+                              child:
+                                  widget.fromSelection
+                                      ? ElevatedButton(
+                                        onPressed: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder:
+                                                  (_) => SuccessRequestScreen(
+                                                    labId: widget.labId,
+                                                    labName: widget.labName,
+                                                    patientDocId:
+                                                        widget.patientDocId,
+                                                  ),
+                                            ),
+                                          );
+                                        },
                             style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.white,
-                                    foregroundColor: Colors.black,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
+                                          backgroundColor: Colors.white,
+                                          foregroundColor: Colors.black,
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 14,
+                                          ),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
                                 side: BorderSide(
-                                        color: Color(0xFF673AB7),
+                                              color: Color(0xFF673AB7),
+                                            ),
+                                          ),
+                                        ),
+                                        child: const Text(
+                                          'متابعة',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
                                       )
-                                    ),
-                                  ),
-                                  child: const Text(
-                                    'متابعة',
-                                    style: TextStyle(fontWeight: FontWeight.bold),
-                                  ),
-                                )
-                              : ElevatedButton(
-                                  onPressed: pdfUrl.isNotEmpty
-                                      ? () {
-                                          _openPdf(context, pdfUrl, data);
-                                        }
-                                      : null,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor:
-                                        pdfUrl.isNotEmpty ? Colors.white : Colors.grey[300],
-                                    foregroundColor:
-                                        pdfUrl.isNotEmpty ? Colors.black : Colors.grey[600],
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 14,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      side: BorderSide(
-                                        color: pdfUrl.isNotEmpty
-                                            ? const Color(0xFF673AB7)
-                                            : Colors.grey[400]!,
+                                      : ElevatedButton(
+                                        onPressed:
+                                            pdfUrl.isNotEmpty
+                                                ? () {
+                                                  _openPdf(
+                                                    context,
+                                                    pdfUrl,
+                                                    data,
+                                                  );
+                                                }
+                                                : null,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor:
+                                              pdfUrl.isNotEmpty
+                                                  ? Colors.white
+                                                  : Colors.grey[300],
+                                          foregroundColor:
+                                              pdfUrl.isNotEmpty
+                                                  ? Colors.black
+                                                  : Colors.grey[600],
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 14,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            side: BorderSide(
+                                              color:
+                                                  pdfUrl.isNotEmpty
+                                                      ? const Color(0xFF673AB7)
+                                                      : Colors.grey[400]!,
                                   width: 2,
                                 ),
                               ),
                             ),
                             child: Text(
-                              pdfUrl.isNotEmpty ? 'عرض النتيجة PDF' : 'لا يوجد نتيجة حاليا',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                          pdfUrl.isNotEmpty
+                                              ? 'عرض النتيجة PDF'
+                                              : 'لا يوجد نتيجة حاليا',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
                             ),
                           ),
                         ),
@@ -1134,9 +1323,7 @@ class _PdfViewerScreen extends StatelessWidget {
                     labelText: "رقم الهاتف",
                     labelStyle: const TextStyle(color: Colors.black),
                     border: const OutlineInputBorder(
-                        borderSide: BorderSide(
-                          color: Color(0xFF673AB7),
-                        ),
+                        borderSide: BorderSide(color: Color(0xFF673AB7)),
                     ),
                   ),
                 ),
@@ -1154,7 +1341,7 @@ class _PdfViewerScreen extends StatelessWidget {
               ),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF673AB7),
+                    backgroundColor: const Color(0xFF673AB7),
                 ),
                   onPressed:
                       isLoading

@@ -1,19 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:lab_to_lab_admin/screens/lab_info_screen.dart';
-import 'package:lab_to_lab_admin/screens/lab_location_screen.dart';
-import 'package:lab_to_lab_admin/screens/lab_order_received_notifications_screen.dart';
+import 'package:lab_to_lab_admin/screens/control_lab_info_screen.dart';
 import 'package:lab_to_lab_admin/screens/lab_price_list_screen.dart';
 import 'package:lab_to_lab_admin/screens/lab_users_screen.dart';
+import 'package:lab_to_lab_admin/screens/manage_lab_tests_screen.dart';
 
-class LabSettingsScreen extends StatelessWidget {
-  final String labId;
+class LabDatailsDashbord extends StatelessWidget {
+   final String labId;
   final String labName;
-  const LabSettingsScreen({
-    super.key,
-    required this.labId,
-    required this.labName,
-  });
-  Widget _buildCardSettings({
+  const LabDatailsDashbord({super.key,required this.labId,
+    required this.labName,});
+
+    Widget _buildCardLabDetails({
     required IconData icon,
     required String title,
     required VoidCallback onTap,
@@ -66,14 +63,16 @@ class LabSettingsScreen extends StatelessWidget {
     );
   }
 
+
   @override
   Widget build(BuildContext context) {
+
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
         appBar: AppBar(
           title: Text(
-            'إعدادات $labName',
+            '$labName',
             style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
@@ -83,17 +82,7 @@ class LabSettingsScreen extends StatelessWidget {
           centerTitle: true,
         ),
         body: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.grey.shade200,
-                const Color(0xFF673AB7).withOpacity(0.2),
-                const Color(0xFF673AB7).withOpacity(0.35),
-              ],
-            ),
-          ),
+         
           child: Padding(
             padding: const EdgeInsets.all(8.0),
             child: GridView.count(
@@ -102,57 +91,25 @@ class LabSettingsScreen extends StatelessWidget {
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
               children: [
-                _buildCardSettings(
-                  icon: Icons.people,
-                  title: 'المستخدمين',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder:
-                            (context) =>
-                                LabUsersScreen(labId: labId, labName: labName),
-                      ),
-                    );
-                  },
-                ),
+                _buildCardLabDetails(icon: Icons.biotech, title: "بيانات المعمل", onTap: (){
+                  Navigator.push(context, MaterialPageRoute(builder: (_)=> ControlLabInfoScreen(labId: labId, labName: labName),));
+                }),
+                _buildCardLabDetails(icon: Icons.science, title: "إدارة التحاليل", onTap: (){
+                  Navigator.push(context, MaterialPageRoute(builder: (_)=> ManageLabTestsScreen(labId: labId, labName: labName),));
+                }),
+                _buildCardLabDetails(icon: Icons.price_change, title: "قائمة الاسعار", onTap: (){
+                  Navigator.push(context, MaterialPageRoute(builder: (_)=> LabPriceListScreen(labId: labId, labName: labName,canEdit: true,),));
+
+                }),
+                _buildCardLabDetails(icon: Icons.people, title: "المستخدمين", onTap: (){
+                   Navigator.push(context, MaterialPageRoute(builder: (_)=> LabUsersScreen(labId: labId, labName: labName),));
+
+                })
                 
-                _buildCardSettings(
-                  icon: Icons.business,
-                  title: 'بيانات المعمل',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder:
-                            (context) =>
-                                LabInfoScreen(labId: labId, labName: labName),
-                      ),
-                    );
-                  },
-                ),
-               
-                _buildCardSettings(
-                  icon: Icons.location_on,
-                  title: "الموقع",
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder:
-                            (context) => LabLocationScreen(
-                              labName: labName,
-                              labId: labId,
-                            ),
-                      ),
-                    );
-                  },
-                ),
               ],
             ),
           ),
         ),
-      ),
-    );
+      ),);
   }
 }

@@ -59,44 +59,45 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
   }
 
   void _showConditionDialog(BuildContext context, String condition) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text(
-              'إرشادات الفحص',
+  showDialog(
+    context: context,
+    builder: (context) => Directionality(
+      textDirection: TextDirection.rtl, // ⬅️ اجعل كل المحتوى من اليمين لليسار
+      child: AlertDialog(
+        title: const Text(
+          'إرشادات الفحص',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF673AB7),
+          ),
+        ),
+        content: Container(
+          constraints: const BoxConstraints(maxWidth: 300),
+          child: Text(
+            condition,
+            style: const TextStyle(fontSize: 16, height: 1.5),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(
+              'حسناً',
               style: TextStyle(
-                fontWeight: FontWeight.bold,
                 color: Color(0xFF673AB7),
+                fontWeight: FontWeight.bold,
               ),
-              textAlign: TextAlign.right,
-            ),
-            content: Container(
-              constraints: const BoxConstraints(maxWidth: 300),
-              child: Text(
-                condition,
-                style: const TextStyle(fontSize: 16, height: 1.5),
-                textAlign: TextAlign.right,
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text(
-                  'حسناً',
-                  style: TextStyle(
-                    color: Color(0xFF673AB7),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
             ),
           ),
-    );
-  }
+        ],
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    ),
+  );
+}
+
 
   Future<void> _loadExistingTests() async {
     try {
@@ -138,98 +139,95 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
       .collection('pricelist');
 
   Future<void> _saveSelection(
-    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
-  ) async {
-    if (_selectedIds.isEmpty) return;
-    setState(() => _saving = true);
-    try {
-      final WriteBatch batch = FirebaseFirestore.instance.batch();
-      final reqCol = FirebaseFirestore.instance
-          .collection('labToLap')
-          .doc('global')
-          .collection('patients')
-          .doc(widget.patientId)
-          .collection('lab_request');
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+) async {
+  if (_selectedIds.isEmpty) return;
+  setState(() => _saving = true);
+  try {
+    final WriteBatch batch = FirebaseFirestore.instance.batch();
+    final reqCol = FirebaseFirestore.instance
+        .collection('labToLap')
+        .doc('global')
+        .collection('patients')
+        .doc(widget.patientId)
+        .collection('lab_request');
 
-      // Only save newly selected tests (not existing ones)
-      final newSelectedIds = _selectedIds.difference(_existingTestIds);
-      final selectedDocs = docs.where((d) => newSelectedIds.contains(d.id));
+    final newSelectedIds = _selectedIds.difference(_existingTestIds);
+    final selectedDocs = docs.where((d) => newSelectedIds.contains(d.id));
 
-      for (final d in selectedDocs) {
-        final data = d.data();
-        final reqDocRef = reqCol.doc();
-        batch.set(reqDocRef, {
-          'testId': d.id,
-          'name': data['name'],
-          'price': data['price'],
-          'container_id': data['container_id'] ?? data['containerId'],
-          'createdAt': FieldValue.serverTimestamp(),
-        });
+    for (final d in selectedDocs) {
+      final data = d.data();
+
+      if (_existingTestIds.contains(d.id)) {
+        continue;
       }
 
-      if (newSelectedIds.isNotEmpty) {
-        await batch.commit();
+      final reqDocRef = reqCol.doc();
+      batch.set(reqDocRef, {
+        'testId': d.id,
+        'name': data['name'],
+        'price': data['price'],
+        'container_id': data['container_id'] ?? data['containerId'],
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
 
-        // Send notification only if not skipping
-        if (!widget.skipNotification) {
-          try {
-            // Fetch patient name and data
-            final pSnap = await FirebaseFirestore.instance
-                .collection('labToLap')
-                .doc('global')
-                .collection('patients')
-                .doc(widget.patientId)
-                .get();
-            final patientData = pSnap.data() ?? {};
-            final patientName = patientData['name']?.toString() ?? 'مريض';
-            final patientCode = patientData['id']?.toString() ?? widget.patientId;
+    if (newSelectedIds.isNotEmpty) {
+      await batch.commit();
 
-            // Aggregate test names and total price for notification
+      if (!widget.skipNotification) {
+        try {
+          final pSnap = await FirebaseFirestore.instance
+              .collection('labToLap')
+              .doc('global')
+              .collection('patients')
+              .doc(widget.patientId)
+              .get();
+          final patientData = pSnap.data() ?? {};
+          final patientName = patientData['name']?.toString() ?? 'مريض';
+          final patientCode =
+              patientData['id']?.toString() ?? widget.patientId;
+          final notificationSent = patientData['notificationSent'] == true;
+
+          if (notificationSent) {
+            print('⚠️ تم إرسال الإشعار سابقاً لهذا المريض، تخطي الإرسال...');
+          } else {
             final List<String> testNames = [];
             num totalPrice = 0;
-            
+
             for (final d in selectedDocs) {
               final data = d.data();
               final name = data['name']?.toString() ?? '';
               final priceDyn = data['price'];
-              final priceNum = (priceDyn is num) ? priceDyn : (num.tryParse('$priceDyn') ?? 0);
+              final priceNum = (priceDyn is num)
+                  ? priceDyn
+                  : (num.tryParse('$priceDyn') ?? 0);
               if (name.isNotEmpty) testNames.add(name);
               totalPrice += priceNum;
             }
 
-            // Get lab WhatsApp number and bank account
             final labSnap = await FirebaseFirestore.instance
                 .collection('labToLap')
                 .doc(widget.labId)
                 .get();
             final labData = labSnap.data() ?? {};
             String whatsappNumber = labData['whatsApp']?.toString() ?? '';
-            
-            print('Raw lab data: $labData');
-            print('WhatsApp field value: ${labData['whatsApp']}');
-            
-            // If no WhatsApp number, set a default one for testing
             if (whatsappNumber.isEmpty) {
-              whatsappNumber = '249912345678'; // رقم افتراضي للاختبار
-              print('No WhatsApp number found, using default: $whatsappNumber');
+              whatsappNumber = '249912345678';
+              print(
+                  'No WhatsApp number found, using default: $whatsappNumber');
             }
-            
-            // Get or set default bank account
-            String bankAccount = labData['bankAccount']?.toString() ?? '123456';
+
+            String bankAccount =
+                labData['bankAccount']?.toString() ?? '123456';
             if (!labSnap.exists || labData['bankAccount'] == null) {
-              // Set default bank account if not exists
               await FirebaseFirestore.instance
                   .collection('labToLap')
                   .doc(widget.labId)
-                  .set({
-                'bankAccount': '123456',
-              }, SetOptions(merge: true));
+                  .set({'bankAccount': '123456'}, SetOptions(merge: true));
             }
 
-            // Send WhatsApp message
-            print('WhatsApp number found: $whatsappNumber');
             if (whatsappNumber.isNotEmpty) {
-              print('Attempting to send WhatsApp message...');
               await _sendWhatsAppMessage(
                 whatsappNumber,
                 patientName,
@@ -237,8 +235,6 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
                 totalPrice.toStringAsFixed(0),
                 bankAccount,
               );
-            } else {
-              print('No WhatsApp number found for lab: ${widget.labId}');
             }
 
             final String lab = (widget.labName).trim();
@@ -248,54 +244,60 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
             final String body =
                 'اسم المريض: $patientName\nالفحوصات: ${testNames.join(', ')}\nالمبلغ: ${totalPrice.toStringAsFixed(0)}';
 
-          await FirebaseFirestore.instance.collection('push_requests').add({
-            'topic': 'lab_order',
-            'title': title,
-            'body': body,
-            'labId': widget.labId,
-            'labName': widget.labName,
-            'patientDocId': widget.patientId,
-            'action': 'open_order_request',
-            'createdAt': FieldValue.serverTimestamp(),
-          });
-          } catch (_) {
-            // ignore notification enqueue errors
+            await FirebaseFirestore.instance.collection('push_requests').add({
+              'topic': 'lab_order',
+              'title': title,
+              'body': body,
+              'labId': widget.labId,
+              'labName': widget.labName,
+              'patientDocId': widget.patientId,
+              'action': 'open_order_request',
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+
+            await FirebaseFirestore.instance
+                .collection('labToLap')
+                .doc('global')
+                .collection('patients')
+                .doc(widget.patientId)
+                .set({'notificationSent': true}, SetOptions(merge: true));
           }
+        } catch (_) {
+          // تجاهل أخطاء إرسال الإشعارات
         }
-
-      } else {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('لا توجد فحوصات جديدة لإضافتها'),
-            backgroundColor: Colors.orange,
-          ),
-        );
       }
-
-      // Navigate to results screen without clearing the entire stack
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder:
-              (context) => LabPatientResultDetailScreen(
-                labId: widget.labId,
-                labName: widget.labName,
-                patientDocId: widget.patientId,
-                fromSelection: true,
-              ),
+    } else {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('لا توجد فحوصات جديدة لإضافتها'),
+          backgroundColor: Colors.orange,
         ),
       );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('فشل الحفظ: $e'), backgroundColor: Colors.red),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _saving = false);
     }
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LabPatientResultDetailScreen(
+          labId: widget.labId,
+          labName: widget.labName,
+          patientDocId: widget.patientId,
+          fromSelection: true,
+        ),
+      ),
+    );
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('فشل الحفظ: $e'), backgroundColor: Colors.red),
+      );
+    }
+  } finally {
+    if (mounted) setState(() => _saving = false);
   }
+}
+
 
   Future<void> _sendWhatsAppMessage(
     String whatsappNumber,
@@ -305,12 +307,16 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
     String bankAccount,
   ) async {
     try {
-      final message = '''لقد تم انشاء طلبك
-رقم الطلب: $patientCode
-المبلغ: $totalPrice جنيه
+      final message = '''عزيزي المشترك ،
+نود إعلامكم بأنه تم إنشاء طلبكم بنجاح.
 
-يرجى الدفع نقدا لدى المندوب او ارسال المبلغ بنكك على الحساب التالي: $bankAccount
-مع كتابة رقم الطلب في التعليق''';
+رقم الطلب: $patientCode
+المبلغ المستحق: $totalPrice جنيه
+
+نرجو منكم تسديد المبلغ نقداً لدى المندوب أو عن طريق التحويل عبر تطبيق بنكك إلى الحساب التالي:
+ $bankAccount
+يرجى كتابة رقم الطلب($patientCode) في خانة التعليق عند التحويل لتسهيل عملية التحقق.
+شكرًا لاختياركم خدماتنا. 🌟''';
 
       // تنظيف وتنسيق رقم الواتساب - إزالة الصفر من البداية
       String cleanNumber = whatsappNumber.replaceAll(RegExp(r'[^\d]'), '');
@@ -322,7 +328,9 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
       }
       final chatId = '249$cleanNumber@c.us';
 
-      final uri = Uri.parse('https://api.ultramsg.com/instance145504/messages/chat');
+      final uri = Uri.parse(
+        'https://api.ultramsg.com/instance145504/messages/chat',
+      );
       final request = http.Request('POST', uri);
       request.headers['Content-Type'] = 'application/x-www-form-urlencoded';
       request.bodyFields = {
@@ -336,10 +344,10 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
 
       final response = await request.send();
       final responseBody = await response.stream.bytesToString();
-      
+
       print('WhatsApp API Response Status: ${response.statusCode}');
       print('WhatsApp API Response Body: $responseBody');
-      
+
       if (response.statusCode == 200) {
         print('WhatsApp message sent successfully');
       } else {
@@ -430,7 +438,11 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
                                 final price = d.data()['price'];
                                 final validPrice = price is num && price > 0;
 
-                                return validPrice;
+                                // إظهار الفحوصات التي hidden == false فقط
+                                final hidden = d.data()['hidden'];
+                                final visible = hidden == false;
+
+                                return validPrice && visible;
                               }).toList();
 
                           // sort by numeric id ascending; items without valid id go last by doc id
@@ -475,10 +487,10 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
                                 d.id,
                               );
                               final isUnavailable = data['available'] == false;
-                              final condition =
-                                  data['condition']?.toString().trim();
-                              final hasCondition =
-                                  condition != null && condition.isNotEmpty;
+                              final conditions =
+                                  data['conditions']?.toString().trim();
+                              final hasConditions =
+                                  conditions != null && conditions.isNotEmpty;
 
                               return Card(
                                 color:
@@ -490,12 +502,12 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       // Info button for condition
-                                      if (hasCondition)
+                                      if (hasConditions)
                                         GestureDetector(
                                           onTap: () {
                                             _showConditionDialog(
                                               context,
-                                              condition,
+                                              conditions,
                                             );
                                           },
                                           child: AnimatedBuilder(
@@ -535,7 +547,7 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
                                             },
                                           ),
                                         ),
-                                      if (hasCondition)
+                                      if (hasConditions)
                                         const SizedBox(width: 8),
                                       // Checkbox
                                       Checkbox(
@@ -563,17 +575,18 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
                                           isExisting ? Colors.grey[600] : null,
                                     ),
                                   ),
-                                  onTap: !isUnavailable
-                                      ? () {
-                                          setState(() {
-                                            if (_selectedIds.contains(d.id)) {
-                                              _selectedIds.remove(d.id);
-                                            } else {
-                                              _selectedIds.add(d.id);
-                                            }
-                                          });
-                                        }
-                                      : null,
+                                  onTap:
+                                      !isUnavailable
+                                          ? () {
+                                            setState(() {
+                                              if (_selectedIds.contains(d.id)) {
+                                                _selectedIds.remove(d.id);
+                                              } else {
+                                                _selectedIds.add(d.id);
+                                              }
+                                            });
+                                          }
+                                          : null,
                                   subtitle: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
