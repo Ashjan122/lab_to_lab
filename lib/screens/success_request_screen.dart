@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:lab_to_lab_admin/screens/lab_select_tests_screen.dart';
+import 'package:lab_to_lab_admin/screens/lab_new_sample_screen.dart';
 import 'package:lab_to_lab_admin/screens/lab_results_patients_screen.dart';
+import 'package:lab_to_lab_admin/screens/lab_select_tests_screen.dart';
 
 class SuccessRequestScreen extends StatelessWidget {
   final String labId;
@@ -41,6 +42,119 @@ class SuccessRequestScreen extends StatelessWidget {
         );
       }
     }
+  }
+
+  void _showEditOptionsDialog(BuildContext context, String name, String phone, String barcode) {
+    showDialog(
+      context: context,
+      builder: (context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text(
+            'اختر نوع التعديل',
+            style: TextStyle(
+              
+              color: Colors.black,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'ما الذي تريد تعديله؟',
+                style: TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 20),
+              // زر تعديل البيانات الأساسية
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => LabNewSampleScreen(
+                          labId: labId,
+                          labName: labName,
+                          existingPatientId: patientDocId,
+                          existingName: name,
+                          existingPhone: phone,
+                          existingBarcode: barcode,
+                          isEditMode: true,
+                        ),
+                      ),
+                    );
+                  },
+                  
+                  label: const Text(
+                    'تعديل البيانات الأساسية',
+                    style: TextStyle(color: Color(0xFF673AB7), fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:  Colors.white,
+                    
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: BorderSide(color: Color(0xFF673AB7), width: 2 )
+                      
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // زر تعديل الفحوصات
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => LabSelectTestsScreen(
+                          labId: labId,
+                          labName: labName,
+                          patientId: patientDocId,
+                          skipNotification: true,
+                        ),
+                      ),
+                    );
+                  },
+                  
+                  label: const Text(
+                    'تعديل الفحوصات',
+                    style: TextStyle(color: Color(0xFF673AB7), fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:  Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: BorderSide(color: Color(0xFF673AB7), width: 2 )
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                'إلغاء',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+          ],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -137,18 +251,29 @@ class SuccessRequestScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  onPressed: () {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => LabSelectTestsScreen(
-                                  labId: labId,
-                                  labName: labName,
-                                  patientId: patientDocId,
-                                  skipNotification: true,
-                                ),
-                              ),
-                            );
+                  onPressed: () async {
+                            // جلب بيانات المريض الحالية
+                            try {
+                              final patientDoc = await FirebaseFirestore.instance
+                                  .collection('labToLap')
+                                  .doc('global')
+                                  .collection('patients')
+                                  .doc(patientDocId)
+                                  .get();
+                              
+                              if (patientDoc.exists) {
+                                final data = patientDoc.data()!;
+                                final name = data['name']?.toString() ?? '';
+                                final phone = data['phone']?.toString() ?? '';
+                                final barcode = data['barcode']?.toString() ?? '';
+                                
+                                _showEditOptionsDialog(context, name, phone, barcode);
+                              }
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('خطأ في تحميل البيانات: $e'), backgroundColor: Colors.red),
+                              );
+                            }
                           },
                           child: const Text('تعديل الطلب', style: TextStyle(color: Color(0xFF673AB7))),
                         ),

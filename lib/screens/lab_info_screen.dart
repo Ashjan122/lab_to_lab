@@ -27,10 +27,14 @@ class _LabInfoScreenState extends State<LabInfoScreen>
   Map<String, dynamic>? _labData;
   File? _selectedImage;
   String? _imageUrl;
+  bool _obscurePassword = true;
+
 
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _whatsappController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
 
   @override
   void initState() {
@@ -38,6 +42,8 @@ class _LabInfoScreenState extends State<LabInfoScreen>
     WidgetsBinding.instance.addObserver(this);
     _loadLabData();
     _checkFromControlPanel();
+   
+
   }
 
   @override
@@ -53,6 +59,8 @@ class _LabInfoScreenState extends State<LabInfoScreen>
     _phoneController.dispose();
     _whatsappController.dispose();
     _addressController.dispose();
+    _passwordController.dispose();
+
     super.dispose();
   }
 
@@ -95,6 +103,8 @@ class _LabInfoScreenState extends State<LabInfoScreen>
           _phoneController.text = _labData?['phone']?.toString() ?? '';
           _whatsappController.text = _labData?['whatsapp']?.toString() ?? '';
           _addressController.text = _labData?['address']?.toString() ?? '';
+          
+
           _loading = false;
         });
       }
@@ -248,6 +258,8 @@ class _LabInfoScreenState extends State<LabInfoScreen>
             'phone': _phoneController.text.trim(),
             'whatsapp': _whatsappController.text.trim(),
             'address': _addressController.text.trim(),
+            if (_passwordController.text.isNotEmpty)
+        'password': _passwordController.text.trim(),
             if (newImageUrl != null) 'imageUrl': newImageUrl,
             'updatedAt': FieldValue.serverTimestamp(),
           });
@@ -288,6 +300,9 @@ class _LabInfoScreenState extends State<LabInfoScreen>
       _whatsappController.text =
           _labData?['whatsapp']?.toString() ?? '0991961111';
       _addressController.text = _labData?['address']?.toString() ?? '';
+      _passwordController.clear();
+
+
     });
   }
 
@@ -590,7 +605,29 @@ class _LabInfoScreenState extends State<LabInfoScreen>
             ),
             maxLines: 2,
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+         // Password
+TextField(
+  controller: _passwordController,
+  decoration: InputDecoration(
+    labelText: ' تغيير كلمة المرور ',
+    border: const OutlineInputBorder(),
+    suffixIcon: IconButton(
+      icon: Icon(
+        _obscurePassword ? Icons.visibility_off : Icons.visibility,
+      ),
+      onPressed: () {
+        setState(() {
+          _obscurePassword = !_obscurePassword;
+        });
+      },
+    ),
+  ),
+  obscureText: _obscurePassword,
+),
+const SizedBox(height: 16),
+
+
         ],
       ),
     );

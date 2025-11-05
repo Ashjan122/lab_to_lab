@@ -344,7 +344,13 @@ class _LabToLabState extends State<LabToLab> {
                   ),
 
               Expanded(
-                child: StreamBuilder<QuerySnapshot>(
+                child:  RefreshIndicator(
+    onRefresh: () async {
+      // هنا نجعل Firestore يعيد جلب البيانات
+      // بما أننا نستخدم StreamBuilder، يمكننا فقط عمل setState لإعادة البناء
+      setState(() {});
+    },
+    child: StreamBuilder<QuerySnapshot>(
                   stream:
                       FirebaseFirestore.instance
                           .collection('labToLap')
@@ -455,7 +461,7 @@ class _LabToLabState extends State<LabToLab> {
                     },
                    );
                  },
-               ),
+               ),),
              ),
           ],
         ),

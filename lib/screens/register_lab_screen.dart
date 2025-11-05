@@ -283,6 +283,9 @@ class _RegisterLabScreenState extends State<RegisterLabScreen> {
                   'تنحصر مسؤوليتنا في إجراء الفحص المعملي وفق الأصول العلمية، وإرسال النتيجة عبر الواتساب أو البريد الإلكتروني فقط.\nأما ظروف جمع العينة ونقلها فهي خارج نطاق مسؤوليتنا القانونية، إذ قد تؤثر على النتيجة دون أي تقصير من جانب المختبر.',
                   textAlign: TextAlign.right,
                 ),
+                Text(
+                  'وفي حال استلام المندوب العينة لا يمكن الغاء الطلب ',textAlign: TextAlign.right,
+                ),
               SizedBox(height: 8),
                 Text(': تفعيل الحساب -', textAlign: TextAlign.right),
                 Text(

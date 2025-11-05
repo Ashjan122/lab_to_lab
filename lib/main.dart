@@ -187,8 +187,6 @@ void _handleNotificationNavigation(Map<String, dynamic> data) {
   final String? topic = data['topic'];
   final String? action = data['action'];
   final String? patientDocId = data['patientDocId'];
-  final String? chatMessage = data['message'];
-  final String? senderLabName = data['labName'];
   final String? labId = data['labId'];
   final String? labName = data['labName'];
   
@@ -218,6 +216,22 @@ void _handleNotificationNavigation(Map<String, dynamic> data) {
     // فتح لوحة التحكم، يمكن لاحقاً التوجيه لتبويب الدردشة
     print('📱 Action open_control_panel -> navigating to control panel');
     _navigateToScreen('/control_panel');
+    return;
+  } else if (action == 'open_chat_screen') {
+    // فتح شاشة الدردشة مع المعمل المحدد
+    final String? senderId = data['senderId'];
+    final String? chatLabName = data['labName'];
+    
+    if (senderId != null && chatLabName != null) {
+      print('📱 Action open_chat_screen -> navigating to chat with lab: $chatLabName');
+      _navigateToScreen('/chat', {
+        'receiverId': senderId,
+        'receiverName': chatLabName,
+      });
+    } else {
+      print('❌ Missing senderId or labName for chat navigation');
+      _navigateToScreen('/control_panel');
+    }
     return;
   }
 

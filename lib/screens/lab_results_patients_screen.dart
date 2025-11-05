@@ -141,7 +141,22 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
         .collection('patients');
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
+      child: WillPopScope(
+        onWillPop: () async {
+          // العودة إلى لوحة المعمل بدلاً من الخروج من التطبيق
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (context) => LabDashboardScreen(
+                labId: widget.labId,
+                labName: widget.labName,
+              ),
+            ),
+            (route) => false,
+          );
+          return false; // منع الرجوع الافتراضي
+        },
+        child: Scaffold(
         appBar: AppBar(
           title: Text(
             'مرضى ${widget.labName}',
@@ -236,7 +251,13 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
               const SizedBox(height: 8),
               // Patients list
               Expanded(
-                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                child:  RefreshIndicator(
+    onRefresh: () async {
+      // هنا نجعل Firestore يعيد جلب البيانات
+      // بما أننا نستخدم StreamBuilder، يمكننا فقط عمل setState لإعادة البناء
+      setState(() {});
+    },
+    child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                   stream:
                       col.where('labId', isEqualTo: widget.labId).snapshots(),
                   builder: (context, snap) {
@@ -290,7 +311,6 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
                       );
                     }
 
-                    final perDayTotal = filtered.length;
                     return ListView.separated(
                       itemCount: filtered.length,
                       padding: const EdgeInsets.all(16),
@@ -307,8 +327,6 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
                                 : d.id; // fallback للـ docId
 
                         final name = data['name']?.toString() ?? '';
-                        final dayNumber =
-                            perDayTotal - i; // رقم اليوم يبدأ من 1 لكل يوم
                         final bool isCancelled =
                             (data['status']?.toString() ?? '') == 'cancelled';
                         return Card(
@@ -356,41 +374,30 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
                               ),
 
                               title: Padding(
-  padding: const EdgeInsets.only(top: 8.0), // المسافة اللي تريدها من الأعلى
-  child:
-                                  isCancelled
-                                      ? Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              name,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.black,
-                                              ),
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            '(ملغي)',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.grey[600],
-                                            ),
-                                          ),
-                                        ],
-                                      )
-                                      : Text(
-                                        name,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),),
+                                padding: const EdgeInsets.only(top: 8.0),
+                                child: Text(
+                                  name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const SizedBox(height: 4),
+                                  if (isCancelled) ...[
+                                    Text(
+                                      'ملغي',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.grey,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                  ],
                                   if (!isCancelled) _buildProgressBar(data),
                                 ],
                               ),
@@ -443,10 +450,11 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
                       },
                     );
                   },
-                ),
+                ),),
               ),
             ],
           ),
+        ),
         ),
       ),
     );

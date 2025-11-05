@@ -20,6 +20,9 @@ class _ControlLabInfoScreenState extends State<ControlLabInfoScreen> {
   final TextEditingController _order = TextEditingController();
   String _contractType = 'prepaid';
   bool _loading = true;
+  final TextEditingController _password = TextEditingController();
+bool _obscurePassword = true;
+
 
   @override
   void initState() {
@@ -42,29 +45,49 @@ class _ControlLabInfoScreenState extends State<ControlLabInfoScreen> {
   }
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
-    try {
-      await FirebaseFirestore.instance.collection('labToLap').doc(widget.labId).update({
-        'name': _name.text.trim(),
-        'address': _address.text.trim(),
-        'phone': _phone.text.trim(),
-        'whatsApp': _whats.text.trim(),
-        'order': int.tryParse(_order.text.trim()),
-        'contractType': _contractType,
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تم حفظ البيانات'), backgroundColor: Colors.green),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
-        );
-      }
+  if (!_formKey.currentState!.validate()) return;
+
+  try {
+    final updateData = {
+      'name': _name.text.trim(),
+      'address': _address.text.trim(),
+      'phone': _phone.text.trim(),
+      'whatsApp': _whats.text.trim(),
+      'order': int.tryParse(_order.text.trim()),
+      'contractType': _contractType,
+    };
+
+    // ✅ حفظ كلمة المرور فقط إذا المستخدم كتب كلمة جديدة
+    if (_password.text.isNotEmpty) {
+      updateData['password'] = _password.text.trim();
+    }
+
+    await FirebaseFirestore.instance
+        .collection('labToLap')
+        .doc(widget.labId)
+        .update(updateData);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم حفظ البيانات بنجاح'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      _password.clear();
+    }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('حدث خطأ أثناء الحفظ: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -117,6 +140,26 @@ class _ControlLabInfoScreenState extends State<ControlLabInfoScreen> {
                           decoration: const InputDecoration(labelText: 'الترتيب', border: OutlineInputBorder()),
                           keyboardType: TextInputType.number,
                         ),
+                        const SizedBox(height: 16),
+
+
+TextFormField(
+  controller: _password,
+  obscureText: _obscurePassword,
+  decoration: InputDecoration(
+    labelText: 'تغيير كلمة المرور ',
+    border: const OutlineInputBorder(),
+    suffixIcon: IconButton(
+      icon: Icon(
+        _obscurePassword ? Icons.visibility_off : Icons.visibility,
+      ),
+      onPressed: () => setState(() {
+        _obscurePassword = !_obscurePassword;
+      }),
+    ),
+  ),
+),
+
                         const SizedBox(height: 16),
                         const Text('نوع التعاقد', style: TextStyle(fontWeight: FontWeight.bold)),
                         Row(

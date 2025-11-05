@@ -9,7 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class OrderRequestScreen extends StatefulWidget {
-   final String labId;
+  final String labId;
   final String labName;
   final String patientDocId;
   const OrderRequestScreen({
@@ -34,7 +34,7 @@ class _OrderRequestScreenState extends State<OrderRequestScreen> {
     _patientFuture = _loadPatientAndTests();
   }
 
-Future<Map<String, dynamic>> _loadPatientAndTests() async {
+  Future<Map<String, dynamic>> _loadPatientAndTests() async {
     final patientRef = FirebaseFirestore.instance
         .collection('labToLap')
         .doc('global')
@@ -46,27 +46,46 @@ Future<Map<String, dynamic>> _loadPatientAndTests() async {
     final intId = (idDyn is int) ? idDyn : int.tryParse('${idDyn ?? ''}') ?? 0;
     final testsSnap = await patientRef.collection('lab_request').get();
     final tests = testsSnap.docs.map((d) => d.data()).toList();
-    
+
     // Format date and time
     String formattedDateTime = '';
-    final createdAt = pData['createdAt'];
-    if (createdAt != null) {
-      try {
-        DateTime dateTime;
-        if (createdAt is Timestamp) {
-          dateTime = createdAt.toDate();
-        } else if (createdAt is DateTime) {
-          dateTime = createdAt;
-        } else {
-          dateTime = DateTime.now();
-        }
-        formattedDateTime =
-            '${dateTime.day}/${dateTime.month}/${dateTime.year} - ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
-      } catch (e) {
-        formattedDateTime = '';
-      }
+    DateTime? orderDateTime;
+final createdAt = pData['createdAt'];
+if (createdAt != null) {
+  try {
+    DateTime dateTime;
+    if (createdAt is Timestamp) {
+      dateTime = createdAt.toDate();
+    } else if (createdAt is DateTime) {
+      dateTime = createdAt;
+    } else {
+      dateTime = DateTime.now();
     }
     
+    orderDateTime = dateTime; // حفظ تاريخ الطلب للتحقق منه لاحقاً
+
+    // 🔹 تحويل الساعة إلى صيغة 12 ساعة مع AM/PM
+    final hour = dateTime.hour % 12 == 0 ? 12 : dateTime.hour % 12;
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    final amPm = dateTime.hour >= 12 ? 'PM' : 'AM';
+
+    formattedDateTime =
+        '${dateTime.day.toString().padLeft(2, '0')}/${dateTime.month.toString().padLeft(2, '0')}/${dateTime.year} - '
+        '${hour.toString().padLeft(2, '0')}:$minute $amPm';
+  } catch (e) {
+    formattedDateTime = '';
+  }
+}
+
+    // التحقق من أن الطلب في تاريخ اليوم
+    bool isToday = false;
+    if (orderDateTime != null) {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final orderDate = DateTime(orderDateTime.year, orderDateTime.month, orderDateTime.day);
+      isToday = today.isAtSameMomentAs(orderDate);
+    }
+
     final result = {
       'id': intId,
       'name': pData['name']?.toString() ?? '',
@@ -78,6 +97,7 @@ Future<Map<String, dynamic>> _loadPatientAndTests() async {
       'order_receieved': pData['order_receieved'] == true,
       // delivered flag to control delete availability
       'sample_delivered': pData['sample_delivered'] == true,
+      'isToday': isToday,
     };
     // initialize local received flag once on first load
     _isReceived = (result['order_receieved'] as bool? ?? false);
@@ -202,8 +222,69 @@ Future<Map<String, dynamic>> _loadPatientAndTests() async {
     }
   }
 
+  Future<void> _deletePdfResult() async {
+    // تأكيد الحذف
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text('تأكيد حذف النتيجة'),
+          content: const Text('هل أنت متأكد من حذف ملف النتيجة PDF؟'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('إلغاء'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('حذف', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      // حذف ملف PDF من Firestore
+      await FirebaseFirestore.instance
+          .collection('labToLap')
+          .doc('global')
+          .collection('patients')
+          .doc(widget.patientDocId)
+          .update({
+        'pdf_url': FieldValue.delete(),
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم حذف ملف النتيجة بنجاح'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // تحديث البيانات
+        setState(() {
+          _patientFuture = _loadPatientAndTests();
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ في حذف ملف النتيجة: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   // تمت إزالة التعديل حسب الطلب؛ يُسمح فقط بالحذف قبل التوصيل
-  
+
   // Back handled via Navigator.pop directly in UI; no helper needed.
   Future<void> _cancelOrder(
     BuildContext context,
@@ -349,10 +430,7 @@ Future<Map<String, dynamic>> _loadPatientAndTests() async {
   }
 
   // إرسال ملف النتيجة PDF عبر واتساب (نفس منطق شاشة ملف النتيجة)
-  Future<void> _sendPdfToWhatsapp(
-    String toChatId,
-    String pdfUrl,
-  ) async {
+  Future<void> _sendPdfToWhatsapp(String toChatId, String pdfUrl) async {
     try {
       final uri = Uri.parse(
         'https://api.ultramsg.com/instance145504/messages/document',
@@ -405,10 +483,11 @@ Future<Map<String, dynamic>> _loadPatientAndTests() async {
     Future<void> fillPhone() async {
       if (selectedRecipient == 'lab') {
         try {
-          final doc = await FirebaseFirestore.instance
-              .collection('labToLap')
-              .doc(widget.labId)
-              .get();
+          final doc =
+              await FirebaseFirestore.instance
+                  .collection('labToLap')
+                  .doc(widget.labId)
+                  .get();
           final labPhone = doc.data()?['whatsApp']?.toString() ?? '';
           phoneController.text = labPhone;
         } catch (_) {
@@ -478,44 +557,49 @@ Future<Map<String, dynamic>> _loadPatientAndTests() async {
                   child: const Text('إلغاء'),
                 ),
                 ElevatedButton(
-                  onPressed: isSending
-                      ? null
-                      : () async {
-                          setState(() => isSending = true);
-                          final raw = phoneController.text;
-                          final formatted = _formatSudanPhone(raw);
-                          final pdfUrl = data['pdf_url']?.toString() ?? '';
-                          if (pdfUrl.isNotEmpty) {
-                            await _sendPdfToWhatsapp('$formatted@c.us', pdfUrl);
-                            if (mounted) Navigator.pop(context);
-                          } else {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('لا يوجد رابط PDF'),
-                                  backgroundColor: Colors.red,
-                                ),
+                  onPressed:
+                      isSending
+                          ? null
+                          : () async {
+                            setState(() => isSending = true);
+                            final raw = phoneController.text;
+                            final formatted = _formatSudanPhone(raw);
+                            final pdfUrl = data['pdf_url']?.toString() ?? '';
+                            if (pdfUrl.isNotEmpty) {
+                              await _sendPdfToWhatsapp(
+                                '$formatted@c.us',
+                                pdfUrl,
                               );
+                              if (mounted) Navigator.pop(context);
+                            } else {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('لا يوجد رابط PDF'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
                             }
-                          }
-                          if (mounted) setState(() => isSending = false);
-                        },
+                            if (mounted) setState(() => isSending = false);
+                          },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF673AB7),
                   ),
-                  child: isSending
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
+                  child:
+                      isSending
+                          ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                          : const Text(
+                            'إرسال النتيجة',
+                            style: TextStyle(color: Colors.white),
                           ),
-                        )
-                      : const Text(
-                          'إرسال النتيجة',
-                          style: TextStyle(color: Colors.white),
-                        ),
                 ),
               ],
             );
@@ -557,21 +641,21 @@ Future<Map<String, dynamic>> _loadPatientAndTests() async {
       // 2) Load patient to get name & phone
       final pSnap =
           await FirebaseFirestore.instance
-          .collection('labToLap')
-          .doc('global')
-          .collection('patients')
-          .doc(patientDocId)
-          .get();
+              .collection('labToLap')
+              .doc('global')
+              .collection('patients')
+              .doc(patientDocId)
+              .get();
       final pData = pSnap.data() ?? {};
       final patientName = pData['name']?.toString() ?? 'غير معروف';
       final patientPhone = pData['phone']?.toString() ?? '';
-     
+
       final topic = labId;
       const title = 'تم استلام طلبك';
       final body =
           patientPhone.isNotEmpty
-          ? 'اسم المريض: ' + patientName + '\nرقم الهاتف: ' + patientPhone
-          : 'اسم المريض: ' + patientName;
+              ? 'اسم المريض: ' + patientName + '\nرقم الهاتف: ' + patientPhone
+              : 'اسم المريض: ' + patientName;
 
       await FirebaseFirestore.instance.collection('push_requests').add({
         'topic': topic,
@@ -581,19 +665,19 @@ Future<Map<String, dynamic>> _loadPatientAndTests() async {
         'labName': widget.labName,
         'createdAt': FieldValue.serverTimestamp(),
       });
-      
+
       if (mounted) {
         setState(() {
           _isReceived = true;
         });
       }
     } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('خطأ في استلام الطلب: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('خطأ في استلام الطلب: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -602,58 +686,58 @@ Future<Map<String, dynamic>> _loadPatientAndTests() async {
       }
     }
   }
-  
-// فتح جوجل مابس بالإحداثيات
-Future<void> _openInGoogleMaps(double lat, double lng) async {
-  final Uri googleMapUrl = Uri.parse(
-    'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving',
-  );
 
-  if (await canLaunchUrl(googleMapUrl)) {
-    await launchUrl(googleMapUrl, mode: LaunchMode.externalApplication);
-  } else {
-    ScaffoldMessenger.of(context).showSnackBar(
+  // فتح جوجل مابس بالإحداثيات
+  Future<void> _openInGoogleMaps(double lat, double lng) async {
+    final Uri googleMapUrl = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving',
+    );
+
+    if (await canLaunchUrl(googleMapUrl)) {
+      await launchUrl(googleMapUrl, mode: LaunchMode.externalApplication);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('لا يمكن فتح تطبيق الخرائط'),
           backgroundColor: Colors.red,
         ),
-    );
+      );
+    }
   }
-}
 
-Future<Map<String, double>?> _fetchLabLocation() async {
-  try {
+  Future<Map<String, double>?> _fetchLabLocation() async {
+    try {
       final docSnap =
           await FirebaseFirestore.instance
-        .collection('labToLap')
-        .doc(widget.labId)
-        .get();
+              .collection('labToLap')
+              .doc(widget.labId)
+              .get();
 
-    if (!docSnap.exists) return null;
+      if (!docSnap.exists) return null;
 
-    final data = docSnap.data();
-    if (data == null) return null;
+      final data = docSnap.data();
+      if (data == null) return null;
 
-    final location = data['location'];
-    if (location == null) return null;
+      final location = data['location'];
+      if (location == null) return null;
 
-    if (location is GeoPoint) {
-      return {'lat': location.latitude, 'lng': location.longitude};
+      if (location is GeoPoint) {
+        return {'lat': location.latitude, 'lng': location.longitude};
+      }
+      final lat = location['lat'];
+      final lng = location['lng'];
+      if (lat is double && lng is double) {
+        return {'lat': lat, 'lng': lng};
+      } else if (lat is num && lng is num) {
+        return {'lat': lat.toDouble(), 'lng': lng.toDouble()};
+      }
+
+      return null;
+    } catch (e) {
+      print('Error fetching lab location: $e');
+      return null;
     }
-    final lat = location['lat'];
-    final lng = location['lng'];
-    if (lat is double && lng is double) {
-      return {'lat': lat, 'lng': lng};
-    } else if (lat is num && lng is num) {
-      return {'lat': lat.toDouble(), 'lng': lng.toDouble()};
-    }
-
-    return null;
-  } catch (e) {
-    print('Error fetching lab location: $e');
-    return null;
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -664,36 +748,37 @@ Future<Map<String, double>?> _fetchLabLocation() async {
           // Allow system back to pop to the exact previous screen
           return true;
         },
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text(
               widget.labName.contains('معمل')
                   ? widget.labName
                   : '${widget.labName}',
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
             backgroundColor: const Color(0xFF673AB7),
-          centerTitle: true,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
+            centerTitle: true,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
             actions: [
-              // إخفاء زر إضافة فحص إذا كانت العينات موصلة
-              FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                future: FirebaseFirestore.instance
-                    .collection('labToLap')
-                    .doc('global')
-                    .collection('patients')
-                    .doc(widget.patientDocId)
-                    .get(),
+              // إخفاء زر إضافة فحص إذا كانت العينات موصلة أو الطلب من أمس
+              FutureBuilder<Map<String, dynamic>>(
+                future: _patientFuture,
                 builder: (context, snap) {
-                  final isDelivered = snap.hasData &&
-                      (snap.data!.data()?['sample_delivered'] == true);
-                  if (isDelivered) return const SizedBox.shrink();
+                  if (snap.connectionState == ConnectionState.waiting) {
+                    return const SizedBox.shrink();
+                  }
+                  final data = snap.data ?? {};
+                  final isDelivered = data['sample_delivered'] == true;
+                  final isToday = data['isToday'] == true;
+                  
+                  if (isDelivered || !isToday) return const SizedBox.shrink();
+                  
                   return IconButton(
                     onPressed: () {
                       Navigator.push(
@@ -721,26 +806,26 @@ Future<Map<String, double>?> _fetchLabLocation() async {
                 },
               ),
             ],
-        ),
-        
-        body: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.grey.shade200,
+          ),
+
+          body: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.grey.shade200,
                   const Color(0xFF673AB7).withOpacity(0.2),
                   const Color(0xFF673AB7).withOpacity(0.35),
-              ],
+                ],
+              ),
             ),
-          ),
-          child: FutureBuilder<Map<String, dynamic>>(
-          future: _patientFuture,
-          builder: (context, snap) {
-            if (snap.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
+            child: FutureBuilder<Map<String, dynamic>>(
+              future: _patientFuture,
+              builder: (context, snap) {
+                if (snap.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
                 final data =
                     snap.data ??
                     {
@@ -751,141 +836,142 @@ Future<Map<String, double>?> _fetchLabLocation() async {
                       'tests': <Map<String, dynamic>>[],
                       'pdf_url': '',
                       'formattedDateTime': '',
+                      'isToday': false,
                     };
-            final intId = data['id'] as int? ?? 0;
-            final name = data['name'] as String? ?? '';
-            final phone = data['phone'] as String? ?? '';
+                final intId = data['id'] as int? ?? 0;
+                final name = data['name'] as String? ?? '';
+                final phone = data['phone'] as String? ?? '';
                 final tests =
                     (data['tests'] as List).cast<Map<String, dynamic>>();
-            final total = _calcTotal(tests);
-            final pdfUrl = data['pdf_url'] as String? ?? '';
+                final total = _calcTotal(tests);
+                final pdfUrl = data['pdf_url'] as String? ?? '';
                 final formattedDateTime =
                     data['formattedDateTime'] as String? ?? '';
                 final receivedFromData =
                     (data['order_receieved'] as bool? ?? false);
-            final bool isReceived = _isReceived || receivedFromData;
+                final bool isReceived = _isReceived || receivedFromData;
                 final String status = data['status']?.toString() ?? 'pending';
                 final bool isCancelled = status == 'cancelled';
                 final bool isDelivered =
                     (data['sample_delivered'] as bool? ?? false);
 
-            return Column(
-              children: [
-                const SizedBox(height: 8),
+                return Column(
+                  children: [
+                    const SizedBox(height: 8),
 
-// Patient info card with icons
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Card(
-                    color: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                    // Patient info card with icons
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: Card(
+                        color: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                           side: const BorderSide(
                             color: Color(0xFF673AB7),
                             width: 1.5,
                           ),
-                    ),
-                    elevation: 2,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    children: [
-                          // Code on the left with larger font
-                          Expanded(
-                            flex: 1,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'الكود',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
+                        ),
+                        elevation: 2,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Row(
+                            children: [
+                              // Code on the left with larger font
+                              Expanded(
+                                flex: 1,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'الكود',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
                                       intId > 0
                                           ? '$intId'
                                           : widget.patientDocId,
-                                  style: const TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
+                                      style: const TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
                                         color: Color(0xFF673AB7),
-                                  ),
-                      ),
-                    ],
-                  ),
-                ),
-                          // Name and phone on the right
-                          Expanded(
-                            flex: 2,
-                    child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                                // Date and time above name
-                                if (formattedDateTime.isNotEmpty) ...[
-                                  Text(
-                                    formattedDateTime,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey,
-                                      fontWeight: FontWeight.w500,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                ],
-                                // Patient name
-                               Padding(
+                                  ],
+                                ),
+                              ),
+                              // Name and phone on the right
+                              Expanded(
+                                flex: 2,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    // Date and time above name
+                                    if (formattedDateTime.isNotEmpty) ...[
+                                      Text(
+                                        formattedDateTime,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                    ],
+                                    // Patient name
+                                    Padding(
                                       padding: const EdgeInsets.symmetric(
                                         vertical: 12.0,
                                       ), // ← زيادة المسافة للاسم الرباعي
-  child: Align(
-    alignment: Alignment.centerRight,
-    child: Text(
-                                  name,
-      textAlign: TextAlign.right,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
-      ),
-    ),
-                                  ),
-                                ),
-                                // Phone as subtitle
-                                if (phone.isNotEmpty) ...[
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    phone,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey,
+                                      child: Align(
+                                        alignment: Alignment.centerRight,
+                                        child: Text(
+                                          name,
+                                          textAlign: TextAlign.right,
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.black87,
+                                          ),
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              ],
-                            ),
+                                    // Phone as subtitle
+                                    if (phone.isNotEmpty) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        phone,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-                ),
 
-                const SizedBox(height: 12),
+                    const SizedBox(height: 12),
 
-// Tests + containers list within fixed area
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Builder(
-                      builder: (context) {
-                        final grouped = _groupTestsByContainer(tests);
-                        final entries = grouped.entries.toList();
-                        if (entries.isEmpty) {
-                          // Fallback: show flat tests list if no containers
+                    // Tests + containers list within fixed area
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: Builder(
+                          builder: (context) {
+                            final grouped = _groupTestsByContainer(tests);
+                            final entries = grouped.entries.toList();
+                            if (entries.isEmpty) {
+                              // Fallback: show flat tests list if no containers
                               if (tests.isEmpty) {
                                 return Center(
                                   child: Column(
@@ -945,23 +1031,23 @@ Future<Map<String, double>?> _fetchLabLocation() async {
                                 );
                               }
 
-                          return ListView.separated(
-                      physics: const BouncingScrollPhysics(),
-                      itemCount: tests.length,
+                              return ListView.separated(
+                                physics: const BouncingScrollPhysics(),
+                                itemCount: tests.length,
                                 separatorBuilder:
                                     (_, __) => const Divider(height: 8),
-                      itemBuilder: (context, i) {
-                        final t = tests[i];
-                        final tName = t['name']?.toString() ?? '';
-                        final priceDyn = t['price'];
+                                itemBuilder: (context, i) {
+                                  final t = tests[i];
+                                  final tName = t['name']?.toString() ?? '';
+                                  final priceDyn = t['price'];
                                   final price =
                                       (priceDyn is num)
                                           ? priceDyn
                                           : (num.tryParse('$priceDyn') ?? 0);
                                   final testId = t['testId']?.toString() ?? '';
 
-                        return Row(
-                          children: [
+                                  return Row(
+                                    children: [
                                       Expanded(
                                         child: Text(
                                           '${i + 1}- $tName',
@@ -976,8 +1062,8 @@ Future<Map<String, double>?> _fetchLabLocation() async {
                                           color: Colors.black87,
                                         ),
                                       ),
-                                      // حذف فقط قبل توصيل العينة (flat list)
-                                      if (!isDelivered)
+                                      // حذف فقط قبل توصيل العينة وفي نفس اليوم (flat list)
+                                      if (!isDelivered && data['isToday'] == true)
                                         PopupMenuButton<String>(
                                           icon: const Icon(
                                             Icons.more_vert,
@@ -1011,11 +1097,11 @@ Future<Map<String, double>?> _fetchLabLocation() async {
                                                 ),
                                               ],
                                         ),
-                          ],
+                                    ],
+                                  );
+                                },
                               );
-                            },
-                          );
-                        }
+                            }
                             if (tests.isEmpty) {
                               return Center(
                                 child: Column(
@@ -1086,41 +1172,41 @@ Future<Map<String, double>?> _fetchLabLocation() async {
                               );
                             }
 
-                        return Card(
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            return Card(
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
                                 side: const BorderSide(
                                   color: Color(0xFF673AB7),
                                   width: 1.2,
                                 ),
-                          ),
-                          child: ConstrainedBox(
+                              ),
+                              child: ConstrainedBox(
                                 constraints: const BoxConstraints(
                                   maxHeight: 400,
                                 ),
-                            child: SingleChildScrollView(
-                              physics: const BouncingScrollPhysics(),
-                              child: Padding(
-                                padding: const EdgeInsets.all(12.0),
-                                child: Column(
+                                child: SingleChildScrollView(
+                                  physics: const BouncingScrollPhysics(),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(12.0),
+                                    child: Column(
                                       children:
                                           entries.asMap().entries.map((
                                             entryWithIndex,
                                           ) {
-                                    final i = entryWithIndex.key;
-                                    final entry = entryWithIndex.value;
-                                    final cid = entry.key;
+                                            final i = entryWithIndex.key;
+                                            final entry = entryWithIndex.value;
+                                            final cid = entry.key;
                                             final testsForContainer =
                                                 entry.value;
                                             final assetPath =
                                                 _getContainerAssetPath(cid);
                                             final isLast =
                                                 i == entries.length - 1;
-                                    
-                                    return Column(
-                                      children: [
-                                         Row(
+
+                                            return Column(
+                                              children: [
+                                                Row(
                                                   crossAxisAlignment:
                                                       testsForContainer
                                                                   .length <=
@@ -1129,10 +1215,10 @@ Future<Map<String, double>?> _fetchLabLocation() async {
                                                               .center
                                                           : CrossAxisAlignment
                                                               .start,
-                                          children: [
-                                            SizedBox(
-                                              width: 72,
-                                              height: 72,
+                                                  children: [
+                                                    SizedBox(
+                                                      width: 72,
+                                                      height: 72,
                                                       child:
                                                           assetPath == null
                                                               ? const Center(
@@ -1144,8 +1230,8 @@ Future<Map<String, double>?> _fetchLabLocation() async {
                                                                           .grey,
                                                                 ),
                                                               )
-                                                  : Image.asset(
-                                                      assetPath,
+                                                              : Image.asset(
+                                                                assetPath,
                                                                 fit:
                                                                     BoxFit
                                                                         .contain,
@@ -1165,13 +1251,13 @@ Future<Map<String, double>?> _fetchLabLocation() async {
                                                               ),
                                                     ),
 
-const SizedBox(width: 12),
-                                            Expanded(
-                                              child: Column(
+                                                    const SizedBox(width: 12),
+                                                    Expanded(
+                                                      child: Column(
                                                         crossAxisAlignment:
                                                             CrossAxisAlignment
                                                                 .start,
-                                                children: [
+                                                        children: [
                                                           ...testsForContainer.map((
                                                             t,
                                                           ) {
@@ -1194,13 +1280,13 @@ const SizedBox(width: 12),
                                                                     ?.toString() ??
                                                                 '';
 
-                                                    return Padding(
+                                                            return Padding(
                                                               padding:
                                                                   const EdgeInsets.only(
                                                                     bottom: 4,
                                                                   ),
-                                                      child: Row(
-                                                        children: [
+                                                              child: Row(
+                                                                children: [
                                                                   Expanded(
                                                                     child: Text(
                                                                       '- $tName',
@@ -1220,8 +1306,8 @@ const SizedBox(width: 12),
                                                                               .black87,
                                                                     ),
                                                                   ),
-                                                                  // حذف فقط قبل توصيل العينة (grouped list)
-                                                                  if (!isDelivered)
+                                                                  // حذف فقط قبل توصيل العينة وفي نفس اليوم (grouped list)
+                                                                  if (!isDelivered && data['isToday'] == true)
                                                                     PopupMenuButton<
                                                                       String
                                                                     >(
@@ -1275,43 +1361,43 @@ const SizedBox(width: 12),
                                                                             ),
                                                                           ],
                                                                     ),
+                                                                ],
+                                                              ),
+                                                            );
+                                                          }).toList(),
                                                         ],
                                                       ),
-                                                    );
-                                                  }).toList(),
+                                                    ),
+                                                  ],
+                                                ),
+                                                if (!isLast) ...[
+                                                  const SizedBox(height: 12),
+                                                  const Divider(height: 1),
+                                                  const SizedBox(height: 12),
                                                 ],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        if (!isLast) ...[
-                                          const SizedBox(height: 12),
-                                          const Divider(height: 1),
-                                          const SizedBox(height: 12),
-                                        ],
-                                      ],
-                                    );
-                                  }).toList(),
+                                              ],
+                                            );
+                                          }).toList(),
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                          ),
-                        );
-                      },
+                            );
+                          },
+                        ),
+                      ),
                     ),
-                  ),
-                ),
 
-// Bottom fixed area: total, Containers button (stacked), PDF button
-                SafeArea(
-                  top: false,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Align(
-                          alignment: Alignment.center,
+                    // Bottom fixed area: total, Containers button (stacked), PDF button
+                    SafeArea(
+                      top: false,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Align(
+                              alignment: Alignment.center,
                               child: Text(
                                 'المبلغ: ${_formatPrice(total)}',
                                 style: const TextStyle(
@@ -1319,15 +1405,15 @@ const SizedBox(width: 12),
                                   fontSize: 18,
                                 ),
                               ),
-                        ),
-                        const SizedBox(height: 8),
-                       
-                        // Two buttons in a row: Lab Info and View Result
-                        Row(
-                          children: [
-                            // Lab Info Button
-                            Expanded(
-                              child: ElevatedButton.icon(
+                            ),
+                            const SizedBox(height: 8),
+
+                            // Two buttons in a row: Lab Info and View Result
+                            Row(
+                              children: [
+                                // Lab Info Button
+                                Expanded(
+                                  child: ElevatedButton.icon(
                                     icon: const Icon(
                                       Icons.info_outline,
                                       color: Colors.white,
@@ -1336,77 +1422,81 @@ const SizedBox(width: 12),
                                       'بيانات المعمل',
                                       style: TextStyle(color: Colors.white),
                                     ),
-                                style: ElevatedButton.styleFrom(
+                                    style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFF673AB7),
                                       padding: const EdgeInsets.symmetric(
                                         vertical: 12,
                                       ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
                                           builder:
                                               (context) => LabInfoScreen(
-                                        labId: widget.labId, 
-                                        labName: widget.labName,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            // View Result Button
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                    icon: const Icon(
-                                      Icons.picture_as_pdf,
-                                      color: Colors.white,
-                                    ),
-                                    label: const Text(
-                                      'عرض النتيجة',
-                                      style: TextStyle(color: Colors.white),
-                                    ),
-                                style: ElevatedButton.styleFrom(
-                                      backgroundColor:
-                                          pdfUrl.isNotEmpty
-                                              ? const Color(0xFF673AB7)
-                                      : Colors.grey[400]!,
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 12,
-                                      ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
+                                                labId: widget.labId,
+                                                labName: widget.labName,
+                                              ),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ),
-                                    onPressed:
-                                        pdfUrl.isNotEmpty
-                                            ? () {
-                                  // Navigate to PDF viewer screen
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                                  builder:
-                                                      (context) =>
-                                                          _PdfViewerScreen(
-                                        pdfUrl: pdfUrl,
-                                        data: data,
-                                        labId: widget.labId,
+                                const SizedBox(width: 8),
+                                // View Result Button
+                                Expanded(
+                                  child: GestureDetector(
+                                    onLongPress: pdfUrl.isNotEmpty
+                                        ? () {
+                                            _deletePdfResult();
+                                          }
+                                        : null,
+                                    child: ElevatedButton.icon(
+                                      icon: Icon(
+                                        Icons.picture_as_pdf,
+                                        color: pdfUrl.isNotEmpty ? Colors.white : Colors.grey[600],
                                       ),
+                                      label: Text(
+                                        'عرض النتيجة',
+                                        style: TextStyle(
+                                          color: pdfUrl.isNotEmpty ? Colors.white : Colors.grey[600],
+                                        ),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: pdfUrl.isNotEmpty
+                                            ? const Color(0xFF673AB7)
+                                            : Colors.grey[300]!,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                      ),
+                                      onPressed: pdfUrl.isNotEmpty ? () {
+                                        // Navigate to PDF viewer screen
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                _PdfViewerScreen(
+                                              pdfUrl: pdfUrl,
+                                              data: data,
+                                              labId: widget.labId,
+                                            ),
+                                          ),
+                                        );
+                                      } : null,
                                     ),
-                                  );
-                                            }
-                                            : null,
-                              ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                       
+                            const SizedBox(height: 8),
+
                             // زرين في صف واحد: استلام الطلب وإلغاء الطلب
                             Row(
                               children: [
@@ -1414,7 +1504,7 @@ const SizedBox(width: 12),
                                 Expanded(
                                   child:
                                       isReceived
-      ? ElevatedButton.icon(
+                                          ? ElevatedButton.icon(
                                             icon: const Icon(
                                               Icons.location_on,
                                               color: Colors.white,
@@ -1425,7 +1515,7 @@ const SizedBox(width: 12),
                                                 color: Colors.white,
                                               ),
                                             ),
-          style: ElevatedButton.styleFrom(
+                                            style: ElevatedButton.styleFrom(
                                               backgroundColor: const Color(
                                                 0xFF673AB7,
                                               ),
@@ -1433,34 +1523,34 @@ const SizedBox(width: 12),
                                                   const EdgeInsets.symmetric(
                                                     vertical: 14,
                                                   ),
-            shape: RoundedRectangleBorder(
+                                              shape: RoundedRectangleBorder(
                                                 borderRadius:
                                                     BorderRadius.circular(10),
-            ),
-          ),
-          onPressed: () async {
+                                              ),
+                                            ),
+                                            onPressed: () async {
                                               final location =
                                                   await _fetchLabLocation();
-            if (location != null) {
+                                              if (location != null) {
                                                 await _openInGoogleMaps(
                                                   location['lat']!,
                                                   location['lng']!,
                                                 );
-            } else {
+                                              } else {
                                                 ScaffoldMessenger.of(
                                                   context,
                                                 ).showSnackBar(
-                const SnackBar(
+                                                  const SnackBar(
                                                     content: Text(
                                                       'لم يتم العثور على إحداثيات المختبر',
                                                     ),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            }
-          },
-        )
-      : ElevatedButton(
+                                                    backgroundColor: Colors.red,
+                                                  ),
+                                                );
+                                              }
+                                            },
+                                          )
+                                          : ElevatedButton(
                                             onPressed:
                                                 _isLoading || isCancelled
                                                     ? null
@@ -1470,8 +1560,8 @@ const SizedBox(width: 12),
                                                         widget.patientDocId,
                                                         widget.labId,
                                                       );
-          },
-                            style: ElevatedButton.styleFrom(
+                                                    },
+                                            style: ElevatedButton.styleFrom(
                                               backgroundColor:
                                                   isCancelled
                                                       ? Colors.grey
@@ -1480,7 +1570,7 @@ const SizedBox(width: 12),
                                                   const EdgeInsets.symmetric(
                                                     vertical: 14,
                                                   ),
-                              shape: RoundedRectangleBorder(
+                                              shape: RoundedRectangleBorder(
                                                 borderRadius:
                                                     BorderRadius.circular(10),
                                               ),
@@ -1514,107 +1604,116 @@ const SizedBox(width: 12),
                                 // الزر الثاني: إذا النتيجة موجودة ⇒ إرسال النتيجة عبر واتساب
                                 // إذا لا توجد نتيجة ⇒ زر إلغاء الطلب
                                 Expanded(
-                                  child: pdfUrl.isNotEmpty
-                                      ? ElevatedButton.icon(
-                                          onPressed: _isLoading || isCancelled
-                                              ? null
-                                              : () {
-                                                  _showWhatsappDialogForResult(
-                                                    data,
-                                                  );
-                                                },
-                                          icon: const Icon(
-                                            FontAwesomeIcons.whatsapp,
-                                            size: 18,
-                                            color: Colors.white,
-                                          ),
-                                          label: const Text(
-                                            'إرسال النتيجة',
-                                            style: TextStyle(
+                                  child:
+                                      pdfUrl.isNotEmpty
+                                          ? ElevatedButton.icon(
+                                            onPressed:
+                                                _isLoading || isCancelled
+                                                    ? null
+                                                    : () {
+                                                      _showWhatsappDialogForResult(
+                                                        data,
+                                                      );
+                                                    },
+                                            icon: const Icon(
+                                              FontAwesomeIcons.whatsapp,
+                                              size: 18,
                                               color: Colors.white,
-                                              fontWeight: FontWeight.bold,
                                             ),
-                                          ),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor:
-                                                const Color.fromARGB(
+                                            label: const Text(
+                                              'إرسال النتيجة',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor:
+                                                  const Color.fromARGB(
                                                     255,
                                                     143,
                                                     99,
                                                     219,
                                                   ),
-                                            padding: const EdgeInsets.symmetric(
-                                              vertical: 14,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    vertical: 14,
+                                                  ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                              ),
                                             ),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                            ),
-                                          ),
-                                        )
-                                      : ElevatedButton(
-                                          onPressed:
-                                              _isLoading || isCancelled
-                                                  ? null
-                                                  : () {
+                                          )
+                                          : ElevatedButton(
+                                            onPressed:
+                                                _isLoading ||
+                                                        isCancelled ||
+                                                        isDelivered ||
+                                                        data['isToday'] == false
+                                                    ? null
+                                                    : () {
                                                       _cancelOrder(
                                                         context,
                                                         widget.patientDocId,
                                                         widget.labId,
                                                       );
                                                     },
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: isCancelled
-                                                ? Colors.grey
-                                                : const Color.fromARGB(
-                                                    255,
-                                                    143,
-                                                    99,
-                                                    219,
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor:
+                                                  isCancelled || isDelivered || data['isToday'] == false
+                                                      ? Colors.grey
+                                                      : const Color.fromARGB(
+                                                        255,
+                                                        143,
+                                                        99,
+                                                        219,
+                                                      ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    vertical: 14,
                                                   ),
-                                            padding: const EdgeInsets.symmetric(
-                                              vertical: 14,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                              ),
                                             ),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                            ),
-                            ),
-          child: _isLoading
-              ? const SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                                                    valueColor:
-                                                        AlwaysStoppedAnimation<
-                                                          Color
-                                                        >(Colors.white),
-                  ),
-                )
-              : const Text(
-                                                  'إلغاء الطلب',
-                                                  style: TextStyle(
-                                                    fontWeight:
-                                                        FontWeight.bold,
-                                                    color: Colors.white,
-                                                  ),
-                                                ),
-                                        ),
+                                            child:
+                                                _isLoading
+                                                    ? const SizedBox(
+                                                      width: 22,
+                                                      height: 22,
+                                                      child: CircularProgressIndicator(
+                                                        strokeWidth: 2.5,
+                                                        valueColor:
+                                                            AlwaysStoppedAnimation<
+                                                              Color
+                                                            >(Colors.white),
+                                                      ),
+                                                    )
+                                                    : const Text(
+                                                      'إلغاء الطلب',
+                                                      style: TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: Colors.white,
+                                                      ),
+                                                    ),
+                                          ),
                                 ),
                               ],
-                        ),
+                            ),
 
-                        const SizedBox(height: 10),
-                      ],
+                            const SizedBox(height: 10),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-        ),
+                  ],
+                );
+              },
+            ),
+          ),
         ),
       ),
     );
@@ -1657,22 +1756,22 @@ class _PdfViewerScreen extends StatelessWidget {
         await response.stream.bytesToString();
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('تم إرسال النتيجة عبر واتساب')), 
+            const SnackBar(content: Text('تم إرسال النتيجة عبر واتساب')),
           );
           // إظهار رسالة تأكيد واضحة للمستخدم
           await showDialog(
             context: context,
             builder:
                 (ctx) => AlertDialog(
-              title: const Text('تم الإرسال'),
-              content: const Text('تم إرسال النتيجة بنجاح عبر واتساب.'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  child: const Text('حسناً'),
+                  title: const Text('تم الإرسال'),
+                  content: const Text('تم إرسال النتيجة بنجاح عبر واتساب.'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      child: const Text('حسناً'),
+                    ),
+                  ],
                 ),
-              ],
-            ),
           );
         }
       } else {
@@ -1696,7 +1795,7 @@ class _PdfViewerScreen extends StatelessWidget {
       }
     }
   }
-  
+
   String _formatPhoneNumber(String input) {
     input = input.trim();
     if (input.startsWith('0')) {
@@ -1722,9 +1821,9 @@ class _PdfViewerScreen extends StatelessWidget {
         try {
           final doc =
               await FirebaseFirestore.instance
-              .collection('labToLap')
-              .doc(labId)
-              .get();
+                  .collection('labToLap')
+                  .doc(labId)
+                  .get();
           final labPhone = doc.data()?['whatsApp']?.toString() ?? '';
           _phoneController.text = labPhone;
         } catch (e) {
@@ -1806,53 +1905,53 @@ class _PdfViewerScreen extends StatelessWidget {
                   ),
                   onPressed:
                       isLoading
-                      ? null
-                      : () async {
-                          setState(() {
-                            isLoading = true;
-                          });
+                          ? null
+                          : () async {
+                            setState(() {
+                              isLoading = true;
+                            });
 
-                          String rawInput = _phoneController.text;
+                            String rawInput = _phoneController.text;
                             String formattedPhone = _formatPhoneNumber(
                               rawInput,
                             );
 
-                          final pdfUrl = data['pdf_url']?.toString() ?? '';
+                            final pdfUrl = data['pdf_url']?.toString() ?? '';
 
-                          if (pdfUrl.isNotEmpty) {
+                            if (pdfUrl.isNotEmpty) {
                               await _sendToWhatsapp(
                                 '$formattedPhone@c.us',
                                 pdfUrl,
                                 context,
                               );
-                            if (context.mounted) Navigator.pop(context);
-                          } else {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('لا يوجد رابط PDF'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
+                              if (context.mounted) Navigator.pop(context);
+                            } else {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('لا يوجد رابط PDF'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
                             }
-                          }
 
-                          if (context.mounted) {
-                            setState(() {
-                              isLoading = false;
-                            });
-                          }
-                        },
+                            if (context.mounted) {
+                              setState(() {
+                                isLoading = false;
+                              });
+                            }
+                          },
                   child:
                       isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
+                          ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
                           : const Text(
                             "إرسال النتيجة",
                             style: TextStyle(color: Colors.white),
@@ -1891,7 +1990,7 @@ class _PdfViewerScreen extends StatelessWidget {
             ),
           ],
         ),
-        
+
         body: SfPdfViewer.network(
           pdfUrl,
           canShowScrollHead: true,

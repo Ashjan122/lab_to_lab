@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lab_to_lab_admin/screens/login_screen.dart';
-
+ 
 import 'package:lab_to_lab_admin/screens/order_request_screen.dart';
 
 class PatientsScreen extends StatefulWidget {
@@ -24,16 +24,16 @@ class _PatientsScreenState extends State<PatientsScreen> {
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> getPatientsStream() {
-    final col = FirebaseFirestore.instance
-        .collection('labToLap')
-        .doc('global')
-        .collection('patients');
+  final col = FirebaseFirestore.instance
+      .collection('labToLap')
+      .doc('global')
+      .collection('patients');
 
-    if (_searchQuery.isNotEmpty) {
-      // لو في بحث: رجّع كل المرضى بدون فلترة بالتاريخ
-      return col.orderBy('createdAt', descending: true).snapshots();
-    } else {
-      // لو مافي بحث: فلتر بالتاريخ
+  if (_searchQuery.isNotEmpty) {
+    // لو في بحث: رجّع كل المرضى بدون فلترة بالتاريخ
+    return col.orderBy('createdAt', descending: true).snapshots();
+  } else {
+    // لو مافي بحث: فلتر بالتاريخ
       final startOfDay = DateTime(
         _selectedDate.year,
         _selectedDate.month,
@@ -48,24 +48,24 @@ class _PatientsScreenState extends State<PatientsScreen> {
         59,
       );
 
-      return col
+    return col
           .where(
             'createdAt',
             isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay),
           )
-          .where('createdAt', isLessThanOrEqualTo: Timestamp.fromDate(endOfDay))
-          .orderBy('createdAt', descending: true)
-          .snapshots();
-    }
+        .where('createdAt', isLessThanOrEqualTo: Timestamp.fromDate(endOfDay))
+        .orderBy('createdAt', descending: true)
+        .snapshots();
   }
+}
 
   Future<String> _getLabName(String labId) async {
     try {
       final doc =
           await FirebaseFirestore.instance
-              .collection('labToLap')
-              .doc(labId)
-              .get();
+          .collection('labToLap')
+          .doc(labId)
+          .get();
       return doc.data()?['name']?.toString() ?? 'غير محدد';
     } catch (e) {
       return 'غير محدد';
@@ -178,110 +178,156 @@ class _PatientsScreenState extends State<PatientsScreen> {
   }
 
   void _showStatusDialog(BuildContext context, Map<String, dynamic> data) {
-    final bool received = data['order_receieved'] == true;
-    final String receivedBy = data['order_receieved_by_name'] ?? '';
-    final Timestamp? receivedAt = data['order_receieved_at'];
+  final bool received = data['order_receieved'] == true;
+  final String receivedBy = data['order_receieved_by_name'] ?? '';
+  final Timestamp? receivedAt = data['order_receieved_at'];
 
-    final bool delivered = data['sample_delivered'] == true;
-    final String? deliveredAtStr = data['delivered_at'];
-    DateTime? deliveredAt;
-    if (deliveredAtStr != null && deliveredAtStr.isNotEmpty) {
-      deliveredAt = DateTime.tryParse(deliveredAtStr);
-    }
-
-    final String? pdfUrl = data['pdf_url'];
-    final bool resultCompleted = pdfUrl != null && pdfUrl.isNotEmpty;
-    final Timestamp? resultUpdatedAt = data['result_updated_at'];
-
-    // اسم المستخدم الذي قام بالطلب من المعمل
-    final String orderedBy = data['ordered_by_name']?.toString() ?? '';
-
-    showDialog(
-      context: context,
-      builder:
-          (_) => AlertDialog(
-            title: const Text('تفاصيل حالة الطلب', textAlign: TextAlign.center),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (orderedBy.isNotEmpty)
-                  _buildStatusRow(
-                    title: 'تم الطلب من قبل $orderedBy',
-                    time: '',
-                  ),
-                if (received)
-                  _buildStatusRow(
-                    title: 'تم الاستلام من قبل $receivedBy',
-                    time: _formatTimestamp(receivedAt),
-                  ),
-                if (delivered && deliveredAt != null)
-                  _buildStatusRow(
-                    title: 'تم توصيل العينة',
-                    time: _formatDateTime(deliveredAt),
-                  ),
-                if (resultCompleted && resultUpdatedAt != null)
-                  _buildStatusRow(
-                    title: 'اكتملت النتيجة',
-                    time: _formatTimestamp(resultUpdatedAt),
-                  ),
-                if (!received && !delivered && !resultCompleted)
-                  Align(
-    alignment: Alignment.centerRight,
-    child: const Text(
-      'لا توجد معلومات عن حالة الطلب',
-      textAlign: TextAlign.right,
-    ),
-  ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                child: const Text('إغلاق'),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
-          ),
-    );
+  final bool delivered = data['sample_delivered'] == true;
+  final String? deliveredAtStr = data['delivered_at'];
+  DateTime? deliveredAt;
+  if (deliveredAtStr != null && deliveredAtStr.isNotEmpty) {
+    deliveredAt = DateTime.tryParse(deliveredAtStr);
   }
 
-  Widget _buildStatusRow({required String title, required String time}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  final String? pdfUrl = data['pdf_url'];
+  final bool resultCompleted = pdfUrl != null && pdfUrl.isNotEmpty;
+  final Timestamp? resultUpdatedAt = data['result_updated_at'];
+
+  // 🧍‍♂️ اسم من قام بالطلب والإلغاء
+  final String orderedBy = data['ordered_by_name']?.toString() ?? '';
+  final Timestamp? createdAt = data['createdAt'];
+  final String cancelledBy = data['cancelled_by']?.toString() ?? '';
+  final Timestamp? cancelledAt = data['cancelled_at'];
+
+  // 📦 رقم إصدار التطبيق المستخدم عند إنشاء الطلب
+  final String appVersion = data['app_version']?.toString() ?? '';
+
+  showDialog(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: const Text('تفاصيل حالة الطلب', textAlign: TextAlign.center),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(time, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              title,
-              textAlign: TextAlign.right,
-              style: const TextStyle(fontSize: 14),
+          if (orderedBy.isNotEmpty)
+            _buildStatusRow(
+              title: 'تم الطلب بواسطة $orderedBy',
+              time: _formatTimestamp(createdAt),
             ),
-          ),
-          const SizedBox(width: 8),
-          const Icon(Icons.check_circle, color: Colors.green),
+          if (cancelledBy.isNotEmpty)
+            _buildStatusRow(
+              title: 'تم الإلغاء بواسطة $cancelledBy',
+              time: _formatTimestamp(cancelledAt),
+            ),
+          if (received)
+            _buildStatusRow(
+              title: 'تم الاستلام بواسطة $receivedBy',
+              time: _formatTimestamp(receivedAt),
+            ),
+          if (delivered && deliveredAt != null)
+            _buildStatusRow(
+              title: 'تم توصيل العينة',
+              time: _formatDateTime(deliveredAt),
+            ),
+          if (resultCompleted && resultUpdatedAt != null)
+            _buildStatusRow(
+              title: 'اكتملت النتيجة',
+              time: _formatTimestamp(resultUpdatedAt),
+            ),
+          if (!received && !delivered && !resultCompleted)
+            Align(
+              alignment: Alignment.centerRight,
+              child: const Text(
+                'لا توجد معلومات عن حالة الطلب',
+                textAlign: TextAlign.right,
+              ),
+            ),
+          const SizedBox(height: 16),
+
+          // 📱 عرض رقم إصدار التطبيق المستخدم
+          if (appVersion.isNotEmpty)
+            Align(
+              alignment: Alignment.center,
+              child: Text(
+                'الإصدار: $appVersion',
+                style: const TextStyle(
+                  color: Colors.grey,
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
         ],
       ),
-    );
-  }
+      actions: [
+        TextButton(
+          child: const Text('إغلاق'),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ],
+    ),
+  );
+}
 
-  // لتحويل Timestamp إلى نص
-  String _formatTimestamp(Timestamp? timestamp) {
-    if (timestamp == null) return '';
-    final date = timestamp.toDate();
-    return '${_twoDigits(date.day)}/${_twoDigits(date.month)}/${date.year} - ${_twoDigits(date.hour)}:${_twoDigits(date.minute)}';
-  }
+Widget _buildStatusRow({required String title, required String time}) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 12.0),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(Icons.check_circle, color: Colors.green),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                title,
+                textAlign: TextAlign.right,
+                style: const TextStyle(fontSize: 14),
+              ),
+              if (time.isNotEmpty)
+                Text(
+                  time,
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
-  // لتحويل DateTime إلى نص
-  String _formatDateTime(DateTime? dateTime) {
-    if (dateTime == null) return '';
-    return '${_twoDigits(dateTime.day)}/${_twoDigits(dateTime.month)}/${dateTime.year} - ${_twoDigits(dateTime.hour)}:${_twoDigits(dateTime.minute)}';
-  }
+// لتحويل Timestamp إلى نص
+String _formatTimestamp(Timestamp? timestamp) {
+  if (timestamp == null) return '';
+  final date = timestamp.toDate();
+  return _formatTo12Hour(date);
+}
 
-  // دالة مساعدة لتنسيق الأرقام: 1 => 01
-  String _twoDigits(int n) => n.toString().padLeft(2, '0');
+String _formatDateTime(DateTime? dateTime) {
+  if (dateTime == null) return '';
+  return _formatTo12Hour(dateTime);
+}
+
+// 🔹 دالة مشتركة لتنسيق الوقت بصيغة 12 ساعة مع AM/PM
+String _formatTo12Hour(DateTime date) {
+  final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
+  final minute = _twoDigits(date.minute);
+  final amPm = date.hour >= 12 ? 'PM' : 'AM';
+  return '${_twoDigits(date.day)}/${_twoDigits(date.month)}/${date.year} - ${_twoDigits(hour)}:$minute $amPm';
+}
+
+// 🔸 دالة مساعدة لإضافة صفر قبل الأرقام الأحادية
+String _twoDigits(int n) => n.toString().padLeft(2, '0');
+
+
+
+
 
   Future<bool> _isDeliveryUser() async {
     try {
@@ -301,7 +347,7 @@ class _PatientsScreenState extends State<PatientsScreen> {
       (route) => false,
     );
   }
-
+  
   @override
   Widget build(BuildContext context) {
     return Directionality(
@@ -315,11 +361,11 @@ class _PatientsScreenState extends State<PatientsScreen> {
           backgroundColor: const Color(0xFF673AB7),
           centerTitle: true,
           leading: IconButton(
-            icon: const Icon(Icons.calendar_today, color: Colors.white),
-            onPressed: _selectDate,
-            tooltip: 'اختيار التاريخ',
-          ),
-          actions: [
+              icon: const Icon(Icons.calendar_today, color: Colors.white),
+              onPressed: _selectDate,
+              tooltip: 'اختيار التاريخ',
+            ),
+            actions: [
             FutureBuilder<bool>(
               future: _isDeliveryUser(),
               builder: (context, snapshot) {
@@ -332,16 +378,16 @@ class _PatientsScreenState extends State<PatientsScreen> {
                   );
                 }
                 return IconButton(
-                  icon: const Icon(Icons.arrow_forward, color: Colors.white),
-                  onPressed: () {
+                     icon: const Icon(Icons.arrow_forward, color: Colors.white),
+                     onPressed: () {
                     Navigator.of(context).pop();
                   },
                 );
-              },
-            ),
-          ],
+                      },
+                 ),
+            ],
         ),
-        body: Column(
+        body: SafeArea(child:  Column(
           children: [
             // Search bar
             Padding(
@@ -372,11 +418,11 @@ class _PatientsScreenState extends State<PatientsScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
-                    children: [
-                      const Icon(Icons.calendar_today, color: Colors.grey),
-                      const SizedBox(width: 8),
-                      Text(
-                        'التاريخ: ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+                children: [
+                  const Icon(Icons.calendar_today, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  Text(
+                    'التاريخ: ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Colors.grey,
@@ -413,31 +459,37 @@ class _PatientsScreenState extends State<PatientsScreen> {
             const SizedBox(height: 8),
             // Patients list
             Expanded(
-              child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              child:  RefreshIndicator(
+    onRefresh: () async {
+      // هنا نجعل Firestore يعيد جلب البيانات
+      // بما أننا نستخدم StreamBuilder، يمكننا فقط عمل setState لإعادة البناء
+      setState(() {});
+    },
+    child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                 stream: getPatientsStream(),
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
                     return Center(child: Text('خطأ: ${snapshot.error}'));
                   }
-
+                  
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
-
+                  
                   final docs = snapshot.data?.docs ?? [];
-
+                  
                   // Filter by search query
                   final filteredDocs =
                       docs.where((doc) {
-                        final data = doc.data();
+                    final data = doc.data();
                         final patientName =
                             data['name']?.toString().toLowerCase() ?? '';
                         final barcode =
                             data['barcode']?.toString().toLowerCase() ?? '';
                         return patientName.contains(_searchQuery) ||
                             barcode.contains(_searchQuery);
-                      }).toList();
-
+                  }).toList();
+                  
                   if (filteredDocs.isEmpty) {
                     return Center(
                       child: Text(
@@ -482,16 +534,16 @@ class _PatientsScreenState extends State<PatientsScreen> {
                             clipBehavior: Clip.none,
                             children: [
                               Card(
-                                elevation: 2,
+                        elevation: 2,
                                 child: FutureBuilder<String>(
-                                  future: _getLabName(labId),
-                                  builder: (context, labSnapshot) {
+  future: _getLabName(labId),
+  builder: (context, labSnapshot) {
                                     final labName =
                                         labSnapshot.data ?? 'جاري التحميل...';
 
-                                    return ListTile(
-                                      leading: IntrinsicWidth(
-                                        child: Container(
+    return ListTile(
+      leading: IntrinsicWidth(
+        child: Container(
                                           constraints: const BoxConstraints(
                                             minWidth: 0,
                                             minHeight: 28,
@@ -499,43 +551,43 @@ class _PatientsScreenState extends State<PatientsScreen> {
                                           padding: const EdgeInsets.symmetric(
                                             horizontal: 8,
                                           ),
-                                          decoration: BoxDecoration(
+          decoration: BoxDecoration(
                                             color:
                                                 isCancelled
                                                     ? Colors.white
                                                     : received
                                                     ? Colors.white
                                                     : Colors.white,
-                                            border: Border.all(
+            border: Border.all(
                                               color:
                                                   isCancelled
                                                       ? Colors.red
                                                       : received
                                                       ? Colors.green
                                                       : const Color(0xFF673AB7),
-                                              width: 2,
-                                            ),
+              width: 2,
+            ),
                                             borderRadius: BorderRadius.circular(
                                               8,
                                             ),
-                                          ),
-                                          child: Center(
-                                            child: Text(
-                                              patientId,
-                                              style: TextStyle(
+          ),
+          child: Center(
+            child: Text(
+              patientId,
+              style: TextStyle(
                                                 color: Color(0xFF673AB7),
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      title: Text(
-                                        patientName,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ),
+      ),
+      title: Text(
+        patientName,
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
                                           color: Colors.black,
                                         ),
                                       ),
@@ -569,7 +621,7 @@ class _PatientsScreenState extends State<PatientsScreen> {
                                                   const SizedBox(height: 4),
                                                   Text(
                                                     barcode,
-                                                    style: const TextStyle(
+        style: const TextStyle(
                                                       fontSize: 12,
                                                       color: Colors.black,
                                                       fontWeight:
@@ -581,10 +633,10 @@ class _PatientsScreenState extends State<PatientsScreen> {
                                               : null,
                                       onTap:
                                           labSnapshot.hasData
-                                              ? () {
-                                                Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
+          ? () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
                                                     builder:
                                                         (
                                                           context,
@@ -593,19 +645,19 @@ class _PatientsScreenState extends State<PatientsScreen> {
                                                               labId.isNotEmpty
                                                                   ? labId
                                                                   : 'global',
-                                                          labName: labName,
+                    labName: labName,
                                                           patientDocId:
                                                               patientDocId,
-                                                        ),
-                                                  ),
-                                                );
-                                              }
-                                              : null, // امنع التنقل إذا labName لم يتم تحميله بعد
-                                      onLongPress: () {
-                                        _showStatusDialog(context, data);
-                                      },
-                                    );
-                                  },
+                  ),
+                ),
+              );
+            }
+          : null, // امنع التنقل إذا labName لم يتم تحميله بعد
+      onLongPress: () {
+        _showStatusDialog(context, data);
+      },
+    );
+  },
                                 ),
                               ),
                               // Badge for tests count (top-left) - only show if tests > 0
@@ -646,12 +698,12 @@ class _PatientsScreenState extends State<PatientsScreen> {
                       );
                     },
                   );
-                },
+                },),
               ),
             ),
           ],
         ),
-      ),
+      ),),
     );
   }
 }

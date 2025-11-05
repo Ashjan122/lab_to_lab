@@ -354,10 +354,11 @@ class _ControlChatLabsTab extends StatelessWidget {
         if (!userSnap.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
+
         final currentId = userSnap.data!['id'] ?? '';
         final currentName = userSnap.data!['name'] ?? 'الكنترول';
 
-        // اعرض فقط المعامل التي أرسلت رسائل إلى هذا المستخدم الكنترول
+        // 🔹 نعرض كل المعامل اللي أرسلت رسائل للكنترول
         return StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance
               .collection('messages')
@@ -368,27 +369,38 @@ class _ControlChatLabsTab extends StatelessWidget {
             if (snapshot.hasError) {
               return Center(child: Text('حدث خطأ: ${snapshot.error}'));
             }
+
             if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
+
             final msgs = snapshot.data!.docs;
-            // تجميع معرفات المعامل التي أرسلت رسائل (senderId)
+
+            // 🔸 تجميع معرفات المعامل اللي أرسلت رسائل (senderId)
             final LinkedHashSet<String> labIds = LinkedHashSet<String>();
             for (final doc in msgs) {
               final data = doc.data() as Map<String, dynamic>;
               final senderId = data['senderId']?.toString() ?? '';
               if (senderId.isNotEmpty) labIds.add(senderId);
             }
+
             final ids = labIds.toList();
+
             if (ids.isEmpty) {
-              return const Center(child: Text('لا توجد محادثات مع أي معمل بعد.'));
+              return const Center(
+                child: Text('لا توجد محادثات مع أي معمل بعد.'),
+              );
             }
+
+            // 🔹 عرض قائمة المعامل
             return ListView.separated(
               padding: const EdgeInsets.all(16),
               itemCount: ids.length,
               separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 final labId = ids[index];
+
+                // 🔸 نجيب بيانات المعمل
                 return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                   future: FirebaseFirestore.instance
                       .collection('labToLap')
@@ -398,31 +410,82 @@ class _ControlChatLabsTab extends StatelessWidget {
                     if (!labSnap.hasData) {
                       return const SizedBox.shrink();
                     }
-                    final snapData = labSnap.data;
-                    if (snapData == null || !snapData.exists) {
+
+                    final labDoc = labSnap.data;
+                    if (labDoc == null || !labDoc.exists) {
                       return const SizedBox.shrink();
                     }
-                    final labData = snapData.data();
+
+                    final labData = labDoc.data();
                     final labName = labData?['name']?.toString() ?? 'معمل';
-                    return Card(
-                      child: ListTile(
-                       
-                        title: Text(labName),
-                        trailing: const Icon(Icons.chat),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ChatScreen(
-                                labId: currentId,
-                                labName: currentName,
-                                receiverId: labId,
-                                receiverName: labName,
-                              ),
+
+                    // ✅ StreamBuilder لحساب الرسائل غير المقروءة فقط
+                    return StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('messages')
+                          .where('senderId', isEqualTo: labId)
+                          .where('receiverId', isEqualTo: currentId)
+                          .where('isRead', isEqualTo: false) // ✅ رسائل لم تُقرأ
+                          .snapshots(),
+                      builder: (context, unreadSnap) {
+                        int unreadCount = unreadSnap.data?.docs.length ?? 0;
+
+                        return Card(
+                          elevation: 2,
+                          child: ListTile(
+                            title: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    labName,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                // 🔴 البادج بجانب اسم المعمل
+                                if (unreadCount > 0)
+                                  Container(
+                                    margin: const EdgeInsets.only(right: 8),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Text(
+                                      unreadCount > 9
+                                          ? '9+'
+                                          : unreadCount.toString(),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
-                          );
-                        },
-                      ),
+                            trailing: const Icon(Icons.chat, color: Color(0xFF673AB7)),
+                            onTap: () {
+                              // 🔹 عند فتح الدردشة → نفتح ChatScreen
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ChatScreen(
+                                    labId: currentId,
+                                    labName: currentName,
+                                    receiverId: labId,
+                                    receiverName: labName,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        );
+                      },
                     );
                   },
                 );

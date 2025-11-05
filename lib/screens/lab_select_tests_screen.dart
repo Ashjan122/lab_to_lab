@@ -141,7 +141,6 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
   Future<void> _saveSelection(
   List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
 ) async {
-  if (_selectedIds.isEmpty) return;
   setState(() => _saving = true);
   try {
     final WriteBatch batch = FirebaseFirestore.instance.batch();
@@ -152,13 +151,25 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
         .doc(widget.patientId)
         .collection('lab_request');
 
+    // حذف الفحوصات التي أزيلت من التحديد
+    final removedIds = _existingTestIds.difference(_selectedIds);
+    for (final testId in removedIds) {
+      final existingDocs = await reqCol.where('testId', isEqualTo: testId).get();
+      for (final doc in existingDocs.docs) {
+        batch.delete(doc.reference);
+      }
+    }
+
+    // ✅ إضافة الفحوصات الجديدة فقط (تجنب المكررة)
     final newSelectedIds = _selectedIds.difference(_existingTestIds);
     final selectedDocs = docs.where((d) => newSelectedIds.contains(d.id));
 
     for (final d in selectedDocs) {
       final data = d.data();
 
+      // ✅ تحقق محلياً لتجنب إدخال نفس الفحص مرتين
       if (_existingTestIds.contains(d.id)) {
+        print('⚠️ الفحص ${data['name']} موجود مسبقاً، تم تخطيه.');
         continue;
       }
 
@@ -172,9 +183,16 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
       });
     }
 
-    if (newSelectedIds.isNotEmpty) {
+    // تنفيذ الحفظ فقط إذا كان هناك تغيير فعلي
+    if (removedIds.isNotEmpty || newSelectedIds.isNotEmpty) {
       await batch.commit();
 
+      // ✅ تحديث القائمة المحلية لتتطابق مع البيانات بعد الحفظ
+      _existingTestIds
+        ..removeAll(removedIds)
+        ..addAll(newSelectedIds);
+
+      // إرسال إشعار (نفس الكود السابق بدون تغيير)
       if (!widget.skipNotification) {
         try {
           final pSnap = await FirebaseFirestore.instance
@@ -183,120 +201,129 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
               .collection('patients')
               .doc(widget.patientId)
               .get();
+
           final patientData = pSnap.data() ?? {};
           final patientName = patientData['name']?.toString() ?? 'مريض';
-          final patientCode =
-              patientData['id']?.toString() ?? widget.patientId;
-          final notificationSent = patientData['notificationSent'] == true;
+          final patientCode = patientData['id']?.toString() ?? widget.patientId;
 
-          if (notificationSent) {
-            print('⚠️ تم إرسال الإشعار سابقاً لهذا المريض، تخطي الإرسال...');
-          } else {
-            final List<String> testNames = [];
-            num totalPrice = 0;
-
-            for (final d in selectedDocs) {
-              final data = d.data();
-              final name = data['name']?.toString() ?? '';
-              final priceDyn = data['price'];
-              final priceNum = (priceDyn is num)
-                  ? priceDyn
-                  : (num.tryParse('$priceDyn') ?? 0);
-              if (name.isNotEmpty) testNames.add(name);
-              totalPrice += priceNum;
-            }
-
-            final labSnap = await FirebaseFirestore.instance
-                .collection('labToLap')
-                .doc(widget.labId)
-                .get();
-            final labData = labSnap.data() ?? {};
-            String whatsappNumber = labData['whatsApp']?.toString() ?? '';
-            if (whatsappNumber.isEmpty) {
-              whatsappNumber = '249912345678';
-              print(
-                  'No WhatsApp number found, using default: $whatsappNumber');
-            }
-
-            String bankAccount =
-                labData['bankAccount']?.toString() ?? '123456';
-            if (!labSnap.exists || labData['bankAccount'] == null) {
-              await FirebaseFirestore.instance
-                  .collection('labToLap')
-                  .doc(widget.labId)
-                  .set({'bankAccount': '123456'}, SetOptions(merge: true));
-            }
-
-            if (whatsappNumber.isNotEmpty) {
-              await _sendWhatsAppMessage(
-                whatsappNumber,
-                patientName,
-                patientCode,
-                totalPrice.toStringAsFixed(0),
-                bankAccount,
-              );
-            }
-
-            final String lab = (widget.labName).trim();
-            final String title = lab.startsWith('معمل')
-                ? 'مريض جديد في $lab'
-                : 'مريض جديد في معمل $lab';
-            final String body =
-                'اسم المريض: $patientName\nالفحوصات: ${testNames.join(', ')}\nالمبلغ: ${totalPrice.toStringAsFixed(0)}';
-
-            await FirebaseFirestore.instance.collection('push_requests').add({
-              'topic': 'lab_order',
-              'title': title,
-              'body': body,
-              'labId': widget.labId,
-              'labName': widget.labName,
-              'patientDocId': widget.patientId,
-              'action': 'open_order_request',
-              'createdAt': FieldValue.serverTimestamp(),
-            });
-
-            await FirebaseFirestore.instance
-                .collection('labToLap')
-                .doc('global')
-                .collection('patients')
-                .doc(widget.patientId)
-                .set({'notificationSent': true}, SetOptions(merge: true));
+          final List<String> testNames = [];
+          num totalPrice = 0;
+          for (final d in selectedDocs) {
+            final data = d.data();
+            final name = data['name']?.toString() ?? '';
+            final priceDyn = data['price'];
+            final priceNum = (priceDyn is num)
+                ? priceDyn
+                : (num.tryParse('$priceDyn') ?? 0);
+            if (name.isNotEmpty) testNames.add(name);
+            totalPrice += priceNum;
           }
-        } catch (_) {
-          // تجاهل أخطاء إرسال الإشعارات
+
+          final labSnap = await FirebaseFirestore.instance
+              .collection('labToLap')
+              .doc(widget.labId)
+              .get();
+          final labData = labSnap.data() ?? {};
+
+          String whatsappNumber = labData['whatsApp']?.toString() ?? '';
+          if (whatsappNumber.isEmpty) whatsappNumber = '249912345678';
+          // 🟣 اجلب رقم الحساب من global/bankAccount/1
+String bankAccount = '1234567';
+try {
+  final bankSnap = await FirebaseFirestore.instance
+      .collection('labToLap')
+      .doc('global')
+      .collection('bankAccound')
+      .doc('1')
+      .get();
+
+  final bankData = bankSnap.data();
+  if (bankData != null && bankData['accound'] != null) {
+    bankAccount = bankData['accound'].toString();
+  }
+} catch (e) {
+  print('⚠️ خطأ أثناء جلب رقم الحساب: $e');
+}
+
+
+          final contractType = labData['contractType']?.toString() ?? 'prepaid';
+          if (contractType == 'prepaid' && whatsappNumber.isNotEmpty) {
+            await _sendWhatsAppMessage(
+              whatsappNumber,
+              patientName,
+              patientCode,
+              totalPrice.toStringAsFixed(0),
+              bankAccount,
+              widget.labName,
+            );
+          }
+
+          final String lab = (widget.labName).trim();
+          final String title = lab.startsWith('معمل')
+              ? 'مريض جديد في $lab'
+              : 'مريض جديد في معمل $lab';
+          final String body =
+              'اسم المريض: $patientName\nالفحوصات: ${testNames.join(', ')}\nالمبلغ: ${totalPrice.toStringAsFixed(0)}';
+
+          await FirebaseFirestore.instance.collection('push_requests').add({
+            'topic': 'lab_order',
+            'title': title,
+            'body': body,
+            'labId': widget.labId,
+            'labName': widget.labName,
+            'patientDocId': widget.patientId,
+            'action': 'open_order_request',
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        } catch (e) {
+          print('⚠️ خطأ أثناء إرسال الإشعار: $e');
         }
       }
     } else {
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('لا توجد فحوصات جديدة لإضافتها'),
+          content: Text('لا توجد تغييرات لحفظها'),
           backgroundColor: Colors.orange,
         ),
       );
     }
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => LabPatientResultDetailScreen(
-          labId: widget.labId,
-          labName: widget.labName,
-          patientDocId: widget.patientId,
-          fromSelection: true,
+    // الانتقال بعد الحفظ
+    if (widget.skipNotification) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => LabPatientResultDetailScreen(
+            labId: widget.labId,
+            labName: widget.labName,
+            patientDocId: widget.patientId,
+            fromSelection: false,
+          ),
         ),
-      ),
-    );
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('فشل الحفظ: $e'), backgroundColor: Colors.red),
+        (route) => false,
+      );
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => LabPatientResultDetailScreen(
+            labId: widget.labId,
+            labName: widget.labName,
+            patientDocId: widget.patientId,
+            fromSelection: true,
+          ),
+        ),
       );
     }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('فشل الحفظ: $e'), backgroundColor: Colors.red),
+    );
   } finally {
     if (mounted) setState(() => _saving = false);
   }
 }
+
 
 
   Future<void> _sendWhatsAppMessage(
@@ -305,18 +332,17 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
     String patientCode,
     String totalPrice,
     String bankAccount,
+    String labName,
   ) async {
     try {
-      final message = '''عزيزي المشترك ،
-نود إعلامكم بأنه تم إنشاء طلبكم بنجاح.
-
-رقم الطلب: $patientCode
+      final message = '''تم انشاء طلبك رقم $patientCode بنجاح ✅،
 المبلغ المستحق: $totalPrice جنيه
 
-نرجو منكم تسديد المبلغ نقداً لدى المندوب أو عن طريق التحويل عبر تطبيق بنكك إلى الحساب التالي:
+يرجى السداد نقداً للمندوب أو عبر بنكك إلى الحساب :
  $bankAccount
-يرجى كتابة رقم الطلب($patientCode) في خانة التعليق عند التحويل لتسهيل عملية التحقق.
-شكرًا لاختياركم خدماتنا. 🌟''';
+مع كتابة رقم الطلب ($patientCode) في خانة التعليق عند التحويل.
+شكرًا لاختيارك خدماتنا 💚
+''';
 
       // تنظيف وتنسيق رقم الواتساب - إزالة الصفر من البداية
       String cleanNumber = whatsappNumber.replaceAll(RegExp(r'[^\d]'), '');
@@ -373,7 +399,7 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
       child: Scaffold(
         appBar: AppBar(
           title: Text(
-            'اختيار الفحوصات - ${widget.labName}',
+            'اختيار الفحوصات',
             style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
@@ -488,7 +514,7 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
                               );
                               final isUnavailable = data['available'] == false;
                               final conditions =
-                                  data['conditions']?.toString().trim();
+                                  data['condition']?.toString().trim();
                               final hasConditions =
                                   conditions != null && conditions.isNotEmpty;
 
@@ -593,8 +619,7 @@ class _LabSelectTestsScreenState extends State<LabSelectTestsScreen>
                                     children: [
                                       Text('السعر: ${price ?? 0}'),
                                       // 👇 زمن الفحص (رقم + كلمة ساعات)
-                                      if (data['timer'] != null &&
-                                          data['timer'] is num)
+                                      if (data['timer'] != null && data['timer'] is num && data['timer'] > 0)
                                         Text(
                                           'الزمن المتوقع للفحص: ${data['timer']} ساعة',
                                           style: const TextStyle(

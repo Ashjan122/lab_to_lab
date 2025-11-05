@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 class UpdateChecker {
   static Future<void> checkForUpdate(BuildContext context) async {
     // ✅ حفظ المرجع المحلي لـ ScaffoldMessenger مبكرًا لتجنب مشاكل الـ context
+    /*
     final messenger = ScaffoldMessenger.maybeOf(context);
 
     try {
@@ -28,7 +29,7 @@ class UpdateChecker {
       final updateUrl = snapshot['updatrUrl'];
 
       // 4. التحقق من وجود تحديث
-      if (latestVersion > currentVersion) {
+     if (latestVersion > currentVersion) {
         // ✅ عرض الديالوق (داخل شرط context.mounted)
         if (!context.mounted) return;
 
@@ -67,6 +68,6 @@ try {
       messenger?.showSnackBar(
         SnackBar(content: Text("خطأ أثناء التحقق من التحديث: $e")),
       );
-    }
+    }*/
   }
 }

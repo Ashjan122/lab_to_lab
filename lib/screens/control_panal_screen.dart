@@ -14,6 +14,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+
+import 'package:url_launcher/url_launcher.dart';
 
 
 class ControlPanalScreen extends StatefulWidget {
@@ -291,7 +294,6 @@ Future<void> _pickAndUploadProfileImage() async {
 
   Widget _buildMessagesCardWithBadge() {
     final BorderRadius cardRadius = BorderRadius.circular(12);
-    final Color primary = const Color(0xFF673AB7);
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('messages')
@@ -445,6 +447,43 @@ Future<void> _pickAndUploadProfileImage() async {
     },
   );
 }
+// دالة لجلب رقم الإصدار الحالي الكامل
+  Future<String> _getCurrentVersion() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    return '${packageInfo.version}+${packageInfo.buildNumber}';
+  }
+
+// دالة لجلب buildNumber الحالي
+  Future<int> _getCurrentBuildNumber() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    return int.parse(packageInfo.buildNumber);
+  }
+
+// دالة للتحقق من وجود تحديثات جديدة
+  Future<Map<String, dynamic>> _checkForUpdates() async {
+    try {
+      final currentBuildNumber = await _getCurrentBuildNumber();
+      
+      final snapshot = await FirebaseFirestore.instance
+          .collection('appConfig')
+          .doc('version3')
+          .get();
+
+      if (!snapshot.exists) {
+        return {'hasUpdate': false, 'updateUrl': null};
+      }
+
+      final int latestVersion = snapshot['lastVersion'];
+      final String updateUrl = snapshot['updatrUrl'];
+
+      return {
+        'hasUpdate': latestVersion > currentBuildNumber,
+        'updateUrl': updateUrl,
+      };
+    } catch (e) {
+      return {'hasUpdate': false, 'updateUrl': null};
+    }
+  }
 
 
   @override
@@ -536,9 +575,71 @@ ListTile(
 ),
 
 
-        // 🟪 باقي العناصر هنا (لو فيه أي عناصر إضافية قبل تسجيل الخروج)
+// ✅ زر تحديث التطبيق
+            ListTile(
+              leading: const Icon(Icons.update, color: Color(0xFF673AB7)),
+              title: const Text('تحديث التطبيق'),
+              subtitle: FutureBuilder<String>(
+                future: _getCurrentVersion(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) return const Text('...');
+                  return Text('رقم الإصدار: ${snapshot.data}');
+                },
+              ),
+              onTap: () async {
+                // لا شيء عند الضغط على العنوان
+              },
+            ),
+            // زر تحديث الآن - يظهر فقط عند وجود تحديث جديد
+            FutureBuilder<Map<String, dynamic>>(
+              future: _checkForUpdates(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const SizedBox.shrink();
+                
+                final hasUpdate = snapshot.data!['hasUpdate'] as bool;
+                final updateUrl = snapshot.data!['updateUrl'] as String?;
+                
+                if (!hasUpdate || updateUrl == null) {
+                  return const SizedBox.shrink();
+                }
+                
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        try {
+                          final uri = Uri.parse(updateUrl);
+                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('حدث خطأ أثناء فتح رابط التحديث: $e')),
+                            );
+                          }
+                        }
+                      },
+                      icon: const Icon(Icons.download, color: Colors.white),
+                      label: const Text(
+                        'تحديث الآن',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
 
-        const Spacer(),
+            // 🟪 باقي العناصر يمكن إضافتها هنا
+            const Spacer(),
 
         // ✅ زر تسجيل الخروج داخل إطار
         Padding(

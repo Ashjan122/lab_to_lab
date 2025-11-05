@@ -78,30 +78,32 @@ class _LabUsersScreenState extends State<LabUsersScreen> {
                     TextFormField(
                       controller: _nameController,
                       decoration: const InputDecoration(
-                        labelText: 'اسم المستخدم',
+                        labelText: 'اسم المستخدم *',
+                        hintText: 'اسم المستخدم',
                         border: OutlineInputBorder(),
                       ),
                       textInputAction: TextInputAction.next,
-                      validator:
-                          (v) =>
-                              (v == null || v.trim().isEmpty)
-                                  ? 'أدخل الاسم'
-                                  : null,
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return 'اسم المستخدم مطلوب';
+                        }
+                        if (v.trim().length < 6) {
+                          return 'اسم المستخدم يجب أن يكون 6 أحرف على الأقل';
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _phoneController,
                       decoration: const InputDecoration(
                         labelText: 'رقم الهاتف',
+                        hintText: 'رقم الهاتف',
                         border: OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.phone,
                       textInputAction: TextInputAction.next,
-                      validator:
-                          (v) =>
-                              (v == null || v.trim().isEmpty)
-                                  ? 'أدخل الهاتف'
-                                  : null,
+                      validator: null, // لا يوجد تحقق مطلوب
                       textAlign: TextAlign.left,
                       textDirection: TextDirection.ltr,
                     ),
@@ -110,16 +112,21 @@ class _LabUsersScreenState extends State<LabUsersScreen> {
                     TextFormField(
                       controller: _passwordController,
                       decoration: const InputDecoration(
-                        labelText: 'كلمة المرور',
+                        labelText: 'كلمة المرور *',
+                        hintText: 'كلمة المرور',
                         border: OutlineInputBorder(),
                       ),
                       obscureText: true,
                       textInputAction: TextInputAction.done,
-                      validator:
-                          (v) =>
-                              (v == null || v.trim().isEmpty)
-                                  ? 'أدخل كلمة المرور'
-                                  : null,
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return 'كلمة المرور مطلوبة';
+                        }
+                        if (v.trim().length < 8) {
+                          return 'كلمة المرور يجب أن تكون 8 أحرف على الأقل';
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 12),
                     SizedBox(
@@ -129,8 +136,17 @@ class _LabUsersScreenState extends State<LabUsersScreen> {
                             _submitting
                                 ? null
                                 : () async {
-                                  await _addUser();
-                                  if (mounted) Navigator.pop(context);
+                                  // التحقق من النموذج أولاً
+                                  if (!_formKey.currentState!.validate()) {
+                                    // إذا كان هناك أخطاء، النموذج سيعرضها تلقائياً
+                                    return;
+                                  }
+                                  // محاولة إضافة المستخدم
+                                  final success = await _addUser();
+                                  // إغلاق الشيت فقط عند النجاح
+                                  if (mounted && success) {
+                                    Navigator.pop(context);
+                                  }
                                 },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF673AB7),
@@ -161,104 +177,163 @@ class _LabUsersScreenState extends State<LabUsersScreen> {
     );
   }
 
-  Future<void> _addUser() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _submitting = true);
-    try {
-      final name = _nameController.text.trim();
-      final phone = _phoneController.text.trim();
-      final password = _passwordController.text.trim();
+  Future<bool> _addUser() async {
+  setState(() => _submitting = true);
 
-      // Create user doc in global users collection
-      final userDoc = await FirebaseFirestore.instance.collection('users').add({
-        'userName': name,
-        'userPhone': phone,
-        'userPassword': password,
-        'userType': 'labUser',
-        'labId': widget.labId,
-        'labName': widget.labName,
-        'isEnabled': true,
-        'createdAt': FieldValue.serverTimestamp(),
-        'lastLoginAt': null,
-        'lastSeenAt': null,
-      });
+  try {
+    final name = _nameController.text.trim();
+    final phone = _phoneController.text.trim();
+    final password = _passwordController.text.trim();
 
-      // Also add to lab subcollection for quick management
-      await _labUsersCol.doc(userDoc.id).set({
-        'userName': name,
-        'userPhone': phone,
-        'userType': 'labUser',
-        'userId': userDoc.id,
-        'isEnabled': true,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+    // ✅ تحقق من وجود مستخدم بنفس الاسم مسبقاً في كل المعامل
+    final existing = await FirebaseFirestore.instance
+        .collection('users')
+        .where('userName', isEqualTo: name)
+        .where('userType', isEqualTo: 'labUser')
+        .get();
 
+    if (existing.docs.isNotEmpty) {
       if (mounted) {
-        _nameController.clear();
-        _phoneController.clear();
-        _passwordController.clear();
+        setState(() => _submitting = false);
+        // إغلاق الشيت أولاً
+        Navigator.pop(context);
+        // ثم إظهار رسالة الخطأ
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('تمت إضافة المستخدم'),
-            backgroundColor: Colors.green,
+            content: Text('⚠️ هذا الاسم مستخدم بالفعل من قبل مستخدم آخر.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 4),
           ),
         );
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _submitting = false);
+      return false; // ❌ لا نكمل الإضافة
     }
+
+    // ✅ إضافة المستخدم الجديد
+    final userDoc = await FirebaseFirestore.instance.collection('users').add({
+      'userName': name,
+      'userPhone': phone,
+      'userPassword': password,
+      'userType': 'labUser',
+      'labId': widget.labId,
+      'labName': widget.labName,
+      'isEnabled': true,
+      'createdAt': FieldValue.serverTimestamp(),
+      'lastLoginAt': null,
+      'lastSeenAt': null,
+    });
+
+    // ✅ أيضاً نضيفه في سبكولكشن المعمل
+    await _labUsersCol.doc(userDoc.id).set({
+      'userName': name,
+      'userPhone': phone,
+      'userType': 'labUser',
+      'userId': userDoc.id,
+      'isEnabled': true,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    if (mounted) {
+      _nameController.clear();
+      _phoneController.clear();
+      _passwordController.clear();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ تمت إضافة المستخدم بنجاح'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+    return true; // ✅ نجحت الإضافة
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('حدث خطأ: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+    return false; // ❌ فشلت الإضافة
+  } finally {
+    if (mounted) setState(() => _submitting = false);
   }
+}
 
   Future<void> _editUser(String userId) async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _submitting = true);
-    try {
-      final name = _nameController.text.trim();
-      final phone = _phoneController.text.trim();
-      final password = _passwordController.text.trim();
+  if (!_formKey.currentState!.validate()) return;
+  setState(() => _submitting = true);
 
-      await FirebaseFirestore.instance.collection('users').doc(userId).update({
-        'userName': name,
-        'userPhone': phone,
-        'userPassword': password,
-        'userType': 'labUser',
-        'labId': widget.labId,
-        'labName': widget.labName,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-      await _labUsersCol.doc(userId).set({
-        'userName': name,
-        'userPhone': phone,
-        'userType': 'labUser',
-        'userId': userId,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+  try {
+    final name = _nameController.text.trim();
+    final phone = _phoneController.text.trim();
+    final password = _passwordController.text.trim();
 
+    // ✅ تحقق من وجود مستخدم بنفس الاسم مسبقاً (باستثناء المستخدم الحالي)
+    final existing = await FirebaseFirestore.instance
+        .collection('users')
+        .where('userName', isEqualTo: name)
+        .where('userType', isEqualTo: 'labUser')
+        .get();
+
+    final isNameTaken = existing.docs.any((doc) => doc.id != userId);
+
+    if (isNameTaken) {
       if (mounted) {
-        Navigator.pop(context);
+        setState(() => _submitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('تم تحديث المستخدم'),
-            backgroundColor: Colors.green,
+            content: Text('⚠️ هذا الاسم مستخدم بالفعل من قبل مستخدم آخر.'),
+            backgroundColor: Colors.orange,
           ),
         );
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _submitting = false);
+      return; // ❌ لا نكمل التعديل
     }
+
+    // ✅ تحديث بيانات المستخدم
+    await FirebaseFirestore.instance.collection('users').doc(userId).update({
+      'userName': name,
+      'userPhone': phone,
+      'userPassword': password,
+      'userType': 'labUser',
+      'labId': widget.labId,
+      'labName': widget.labName,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    await _labUsersCol.doc(userId).set({
+      'userName': name,
+      'userPhone': phone,
+      'userType': 'labUser',
+      'userId': userId,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    if (mounted) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ تم تحديث المستخدم بنجاح'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('حدث خطأ: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  } finally {
+    if (mounted) setState(() => _submitting = false);
   }
+}
+
 
   Future<void> _toggleUserStatus(
     String userId,

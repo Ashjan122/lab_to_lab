@@ -1,10 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:lab_to_lab_admin/screens/lab_dashboard_screen.dart';
-import 'package:lab_to_lab_admin/screens/patients_screen.dart';
+import 'package:lab_to_lab_admin/screens/control_samples_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lab_to_lab_admin/screens/register_lab_screen.dart';
 import 'package:lab_to_lab_admin/screens/control_panal_screen.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -20,6 +23,105 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _submitting = false;
   bool _obscure = true;
   static const Color _primary = Color(0xFF673AB7);
+
+  Future<String> _getCurrentVersion() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    // نفس طريقة صفحة الكنترول: إظهار الإصدار الكامل مع +
+    return '${packageInfo.version}+${packageInfo.buildNumber}';
+  }
+
+  Future<void> _showSupportDialog() async {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('support')
+          .doc('labNumbers')
+          .get();
+      final data = snap.data() ?? {};
+      final numsDyn = data['numbers'];
+      final List<String> numbers = numsDyn is List
+          ? numsDyn
+              .map((e) => e?.toString() ?? '')
+              .where((e) => e.trim().isNotEmpty)
+              .toList()
+          : [];
+
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (ctx) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            title: const Text(' أرقام الدعم الفني'),
+            content: numbers.isEmpty
+                ? const Text('لا توجد أرقام دعم حالياً')
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: List.generate(numbers.length, (index) {
+                      final n = numbers[index];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '${index + 1} -',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF673AB7),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            InkWell(
+                              onTap: () => _launchPhone(n),
+                              child: Text(
+                                n,
+                                textDirection: TextDirection.ltr,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('إغلاق'),
+              ),
+            ],
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Directionality(
+            textDirection: TextDirection.rtl,
+            child: Text('تعذر تحميل أرقام الدعم: $e'),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _launchPhone(String phone) async {
+    final uri = Uri.parse('tel:$phone');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('لا يمكن فتح تطبيق الاتصال')),
+      );
+    }
+  }
 
   @override
   void dispose() {
@@ -56,6 +158,18 @@ class _LoginScreenState extends State<LoginScreen> {
           controlDoc.data()['userName']?.toString() ?? inputUser,
         );
         
+        // Save FCM token for control user
+        try {
+          final fcmToken = await FirebaseMessaging.instance.getToken();
+          if (fcmToken != null) {
+            await FirebaseFirestore.instance
+                .collection('controlUsers')
+                .doc(controlUserId)
+                .update({'fcmToken': fcmToken});
+          }
+        } catch (e) {
+          print('Error saving FCM token: $e');
+        }
 
         await prefs.remove('lab_id');
         await prefs.remove('labName');
@@ -109,7 +223,7 @@ class _LoginScreenState extends State<LoginScreen> {
         // Route based on userType
         if (userType == 'userDelivery') {
           Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const PatientsScreen()),
+            MaterialPageRoute(builder: (_) => const ControlSamplesScreen()),
             (route) => false,
           );
         } else {
@@ -183,6 +297,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return Directionality(
       textDirection: TextDirection.ltr,
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         body: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -195,23 +310,25 @@ class _LoginScreenState extends State<LoginScreen> {
               ],
             ),
           ),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
+          child: Stack(
+            children: [
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Card(
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
                           Column(
                             children: [
                               SizedBox(height: 8),
@@ -311,13 +428,53 @@ class _LoginScreenState extends State<LoginScreen> {
                               child: const Text('ليس لديك تعاقد؟ إنشاء تعاقد'),
                             ),
                           ),
-                        ],
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: SafeArea(
+                  minimum: const EdgeInsets.only(bottom: 8),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      GestureDetector(
+                        onTap: _showSupportDialog,
+                        child: const Text(
+                          'الدعم الفني ',
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 14,
+                           
+                            decoration: TextDecoration.underline,
+                            
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      FutureBuilder<String>(
+                        future: _getCurrentVersion(),
+                        builder: (context, snap) {
+                          if (!snap.hasData) return const SizedBox.shrink();
+                          return Text(
+                            'رقم الإصدار : ${snap.data}',
+                            style: const TextStyle(color: Colors.black),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 15,),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

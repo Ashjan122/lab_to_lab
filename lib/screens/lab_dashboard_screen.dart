@@ -165,27 +165,12 @@ class _LabDashboardScreenState extends State<LabDashboardScreen> {
     );
   }
 
-  void _navigateBackToControl(BuildContext context) async {
-    final shouldShow = await _shouldShowBackToControl();
-    if (shouldShow) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LabToLab()),
-        (route) => false,
-      );
-    } else {
-      Navigator.of(context).pop();
-    }
-  }
+  
 
   @override
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: WillPopScope(
-        onWillPop: () async {
-          _navigateBackToControl(context);
-          return false; // Prevent default back behavior
-        },
         child: Scaffold(
           appBar: AppBar(
             title: Text(
@@ -234,18 +219,7 @@ class _LabDashboardScreenState extends State<LabDashboardScreen> {
                   );
                 },
               ),
-              FutureBuilder<bool>(
-              future: _shouldShowBackToControl(),
-              builder: (context, snapshot) {
-                final show = snapshot.data == true;
-                if (!show) return const SizedBox.shrink();
-                return IconButton(
-                  tooltip: 'الرجوع للكنترول',
-                    icon: const Icon(Icons.arrow_forward, color: Colors.white),
-                  onPressed: () => _navigateBackToControl(context),
-                );
-              },
-            ),
+              
             ],
           ),
           drawer: Drawer(
@@ -586,12 +560,9 @@ class _LabDashboardScreenState extends State<LabDashboardScreen> {
             ),
           ),
         ),
-      ),
+      
     );
   }
 }
 
-Future<bool> _shouldShowBackToControl() async {
-  final prefs = await SharedPreferences.getInstance();
-  return prefs.getBool('fromControlPanel') == true;
-}
+

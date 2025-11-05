@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:lab_to_lab_admin/screens/lab_select_tests_screen.dart';
+import 'package:lab_to_lab_admin/screens/lab_new_sample_screen.dart';
+import 'package:lab_to_lab_admin/screens/lab_results_patients_screen.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:lab_to_lab_admin/screens/Success_request_screen.dart';
 import 'package:http/http.dart' as http;
@@ -55,21 +57,22 @@ class _LabPatientResultDetailScreenState
   void _showConditionDialog(BuildContext context, String condition) {
     showDialog(
       context: context,
-    builder: (context) => Directionality(
-      textDirection: TextDirection.rtl, // ⬅️ اجعل كل المحتوى من اليمين لليسار
-      child: AlertDialog(
+      builder:
+          (context) => Directionality(
+            textDirection: TextDirection.rtl,
+            child: AlertDialog(
         title: const Text(
           'إرشادات الفحص',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: Color(0xFF673AB7),
+                  color: Color(0xFF673AB7),
           ),
         ),
         content: Container(
           constraints: const BoxConstraints(maxWidth: 300),
           child: Text(
             condition,
-            style: const TextStyle(fontSize: 16, height: 1.5),
+                  style: const TextStyle(fontSize: 16, height: 1.5),
           ),
         ),
         actions: [
@@ -78,7 +81,7 @@ class _LabPatientResultDetailScreenState
             child: const Text(
               'حسناً',
               style: TextStyle(
-                color: Color(0xFF673AB7),
+                      color: Color(0xFF673AB7),
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -86,12 +89,11 @@ class _LabPatientResultDetailScreenState
         ],
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-        ),
+              ),
         ),
       ),
     );
   }
-
 
   Future<String?> _getTestCondition(String testId) async {
     try {
@@ -114,7 +116,7 @@ class _LabPatientResultDetailScreenState
     }
   }
 
- Future<Map<String, dynamic>> _loadPatientAndTests() async {
+  Future<Map<String, dynamic>> _loadPatientAndTests() async {
     final patientRef = FirebaseFirestore.instance
         .collection('labToLap')
         .doc('global')
@@ -129,22 +131,44 @@ class _LabPatientResultDetailScreenState
     
     // Format date and time
     String formattedDateTime = '';
-    final createdAt = pData['createdAt'];
-    if (createdAt != null) {
-      try {
-        DateTime dateTime;
-        if (createdAt is Timestamp) {
-          dateTime = createdAt.toDate();
-        } else if (createdAt is DateTime) {
-          dateTime = createdAt;
-        } else {
-          dateTime = DateTime.now();
-        }
-        formattedDateTime =
-            '${dateTime.day}/${dateTime.month}/${dateTime.year} - ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
-      } catch (e) {
-        formattedDateTime = '';
-      }
+    DateTime? orderDateTime;
+final createdAt = pData['createdAt'];
+if (createdAt != null) {
+  try {
+    DateTime dateTime;
+    if (createdAt is Timestamp) {
+      dateTime = createdAt.toDate();
+    } else if (createdAt is DateTime) {
+      dateTime = createdAt;
+    } else {
+      dateTime = DateTime.now();
+    }
+    
+    orderDateTime = dateTime; // حفظ تاريخ الطلب للتحقق منه لاحقاً
+
+    // 🕒 تحويل الساعة إلى 12 ساعة مع am/pm
+    int hour = dateTime.hour;
+    String period = hour >= 12 ? 'PM' : 'AM';
+    hour = hour % 12 == 0 ? 12 : hour % 12;
+
+    formattedDateTime =
+        '${dateTime.day.toString().padLeft(2, '0')}/'
+        '${dateTime.month.toString().padLeft(2, '0')}/'
+        '${dateTime.year} - '
+        '${hour.toString().padLeft(2, '0')}:'
+        '${dateTime.minute.toString().padLeft(2, '0')} $period';
+  } catch (e) {
+    formattedDateTime = '';
+  }
+}
+
+    // التحقق من أن الطلب في تاريخ اليوم
+    bool isToday = false;
+    if (orderDateTime != null) {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final orderDate = DateTime(orderDateTime.year, orderDateTime.month, orderDateTime.day);
+      isToday = today.isAtSameMomentAs(orderDate);
     }
     
     return {
@@ -155,6 +179,8 @@ class _LabPatientResultDetailScreenState
       'tests': tests,
       'pdf_url': pData['pdf_url']?.toString() ?? '',
       'formattedDateTime': formattedDateTime,
+      'sample_delivered': pData['sample_delivered'] == true,
+      'isToday': isToday,
     };
   }
 
@@ -233,6 +259,119 @@ class _LabPatientResultDetailScreenState
       ),
     );
   }
+
+  void _showEditOptionsDialog(BuildContext context, String name, String phone, String barcode) {
+    showDialog(
+      context: context,
+      builder: (context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text(
+            'اختر نوع التعديل',
+            style: TextStyle(
+              
+              color: Colors.black,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'ما الذي تريد تعديله؟',
+                style: TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 20),
+              // زر تعديل البيانات الأساسية
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => LabNewSampleScreen(
+                          labId: widget.labId,
+                          labName: widget.labName,
+                          existingPatientId: widget.patientDocId,
+                          existingName: name,
+                          existingPhone: phone,
+                          existingBarcode: barcode,
+                          isEditMode: true,
+                        ),
+                      ),
+                    );
+                  },
+                  
+                  label: const Text(
+                    'تعديل البيانات الأساسية',
+                    style: TextStyle(color: Color(0xFF673AB7), fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:  Colors.white,
+                    
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: BorderSide(color: Color(0xFF673AB7), width: 2 )
+                      
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // زر تعديل الفحوصات
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => LabSelectTestsScreen(
+                          labId: widget.labId,
+                          labName: widget.labName,
+                          patientId: widget.patientDocId,
+                          skipNotification: true,
+                        ),
+                      ),
+                    );
+                  },
+                  
+                  label: const Text(
+                    'تعديل الفحوصات',
+                    style: TextStyle(color: Color(0xFF673AB7), fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:  Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: BorderSide(color: Color(0xFF673AB7), width: 2 )
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                'إلغاء',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+          ],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            
+          ),
+        ),
+      ),
+    );
+  }
   // Back handled via Navigator.pop directly in UI; no helper needed.
 
   @override
@@ -241,8 +380,18 @@ class _LabPatientResultDetailScreenState
       textDirection: TextDirection.ltr,
       child: WillPopScope(
         onWillPop: () async {
-          // Allow system back to pop to the exact previous screen
-          return true;
+          // دائماً ارجع لشاشة المرضى بدلاً من الخروج من التطبيق
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (context) => LabResultsPatientsScreen(
+                labId: widget.labId,
+                labName: widget.labName,
+              ),
+            ),
+            (route) => false,
+          );
+          return false; // منع الرجوع الافتراضي
         },
       child: Scaffold(
         appBar: AppBar(
@@ -327,6 +476,8 @@ class _LabPatientResultDetailScreenState
                       'tests': <Map<String, dynamic>>[],
                       'pdf_url': '',
                       'formattedDateTime': '',
+                      'sample_delivered': false,
+                      'isToday': false,
                     };
             final intId = data['id'] as int? ?? 0;
             final name = data['name'] as String? ?? '';
@@ -475,6 +626,60 @@ class _LabPatientResultDetailScreenState
                         final grouped = _groupTestsByContainer(tests);
                         final entries = grouped.entries.toList();
                         if (entries.isEmpty) {
+                          // إذا لم توجد فحوصات، اعرض زر إضافة فحوصات
+                          if (tests.isEmpty) {
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                 
+                                  Text(
+                                    'لا توجد فحوصات مضافة',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      color: Colors.grey[600],
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                 
+                                  const SizedBox(height: 24),
+                                  ElevatedButton.icon(
+                                    onPressed: () {
+                                      Navigator.pushReplacement(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => LabSelectTestsScreen(
+                                            labId: widget.labId,
+                                            labName: widget.labName,
+                                            patientId: widget.patientDocId,
+                                            skipNotification: true,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    icon: const Icon(Icons.add, color: Colors.white),
+                                    label: const Text(
+                                      'إضافة فحوصات',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF673AB7),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 24,
+                                        vertical: 12,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
                           // Fallback: show flat tests list if no containers
                           return ListView.separated(
                       physics: const BouncingScrollPhysics(),
@@ -861,35 +1066,18 @@ class _LabPatientResultDetailScreenState
                                   Expanded(
                                     child: ElevatedButton(
                                       onPressed:
-                                          data['sample_delivered'] == true
+                                          (data['sample_delivered'] == true || data['isToday'] == false)
                                               ? null
                                               : () {
-                                                Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                    builder:
-                                                        (
-                                                          _,
-                                                        ) => LabSelectTestsScreen(
-                                                          labId: widget.labId,
-                                                          labName:
-                                                              widget.labName,
-                                                          patientId:
-                                                              widget
-                                                                  .patientDocId,
-                                                          skipNotification:
-                                                              true,
-                                                        ),
-                                                  ),
-                                                );
+                                                _showEditOptionsDialog(context, name, phone, barcode);
                                               },
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor:
-                                            data['sample_delivered'] == true
+                                            (data['sample_delivered'] == true || data['isToday'] == false)
                                                 ? Colors.grey[300]
                                                 : Color(0xFF673AB7),
                                         foregroundColor:
-                                            data['sample_delivered'] == true
+                                            (data['sample_delivered'] == true || data['isToday'] == false)
                                                 ? Colors.grey[600]
                                                 : Colors.white,
                                         padding: const EdgeInsets.symmetric(
@@ -901,9 +1089,11 @@ class _LabPatientResultDetailScreenState
                                           ),
                                         ),
                                       ),
-                                      child: const Text(
+                                      child: Text(
                                         'تعديل الطلب',
-                                        style: TextStyle(),
+                                        style: TextStyle(
+                                          fontSize: (data['sample_delivered'] == true || data['isToday'] == false) ? 12 : 14,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -911,7 +1101,7 @@ class _LabPatientResultDetailScreenState
                                   Expanded(
                                     child: ElevatedButton(
                                       onPressed:
-                                          data['sample_delivered'] == true
+                                          (data['sample_delivered'] == true || data['isToday'] == false)
                                               ? null
                                               : () async {
                                                 try {
@@ -961,11 +1151,11 @@ class _LabPatientResultDetailScreenState
                                               },
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor:
-                                            data['sample_delivered'] == true
+                                            (data['sample_delivered'] == true || data['isToday'] == false)
                                                 ? Colors.grey[300]
                                                 : Color(0xFF673AB7),
                                         foregroundColor:
-                                            data['sample_delivered'] == true
+                                            (data['sample_delivered'] == true || data['isToday'] == false)
                                                 ? Colors.grey[600]
                                                 : Colors.white,
                                         padding: const EdgeInsets.symmetric(
@@ -977,10 +1167,11 @@ class _LabPatientResultDetailScreenState
                                           ),
                                         ),
                                       ),
-                                      child: const Text(
+                                      child: Text(
                                         'إلغاء الطلب',
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
+                                          fontSize: (data['sample_delivered'] == true || data['isToday'] == false) ? 12 : 14,
                                         ),
                                       ),
                                     ),

@@ -194,7 +194,13 @@ class _LabPriceListScreenState extends State<LabPriceListScreen> with TickerProv
                 ),
               ),
               Expanded(
-                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                child:  RefreshIndicator(
+    onRefresh: () async {
+      // هنا نجعل Firestore يعيد جلب البيانات
+      // بما أننا نستخدم StreamBuilder، يمكننا فقط عمل setState لإعادة البناء
+      setState(() {});
+    },
+    child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                   stream: _col.snapshots(),
                   builder: (context, snap) {
                     if (snap.hasError) {
@@ -287,7 +293,7 @@ class _LabPriceListScreenState extends State<LabPriceListScreen> with TickerProv
                         final name = data['name']?.toString() ?? '';
                         final price = data['price'];
                         final isUnavailable = data['available'] == false;
-                        final conditions = data['conditions']?.toString().trim();
+                        final conditions = data['condition']?.toString().trim();
                         final hasConditions = conditions != null && conditions.isNotEmpty;
 
                         return Column(
@@ -369,7 +375,7 @@ class _LabPriceListScreenState extends State<LabPriceListScreen> with TickerProv
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     // Timer information
-                                    if (data['timer'] != null && data['timer'] is num)
+                                    if (data['timer'] != null && data['timer'] is num && data['timer'] > 0)
                                       Text(
                                         'الزمن المتوقع للفحص: ${data['timer']} ساعة',
                                         style: const TextStyle(
@@ -446,7 +452,7 @@ class _LabPriceListScreenState extends State<LabPriceListScreen> with TickerProv
                       },
                     );
                   },
-                ),
+                ),),
               ),
             ],
           ),),

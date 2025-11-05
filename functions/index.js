@@ -54,7 +54,7 @@ exports.sendLabOrderNotification = functions.firestore
     }
   });
 
-// Send FCM on new chat message to control users
+// Send FCM on new chat message to specific control user
 exports.sendChatNotification = functions.firestore
   .document('messages/{msgId}')
   .onCreate(async (snap, context) => {
@@ -74,11 +74,39 @@ exports.sendChatNotification = functions.firestore
       }
     } catch (e) {}
 
+    // Fetch control user's FCM token
+    let fcmToken = '';
+    try {
+      if (receiverId) {
+        const controlUserDoc = await admin.firestore().collection('controlUsers').doc(receiverId).get();
+        if (controlUserDoc.exists) {
+          fcmToken = controlUserDoc.data().fcmToken || '';
+        }
+      }
+    } catch (e) {
+      console.error('Error fetching control user FCM token:', e);
+    }
+
+    // If no FCM token found, skip sending notification
+    if (!fcmToken) {
+      console.log('No FCM token found for control user:', receiverId);
+      return;
+    }
+
     const title = `رسالة جديدة من ${labName}`;
     const body = message;
 
+    console.log('Sending chat notification:', {
+      title,
+      body,
+      senderId,
+      receiverId,
+      labName,
+      fcmToken: fcmToken.substring(0, 20) + '...'
+    });
+
     const fcm = {
-      topic: 'control_chat', // all control devices listen to this
+      token: fcmToken, // Send to specific user's device
       notification: { title, body },
       android: {
         priority: 'high',
@@ -92,7 +120,7 @@ exports.sendChatNotification = functions.firestore
       },
       data: {
         topic: 'control_chat',
-        action: 'open_control_panel',
+        action: 'open_chat_screen',
         senderId: String(senderId),
         receiverId: String(receiverId),
         labName: String(labName),
@@ -103,7 +131,7 @@ exports.sendChatNotification = functions.firestore
 
     try {
       await admin.messaging().send(fcm);
-      console.log('Chat notification sent');
+      console.log('Chat notification sent to specific control user');
     } catch (e) {
       console.error('Error sending chat notification', e);
     }
