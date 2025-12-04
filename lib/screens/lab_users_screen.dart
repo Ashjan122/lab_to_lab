@@ -549,7 +549,7 @@ class _LabUsersScreenState extends State<LabUsersScreen> {
             ),
           ],
         ),
-        body:Container(
+        body:SafeArea(child:  Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
@@ -668,7 +668,7 @@ class _LabUsersScreenState extends State<LabUsersScreen> {
             ),
           ],
         ),
-      ),),
+      ),),),
     );
   }
 }

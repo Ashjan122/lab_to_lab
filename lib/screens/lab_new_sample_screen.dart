@@ -279,7 +279,7 @@ class _LabNewSampleScreenState extends State<LabNewSampleScreen> {
           backgroundColor: const Color(0xFF673AB7),
           centerTitle: true,
         ),
-        body: Container(
+        body:SafeArea(child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
@@ -391,7 +391,7 @@ if (v == null || v.trim().isEmpty) {
               ),
             ),
           ),
-        ),
+        ),),
       ),
     );
   }

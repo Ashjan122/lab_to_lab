@@ -50,6 +50,11 @@ class _LabPriceListScreenState extends State<LabPriceListScreen> with TickerProv
     }
     return _animationControllers[testId]!;
   }
+
+  String _formatPrice(num price) {
+    final str = price.toStringAsFixed(0);
+    return str.replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => ',');
+  }
   Future<void> _editPriceDialog(String docId, String testName, num currentPrice) async {
     _priceEditController.text = currentPrice.toString();
     await showDialog(
@@ -301,7 +306,7 @@ class _LabPriceListScreenState extends State<LabPriceListScreen> with TickerProv
                             Card(
                               color:
                                   isUnavailable
-                                      ? Colors.grey.withOpacity(0.3)
+                                      ? Colors.grey[100]!.withOpacity(0.5)
                                       : null,
                               child: ListTile(
                                 title: Row(
@@ -311,7 +316,7 @@ class _LabPriceListScreenState extends State<LabPriceListScreen> with TickerProv
                                     Row(
                                       children: [
                                         Text(
-                                          '${price.toString()} ',
+                                          '${_formatPrice(price is num ? price : num.tryParse('$price') ?? 0)} ',
                                           style: const TextStyle(
                                             fontWeight: FontWeight.bold,
                                             color: Colors.black,
@@ -392,6 +397,7 @@ class _LabPriceListScreenState extends State<LabPriceListScreen> with TickerProv
                                           style: TextStyle(
                                             color: Colors.red,
                                             fontSize: 12,
+                                            
                                           ),
                                         ),
                                       ),

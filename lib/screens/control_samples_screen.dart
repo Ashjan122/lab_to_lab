@@ -173,7 +173,7 @@ class _ControlSamplesScreenState extends State<ControlSamplesScreen> {
             ),
           ],
         ),
-        body: Column(
+        body:SafeArea(child:  Column(
           children: [
             // عرض التاريخ
             Container(
@@ -470,7 +470,7 @@ class _ControlSamplesScreenState extends State<ControlSamplesScreen> {
             ),
           ],
         ),
-      ),
+      ),),
     );
   }
 }

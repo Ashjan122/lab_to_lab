@@ -5,7 +5,11 @@ import 'package:lab_to_lab_admin/screens/lab_price_list_screen.dart';
 class ControlLabInfoScreen extends StatefulWidget {
   final String labId;
   final String labName;
-  const ControlLabInfoScreen({super.key, required this.labId, required this.labName});
+  const ControlLabInfoScreen({
+    super.key,
+    required this.labId,
+    required this.labName,
+  });
 
   @override
   State<ControlLabInfoScreen> createState() => _ControlLabInfoScreenState();
@@ -21,8 +25,7 @@ class _ControlLabInfoScreenState extends State<ControlLabInfoScreen> {
   String _contractType = 'prepaid';
   bool _loading = true;
   final TextEditingController _password = TextEditingController();
-bool _obscurePassword = true;
-
+  bool _obscurePassword = true;
 
   @override
   void initState() {
@@ -32,7 +35,11 @@ bool _obscurePassword = true;
 
   Future<void> _load() async {
     try {
-      final doc = await FirebaseFirestore.instance.collection('labToLap').doc(widget.labId).get();
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('labToLap')
+              .doc(widget.labId)
+              .get();
       final data = doc.data() ?? {};
       _name.text = data['name']?.toString() ?? widget.labName;
       _address.text = data['address']?.toString() ?? '';
@@ -45,49 +52,48 @@ bool _obscurePassword = true;
   }
 
   Future<void> _save() async {
-  if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) return;
 
-  try {
-    final updateData = {
-      'name': _name.text.trim(),
-      'address': _address.text.trim(),
-      'phone': _phone.text.trim(),
-      'whatsApp': _whats.text.trim(),
-      'order': int.tryParse(_order.text.trim()),
-      'contractType': _contractType,
-    };
+    try {
+      final updateData = {
+        'name': _name.text.trim(),
+        'address': _address.text.trim(),
+        'phone': _phone.text.trim(),
+        'whatsApp': _whats.text.trim(),
+        'order': int.tryParse(_order.text.trim()),
+        'contractType': _contractType,
+      };
 
-    // ✅ حفظ كلمة المرور فقط إذا المستخدم كتب كلمة جديدة
-    if (_password.text.isNotEmpty) {
-      updateData['password'] = _password.text.trim();
-    }
+      // ✅ حفظ كلمة المرور فقط إذا المستخدم كتب كلمة جديدة
+      if (_password.text.isNotEmpty) {
+        updateData['password'] = _password.text.trim();
+      }
 
-    await FirebaseFirestore.instance
-        .collection('labToLap')
-        .doc(widget.labId)
-        .update(updateData);
+      await FirebaseFirestore.instance
+          .collection('labToLap')
+          .doc(widget.labId)
+          .update(updateData);
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('تم حفظ البيانات بنجاح'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      _password.clear();
-    }
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('حدث خطأ أثناء الحفظ: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم حفظ البيانات بنجاح'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _password.clear();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('حدث خطأ أثناء الحفظ: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
@@ -97,103 +103,134 @@ bool _obscurePassword = true;
         appBar: AppBar(
           title: Text(
             'بيانات المعمل - ${widget.labName}',
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           backgroundColor: const Color(0xFF673AB7),
           centerTitle: true,
         ),
-        body: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : SafeArea(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        TextFormField(
-                          controller: _name,
-                          decoration: const InputDecoration(labelText: 'اسم المعمل', border: OutlineInputBorder()),
-                          validator: (v) => (v == null || v.trim().isEmpty) ? 'أدخل الاسم' : null,
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _address,
-                          decoration: const InputDecoration(labelText: 'العنوان', border: OutlineInputBorder()),
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _phone,
-                          decoration: const InputDecoration(labelText: 'الهاتف', border: OutlineInputBorder()),
-                          keyboardType: TextInputType.phone,
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _whats,
-                          decoration: const InputDecoration(labelText: 'واتساب', border: OutlineInputBorder()),
-                          keyboardType: TextInputType.phone,
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _order,
-                          decoration: const InputDecoration(labelText: 'الترتيب', border: OutlineInputBorder()),
-                          keyboardType: TextInputType.number,
-                        ),
-                        const SizedBox(height: 16),
-
-
-TextFormField(
-  controller: _password,
-  obscureText: _obscurePassword,
-  decoration: InputDecoration(
-    labelText: 'تغيير كلمة المرور ',
-    border: const OutlineInputBorder(),
-    suffixIcon: IconButton(
-      icon: Icon(
-        _obscurePassword ? Icons.visibility_off : Icons.visibility,
-      ),
-      onPressed: () => setState(() {
-        _obscurePassword = !_obscurePassword;
-      }),
-    ),
-  ),
-),
-
-                        const SizedBox(height: 16),
-                        const Text('نوع التعاقد', style: TextStyle(fontWeight: FontWeight.bold)),
-                        Row(
-                          children: [
-                            Radio<String>(
-                              value: 'prepaid',
-                              groupValue: _contractType,
-                              onChanged: (v) => setState(() => _contractType = v!),
+        body:
+            _loading
+                ? const Center(child: CircularProgressIndicator())
+                : SafeArea(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          TextFormField(
+                            controller: _name,
+                            decoration: const InputDecoration(
+                              labelText: 'اسم المعمل',
+                              border: OutlineInputBorder(),
                             ),
-                            const Text('Prepaid'),
-                            const SizedBox(width: 16),
-                            Radio<String>(
-                              value: 'postpaid',
-                              groupValue: _contractType,
-                              onChanged: (v) => setState(() => _contractType = v!),
+                            validator:
+                                (v) =>
+                                    (v == null || v.trim().isEmpty)
+                                        ? 'أدخل الاسم'
+                                        : null,
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _address,
+                            decoration: const InputDecoration(
+                              labelText: 'العنوان',
+                              border: OutlineInputBorder(),
                             ),
-                            const Text('Postpaid'),
-                          ],
-                        ),
-                        
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _save,
-                          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF673AB7), foregroundColor: Colors.white),
-                          child: const Text('حفظ'),
-                        ),
-                      ],
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _phone,
+                            decoration: const InputDecoration(
+                              labelText: 'الهاتف',
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: TextInputType.phone,
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _whats,
+                            decoration: const InputDecoration(
+                              labelText: 'واتساب',
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: TextInputType.phone,
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _order,
+                            decoration: const InputDecoration(
+                              labelText: 'الترتيب',
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                          const SizedBox(height: 16),
+
+                          TextFormField(
+                            controller: _password,
+                            obscureText: _obscurePassword,
+                            decoration: InputDecoration(
+                              labelText: 'تغيير كلمة المرور ',
+                              border: const OutlineInputBorder(),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                ),
+                                onPressed:
+                                    () => setState(() {
+                                      _obscurePassword = !_obscurePassword;
+                                    }),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 16),
+                          const Text(
+                            'نوع التعاقد',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          Row(
+                            children: [
+                              Radio<String>(
+                                value: 'prepaid',
+                                groupValue: _contractType,
+                                onChanged:
+                                    (v) => setState(() => _contractType = v!),
+                              ),
+                              const Text('Prepaid'),
+                              const SizedBox(width: 16),
+                              Radio<String>(
+                                value: 'postpaid',
+                                groupValue: _contractType,
+                                onChanged:
+                                    (v) => setState(() => _contractType = v!),
+                              ),
+                              const Text('Postpaid'),
+                            ],
+                          ),
+
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: _save,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF673AB7),
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('حفظ'),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
       ),
     );
   }
 }
-
-

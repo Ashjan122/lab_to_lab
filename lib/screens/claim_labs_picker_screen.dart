@@ -16,7 +16,7 @@ class ClaimLabsPickerScreen extends StatelessWidget {
           backgroundColor: const Color(0xFF673AB7),
           centerTitle: true,
         ),
-        body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        body:SafeArea(child:  StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
           stream: col.snapshots(),
           builder: (context, snap) {
             if (snap.hasError) return Center(child: Text('خطأ: ${snap.error}'));
@@ -51,7 +51,7 @@ class ClaimLabsPickerScreen extends StatelessWidget {
               },
             );
           },
-        ),
+        ),),
       ),
     );
   }

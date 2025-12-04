@@ -681,7 +681,7 @@ ListTile(
   ),
 ),
 
-      body: Container(
+      body:SafeArea(child: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
             image: AssetImage('assets/images/image.png'),
@@ -764,7 +764,7 @@ ListTile(
           ],
         ),
       ),
-    )
+    ),),
     );
   }
 }

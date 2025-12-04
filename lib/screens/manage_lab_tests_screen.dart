@@ -89,7 +89,7 @@ class _ManageLabTestsScreenState extends State<ManageLabTestsScreen> {
           ],
         ),
 
-        body: Column(
+        body:SafeArea(child:  Column(
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -216,7 +216,7 @@ class _ManageLabTestsScreenState extends State<ManageLabTestsScreen> {
             ),
           ],
         ),
-      ),
+      ),),
     );
   }
 }

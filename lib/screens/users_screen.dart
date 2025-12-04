@@ -164,7 +164,7 @@ class _UsersScreenState extends State<UsersScreen> {
             ),
           ],
         ),
-        body: Column(
+        body:SafeArea(child:  Column(
           children: [
             const TabBar(
               indicatorColor: Color(0xFF673AB7),
@@ -190,7 +190,7 @@ class _UsersScreenState extends State<UsersScreen> {
               ),
             ),
           ],
-        ),
+        ),),
       ),
     ),
     );

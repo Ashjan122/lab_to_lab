@@ -213,7 +213,7 @@ class _RegisterLabScreenState extends State<RegisterLabScreen> {
     const String sender = 'Jawda';
 
     final String message =
-        'مرحبا بك $labName في خدمة Lab To Lab مع مركز الرومي الطبي\nسيتم اخطارك عند اعتماد التعاقد ورفع قائمة الاسعار';
+        'مرحبا بك $labName في خدمة Lab To Lab مع مختبر الرومي الطبي\nسيتم اخطارك عند اعتماد التعاقد ورفع قائمة الاسعار';
 
     final String encodedText = Uri.encodeComponent(message);
     final String encodedSender = Uri.encodeComponent(sender);

@@ -319,7 +319,7 @@ class _LabToLabState extends State<LabToLab> {
           actions: const [],
         ),
         resizeToAvoidBottomInset: true,
-        body: Column(
+        body:SafeArea(child:  Column(
           children: [
             // Search bar by lab name
             Padding(
@@ -464,7 +464,7 @@ class _LabToLabState extends State<LabToLab> {
                ),),
              ),
           ],
-        ),
+        ),),
         ),
       ),
     );

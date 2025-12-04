@@ -194,7 +194,7 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
             ),
           ],
         ),
-        body: Container(
+        body:SafeArea(child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
@@ -456,7 +456,7 @@ class _LabResultsPatientsScreenState extends State<LabResultsPatientsScreen> {
           ),
         ),
         ),
-      ),
+      ),),
     );
   }
 }

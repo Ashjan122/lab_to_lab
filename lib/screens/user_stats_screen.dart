@@ -61,7 +61,7 @@ class UserStatsScreen extends StatelessWidget {
               unselectedLabelColor: Colors.black,
             ),
           ),
-          body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          body:SafeArea(child:  StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             stream:
                 usersCol.where('userType', isEqualTo: 'labUser').snapshots(),
             builder: (context, snap) {
@@ -160,7 +160,7 @@ class UserStatsScreen extends StatelessWidget {
               );
             },
           ),
-        ),
+        ),),
       ),
     );
   }

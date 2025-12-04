@@ -81,7 +81,7 @@ class LabDatailsDashbord extends StatelessWidget {
           backgroundColor: const Color(0xFF673AB7),
           centerTitle: true,
         ),
-        body: Container(
+        body:SafeArea(child:  Container(
          
           child: Padding(
             padding: const EdgeInsets.all(8.0),
@@ -109,7 +109,7 @@ class LabDatailsDashbord extends StatelessWidget {
               ],
             ),
           ),
-        ),
+        ),),
       ),);
   }
 }
