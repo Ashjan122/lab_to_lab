@@ -1,16 +1,14 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:lab_to_lab_admin/screens/lab_datails_dashbord.dart';
-import 'package:lab_to_lab_admin/screens/lab_info_screen.dart';
-import 'package:lab_to_lab_admin/screens/control_lab_info_screen.dart';
-import 'package:lab_to_lab_admin/screens/manage_lab_tests_screen.dart';
-import 'dart:io';
-import 'package:path/path.dart' as path;
-import 'package:lab_to_lab_admin/screens/lab_dashboard_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lab_to_lab_admin/screens/control_panal_screen.dart';
+import 'package:lab_to_lab_admin/screens/global_price_manager_screen.dart';
+import 'package:lab_to_lab_admin/screens/lab_datails_dashbord.dart';
+import 'package:path/path.dart' as path;
+import 'package:shared_preferences/shared_preferences.dart';
 // ignore_for_file: unused_field, unused_element
 
 const Color kLabPrimary = Color(0xFF673AB7);
@@ -153,16 +151,16 @@ class _LabToLabState extends State<LabToLab> {
           .collection('labToLap')
           .doc(_editingLabId)
           .update({
-        'name': _nameController.text.trim(),
-        'address': _addressController.text.trim(),
-        'phone': _phoneController.text.trim(),
-        'whatsApp': _whatsAppController.text.trim(),
-        'password': _passwordController.text.trim(),
-        'order': newOrder,
+            'name': _nameController.text.trim(),
+            'address': _addressController.text.trim(),
+            'phone': _phoneController.text.trim(),
+            'whatsApp': _whatsAppController.text.trim(),
+            'password': _passwordController.text.trim(),
+            'order': newOrder,
             'imageUrl':
                 _selectedImageUrl.isNotEmpty ? _selectedImageUrl : currentImage,
             'contractType': _selectedContractType,
-      });
+          });
       _clearForm();
       if (mounted) {
         setState(() {
@@ -271,10 +269,10 @@ class _LabToLabState extends State<LabToLab> {
     return list;
   }
 
-   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
   String _searchQuery = '';
-  
+
   @override
   Widget build(BuildContext context) {
     return Directionality(
@@ -298,173 +296,198 @@ class _LabToLabState extends State<LabToLab> {
               ),
             ),
             backgroundColor: const Color(0xFF673AB7),
-          centerTitle: true,
-          leading: FutureBuilder<bool>(
-            future: _shouldShowBackToControl(),
-            builder: (context, snapshot) {
-              final show = snapshot.data == true;
-              if (!show) return const SizedBox.shrink();
-              return IconButton(
-                tooltip: 'الرجوع للكنترول',
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () {
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (_) => ControlPanalScreen()),
-                    (route) => false,
+            centerTitle: true,
+            leading: FutureBuilder<bool>(
+              future: _shouldShowBackToControl(),
+              builder: (context, snapshot) {
+                final show = snapshot.data == true;
+                if (!show) return const SizedBox.shrink();
+                return IconButton(
+                  tooltip: 'الرجوع للكنترول',
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  onPressed: () {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => ControlPanalScreen()),
+                      (route) => false,
+                    );
+                  },
+                );
+              },
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.price_check, color: Colors.white),
+                tooltip: 'تحديث الأسعار في كل المعامل',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const GlobalPriceManagerScreen(),
+                    ),
                   );
                 },
-              );
-            },
+              ),
+            ],
           ),
-          actions: const [],
-        ),
-        resizeToAvoidBottomInset: true,
-        body:SafeArea(child:  Column(
-          children: [
-            // Search bar by lab name
-            Padding(
-                    padding: const EdgeInsets.all(16.0),
-              child: TextField(
-                controller: _searchController,
-                onChanged: (value) {
-                                      setState(() {
-                    _searchQuery = value.trim().toLowerCase();
-                  });
-                },
-                decoration: InputDecoration(
-                  hintText: 'البحث باسم المعمل...',
-                  prefixIcon: const Icon(Icons.search),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  filled: true,
-                  fillColor: Colors.grey[100],
+          resizeToAvoidBottomInset: true,
+          body: SafeArea(
+            child: Column(
+              children: [
+                // Search bar by lab name
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value.trim().toLowerCase();
+                      });
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'البحث باسم المعمل...',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
                       ),
+                      filled: true,
+                      fillColor: Colors.grey[100],
                     ),
                   ),
+                ),
 
-              Expanded(
-                child:  RefreshIndicator(
-    onRefresh: () async {
-      // هنا نجعل Firestore يعيد جلب البيانات
-      // بما أننا نستخدم StreamBuilder، يمكننا فقط عمل setState لإعادة البناء
-      setState(() {});
-    },
-    child: StreamBuilder<QuerySnapshot>(
-                  stream:
-                      FirebaseFirestore.instance
-                          .collection('labToLap')
-                          .snapshots(),
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return Center(child: Text('خطأ: ${snapshot.error}'));
-                  }
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  final docs = _sortAndFilter(snapshot.data?.docs ?? []);
-                    final filtered =
-                        docs.where((d) {
-                    try {
-                      final data = d.data() as Map<String, dynamic>;
-                            final name =
-                                (data['name']?.toString() ?? '').toLowerCase();
-                      if (_searchQuery.isEmpty) return true;
-                      return name.contains(_searchQuery);
-                    } catch (_) {
-                      return true;
-                    }
-                  }).toList();
-                  if (filtered.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                            const Icon(
-                              Icons.science,
-                              size: 64,
-                              color: Colors.grey,
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: () async {
+                      // هنا نجعل Firestore يعيد جلب البيانات
+                      // بما أننا نستخدم StreamBuilder، يمكننا فقط عمل setState لإعادة البناء
+                      setState(() {});
+                    },
+                    child: StreamBuilder<QuerySnapshot>(
+                      stream:
+                          FirebaseFirestore.instance
+                              .collection('labToLap')
+                              .snapshots(),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasError) {
+                          return Center(child: Text('خطأ: ${snapshot.error}'));
+                        }
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        }
+                        final docs = _sortAndFilter(snapshot.data?.docs ?? []);
+                        final filtered =
+                            docs.where((d) {
+                              try {
+                                final data = d.data() as Map<String, dynamic>;
+                                final name =
+                                    (data['name']?.toString() ?? '')
+                                        .toLowerCase();
+                                if (_searchQuery.isEmpty) return true;
+                                return name.contains(_searchQuery);
+                              } catch (_) {
+                                return true;
+                              }
+                            }).toList();
+                        if (filtered.isEmpty) {
+                          return Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.science,
+                                  size: 64,
+                                  color: Colors.grey,
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  _searchQuery.isEmpty
+                                      ? 'لا توجد معامل مضافة بعد'
+                                      : 'لا توجد نتائج للبحث',
+                                  style: const TextStyle(color: Colors.grey),
+                                ),
+                              ],
                             ),
-                          const SizedBox(height: 12),
-                          Text(
-                              _searchQuery.isEmpty
-                                  ? 'لا توجد معامل مضافة بعد'
-                                  : 'لا توجد نتائج للبحث',
-                            style: const TextStyle(color: Colors.grey),
+                          );
+                        }
+                        return ListView.builder(
+                          itemCount: filtered.length,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
                           ),
-                        ],
-                      ),
-                    );
-                  }
-                   return ListView.builder(
-                    itemCount: filtered.length,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                    itemBuilder: (context, index) {
-                      final d = filtered[index];
-                      final data = d.data() as Map<String, dynamic>;
-                      final name = data['name']?.toString() ?? '';
-                      final address = data['address']?.toString() ?? '';
-                      final phone = data['phone']?.toString() ?? '';
-                      final whats = data['whatsApp']?.toString() ?? '';
-                      final available = data['available'] as bool? ?? false;
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          leading: Container
-                            (
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              border: Border.all(
-                                color: kLabPrimary,
-                                width: 2,
-                              ),
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                            child: Center(
-                              child: Text(
-                                '${index + 1}',
-                                style: const TextStyle(
+                          itemBuilder: (context, index) {
+                            final d = filtered[index];
+                            final data = d.data() as Map<String, dynamic>;
+                            final name = data['name']?.toString() ?? '';
+                            final address = data['address']?.toString() ?? '';
+                            final phone = data['phone']?.toString() ?? '';
+                            final whats = data['whatsApp']?.toString() ?? '';
+                            final available =
+                                data['available'] as bool? ?? false;
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              child: ListTile(
+                                leading: Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    border: Border.all(
+                                      color: kLabPrimary,
+                                      width: 2,
+                                    ),
+                                    borderRadius: BorderRadius.circular(18),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      '${index + 1}',
+                                      style: const TextStyle(
+                                        color: kLabPrimary,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                title: Text(
+                                  name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 20,
+                                  ),
+                                ),
+
+                                trailing: const Icon(
+                                  Icons.arrow_forward_ios,
+                                  size: 16,
                                   color: kLabPrimary,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
                                 ),
-                              ),
-                            ),
-                          ),
-                          title: Text(
-                            name,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
-                            ),
-                          ),
-                          
-                          trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: kLabPrimary),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => LabDatailsDashbord(
-                                  labId: d.id,
-                                  labName: name,
-                                ),
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder:
+                                          (context) => LabDatailsDashbord(
+                                            labId: d.id,
+                                            labName: name,
+                                          ),
+                                    ),
+                                  );
+                                },
                               ),
                             );
                           },
-                        ),
-                      );
-                    },
-                   );
-                 },
-               ),),
-             ),
-          ],
-        ),),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

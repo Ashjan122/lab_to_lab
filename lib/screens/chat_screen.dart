@@ -43,7 +43,7 @@ class _ChatScreenState extends State<ChatScreen> {
       // شغل صوت النقر من ملف الأصول
       await _audioPlayer.play(AssetSource('sounds/mouse-click-104737.mp3'));
     } catch (e) {
-      // في حال حدوث خطأ في تشغيل الصوت، لا تفعل شيء
+     
     }
   }
 
